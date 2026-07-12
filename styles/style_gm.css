@@ -1,0 +1,314 @@
+.navbar {
+    display: flex;
+    flex-direction: column; /* Zawartość poniżej guzików */
+    align-items: flex-start; /* Wyrównanie wszystkiego do lewej */
+    gap: 10px;
+    padding: 10px;
+    background-color: #333;
+    color: white;
+    position: fixed;
+    top: -50px;
+    left: 0;
+    right: 0;
+    transition: top 0.3s ease;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.navbar:hover {
+    top: 0;
+}
+
+/* Funkcyjne guziki w jednym wierszu, wyrównane do lewej */
+.navbar .buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start; /* Wyrównanie guzików do lewej */
+    flex-wrap: wrap; /* Zawijanie, jeśli za mało miejsca */
+}
+
+/* Lista muzyki */
+.music-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin-top: 10px;
+    align-items: flex-start;
+}
+
+/* Każdy element listy muzyki */
+.music-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background-color: #f4f4f9;
+    padding: 5px 10px 5px 1px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Styl dla nazw utworów */
+.music-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Przycisk odtwarzania */
+.music-item button {
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.music-item button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.navbarButtons button {
+    background-color: #007bff;
+    border: none;
+    color: white;
+    padding: 10px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.navbarButtons button:hover {
+    background-color: #0056b3;
+}
+
+/* Podstawowe stylowanie paska */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: -15.5%; /* Ukryj pasek poza ekranem */
+    width: 16%;
+    height: 100%;
+    background-color: #333;
+    color: #fff;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+    transition: right 0.3s ease;
+    z-index: 1001;
+}
+
+.sidebar.hidden {
+    display: none;
+}
+
+/* Gdy pasek jest wysunięty */
+.sidebar.visible {
+    right: -1px; /* inaczej jakis dziwny bialy paseczek sie robi po prawej. Nie wiem, nie rozumiem */
+}
+
+/* Lista kolejności */
+.sidebar-content {
+    padding: 10px;
+    overflow-y: auto;
+    max-height: calc(100% - 50px);
+    font-size: 15px;
+    text-align: left;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between; /* Rozdziela elementy na boki */
+    align-items: flex-end;
+    padding: 10px;
+    background-color: #444;
+    border-bottom: 1px solid #555;
+}
+
+.sidebar-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    margin-right: auto; /* Ustaw tekst po lewej stronie */
+}
+
+.sidebar-header button {
+    background-color: transparent;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.sidebar-header button.locked {
+    color: red; /* Zmiana koloru, gdy pasek jest zablokowany */
+}
+
+.sidebar-content h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.sidebar-content ol {
+    padding-left: 20px; 
+    margin: 0;
+}
+
+.sidebar-content li {
+    margin-bottom: 5px;
+}
+
+.active-row {
+    color: #66daff;
+}
+
+/* Stany w sidebarze */
+.sidebar-conditions {
+    padding: 10px;
+    background-color: #222;
+    border-top: 1px solid #555;
+    color: white;
+    max-height: calc(50% - 50px);
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+}
+
+.sidebar-conditions h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+/* Układ dla stanów */
+.condition-item {
+    display: flex;
+    flex-direction: column;
+    background-color: #444;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.condition-top-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 5px;
+    gap: 5px;
+    position: relative;
+}
+
+.condition-target {
+    width: 60%;
+    padding: 5px;
+    font-size: 14px;
+    color: black;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+
+.condition-duration {
+    width: 8px;
+    font-size: 14px;
+    text-align: center;
+    background: #dc3545;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: white;
+}
+
+.copy-condition {
+    font-size: 14px;
+    background: #007bff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: white;
+}
+
+.remove-condition {
+    background: none;
+    color: red;
+    border: none;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0px;
+}
+
+.condition-bottom-row {
+    font-size: 14px;
+    color: white;
+    margin-top: 5px;
+}
+
+/* .character:hover { transform: scale(1.05); z-index: 1002;} */
+
+/* Styl grupy przycisków do dodawania postaci*/
+.button-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.enemies-group {
+    margin: 10px 0px 20px 0px; /* Na górze chcemy mniejszy margines, bo strona już ma swój własny i tak */
+}
+
+.add-button {
+    cursor: pointer;
+    color: #fff;
+    background-color: #007bff;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+.add-button:hover {
+    background-color: #0056b3;
+}
+
+.button-like-select {
+    appearance: none;
+    background-color: #007bff;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    min-width: 100px;
+}
+
+.button-like-select:hover {
+    background-color: #0056b3;
+}
+
+.button-like-select option {
+    color: #333;
+    background-color: white;
+}
+
+/* Styl wykrzyknika od stanow*/
+.exclamation-mark {
+    position: absolute;
+    right: 15px;
+    font-size: 35px;
+    color: red;
+    pointer-events: none;
+}
+
+.exclamation-mark-condition {
+    position: absolute;
+    left: 67%;
+    top: -45%;
+    font-size: 35px;
+    color: red;
+    pointer-events: none;
+}
