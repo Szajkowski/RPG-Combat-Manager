@@ -58,10 +58,10 @@ async function copyInputValue(input) {
     try {
         // Write text to clipboard
         await navigator.clipboard.writeText(input.value);
-        showNotification(`Skopiowano: ${input.value}`);
+        showNotification(`${t('copied')} ${input.value}`);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification("Błąd kopiowania!");
+        showNotification(t('copy_error'));
     }
 }
 
@@ -70,10 +70,10 @@ async function copyToClipboard(value) {
         if (typeof value === "number") await navigator.clipboard.writeText(value.toString());
         else await navigator.clipboard.writeText(value);
 
-        showNotification(`Skopiowano: ${value}`);
+        showNotification(`${t('copied')} ${value}`);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification("Błąd kopiowania!");
+        showNotification(t('copy_error'));
     }
 }
 
@@ -88,10 +88,10 @@ async function pasteClipboardToInput(input, event) {
         await updateConditionTarget(input);
 
         // Without passing the event, something messes up due to await
-        showNotification(`Wklejono: ${clipboardText}`, event); 
+        showNotification(`${t('pasted')} ${clipboardText}`, event);
     } catch (err) {
         console.error("Failed to read clipboard contents: ", err);
-        showNotification("Błąd wklejania z domyślnego schowka!");
+        showNotification(t('paste_error'));
     }
 }
 
@@ -123,7 +123,7 @@ function showNotification(message, event = null) {
     }, 1200);
 }
 
-window.isAudioMuted = localStorage.getItem('Muted') === 'true';
+window.isAudioMuted = localStorage.getItem('CombatManager-Muted') === 'true';
 
 function playSoundEffect(src, volume = 0.5) {
     if (window.isAudioMuted) return null;

@@ -63,7 +63,7 @@ function addCharacter(type, team, stats = {}, image = null) {
     
     characterContent += `
         <span class="remove-button" onclick="removeCharacter(this)">✖</span>
-        <div class="stat"><strong>Nazwa:</strong> <input type="text" onclick="copyInputValue(this)" value="${uniqueName || ''}"></div>
+        <div class="stat"><strong>${t('name')}:</strong> <input type="text" onclick="copyInputValue(this)" value="${uniqueName || ''}"></div>
         ${getCharacterStats(finalStats, type)}
         <div class="character-buttons">
             ${getCharacterButtons(finalStats, type)}
@@ -201,7 +201,7 @@ function getCharacterStats(stats = {}, type) {
     let characterStats = `
     <div class="character-content">
         <div class="bar-container"><div class="bar hp-bar"></div></div>
-        <div class="stat">Zdrowie:
+        <div class="stat">${t('health')}:
             <div class="health-container">
                 <input type="number" class="current-hp" oninput="updateHpBar(this)" value="${stats.hp ?? ''}"> / 
                 <input type="number" class="max-hp" oninput="updateHpBar(this)" value="${stats.maxHp ?? ''}">
@@ -209,67 +209,67 @@ function getCharacterStats(stats = {}, type) {
         </div>
         ${getDamageControls()}
 
-        <div class="stat"><span class="stat-label">Żywotność:</span> 
-            <input type="number" class="stat-value vitality" placeholder="Wartość" value="${stats.vitality ?? ''}">
-            <input class="mod-value vitality" placeholder="mod" value="${stats.vitalityMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('vitality')}:</span> 
+            <input type="number" class="stat-value vitality" placeholder="${t('value')}" value="${stats.vitality ?? ''}">
+            <input class="mod-value vitality" placeholder="${t('mod')}" value="${stats.vitalityMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'vitality')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Intuicja:</span> 
-            <input type="number" class="stat-value intuition" placeholder="Wartość" value="${stats.intuition ?? ''}">
-            <input class="mod-value intuition" placeholder="mod" value="${stats.intuitionMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('intuition')}:</span> 
+            <input type="number" class="stat-value intuition" placeholder="${t('value')}" value="${stats.intuition ?? ''}">
+            <input class="mod-value intuition" placeholder="${t('mod')}" value="${stats.intuitionMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'intuition')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Siła:</span> 
-            <input type="number" class="stat-value strength" placeholder="Wartość" value="${stats.strength ?? ''}">
-            <input class="mod-value strength" placeholder="mod" value="${stats.strengthMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('strength')}:</span> 
+            <input type="number" class="stat-value strength" placeholder="${t('value')}" value="${stats.strength ?? ''}">
+            <input class="mod-value strength" placeholder="${t('mod')}" value="${stats.strengthMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'strength')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Zwinność:</span> 
-            <input type="number" class="stat-value agility" placeholder="Wartość" value="${stats.agility ?? ''}">
-            <input class="mod-value agility" placeholder="mod" value="${stats.agilityMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('agility')}:</span> 
+            <input type="number" class="stat-value agility" placeholder="${t('value')}" value="${stats.agility ?? ''}">
+            <input class="mod-value agility" placeholder="${t('mod')}" value="${stats.agilityMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'agility')">🎲</button>
         </div>`;
 
     if (stats.attunement || type === "adventurer") {
         characterStats += `
-        <div class="stat"><span class="stat-label">Dostrojenie:</span> 
-            <input type="number" class="stat-value attunement" placeholder="Wartość" value="${stats.attunement ?? ''}">
-            <input class="mod-value attunement" placeholder="mod" value="${stats.attunementMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('attunement')}:</span> 
+            <input type="number" class="stat-value attunement" placeholder="${t('value')}" value="${stats.attunement ?? ''}">
+            <input class="mod-value attunement" placeholder="${t('mod')}" value="${stats.attunementMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'attunement')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Percepcja:</span> 
-            <input type="number" class="stat-value perception" placeholder="Wartość" value="${stats.perception ?? ''}">
-            <input class="mod-value perception" placeholder="mod" value="${stats.perceptionMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('perception')}:</span> 
+            <input type="number" class="stat-value perception" placeholder="${t('value')}" value="${stats.perception ?? ''}">
+            <input class="mod-value perception" placeholder="${t('mod')}" value="${stats.perceptionMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'perception')">🎲</button>
         </div>`;
     }
 
     characterStats += `
-        <div class="stat"><span class="stat-label">Celność:</span> 
-            <input type="number" class="stat-value accuracy" placeholder="Wartość" value="${stats.accuracy ?? ''}">
-            <input class="mod-value accuracy" placeholder="mod" value="${stats.accuracyMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('accuracy')}:</span> 
+            <input type="number" class="stat-value accuracy" placeholder="${t('value')}" value="${stats.accuracy ?? ''}">
+            <input class="mod-value accuracy" placeholder="${t('mod')}" value="${stats.accuracyMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'accuracy')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Refleks:</span> 
-            <input type="number" class="stat-value reflex" placeholder="Wartość" value="${stats.reflex ?? ''}">
-            <input class="mod-value reflex" placeholder="mod" value="${stats.reflexMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('reflex')}:</span> 
+            <input type="number" class="stat-value reflex" placeholder="${t('value')}" value="${stats.reflex ?? ''}">
+            <input class="mod-value reflex" placeholder="${t('mod')}" value="${stats.reflexMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'reflex')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Nieustępliwość:</span> 
-            <input type="number" class="stat-value resilience" placeholder="Wartość" value="${stats.resilience ?? ''}">
-            <input class="mod-value resilience" placeholder="mod" value="${stats.resilienceMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('resilience')}:</span> 
+            <input type="number" class="stat-value resilience" placeholder="${t('value')}" value="${stats.resilience ?? ''}">
+            <input class="mod-value resilience" placeholder="${t('mod')}" value="${stats.resilienceMod ?? ''}">
             <button class="dice" onclick="rollDice(this, 'resilience')">🎲</button>
         </div>
-        <div class="stat"><span class="stat-label">Obrażenia:</span>
-            <input class="stat-value damage" onclick="copyInputValue(this)" placeholder="Wartość" value="${stats.damage ?? ''}">
+        <div class="stat"><span class="stat-label">${t('damage')}:</span>
+            <input class="stat-value damage" onclick="copyInputValue(this)" placeholder="${t('value')}" value="${stats.damage ?? ''}">
         </div>
-        <div class="stat"><span class="stat-label">Pancerz fizyczny:</span>
-            <input type="number" class="stat-value physArmor" placeholder="Wartość" value="${stats.physArmor ?? ''}">
-            <input class="mod-value physArmor" placeholder="proc" value="${stats.physArmorMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('phys_armor')}:</span>
+            <input type="number" class="stat-value physArmor" placeholder="${t('value')}" value="${stats.physArmor ?? ''}">
+            <input class="mod-value physArmor" placeholder="${t('proc')}" value="${stats.physArmorMod ?? ''}">
         </div>
-        <div class="stat"><span class="stat-label">Pancerz magiczny:</span>
-            <input type="number" class="stat-value magArmor" placeholder="Wartość" value="${stats.magArmor ?? ''}">
-            <input class="mod-value magArmor" placeholder="proc" value="${stats.magArmorMod ?? ''}">
+        <div class="stat"><span class="stat-label">${t('mag_armor')}:</span>
+            <input type="number" class="stat-value magArmor" placeholder="${t('value')}" value="${stats.magArmor ?? ''}">
+            <input class="mod-value magArmor" placeholder="${t('proc')}" value="${stats.magArmorMod ?? ''}">
         </div>
     </div>`;
 
@@ -279,20 +279,20 @@ function getCharacterStats(stats = {}, type) {
 function getDamageControls() {
     return `
         <div class="damage-controls">
-            <input class="damage-input" placeholder="Obrażenia" >
+            <input class="damage-input" placeholder="${t('damage')}" >
             <button class="damage-controls-btn" onclick="applyDamage(this, 'phys')">⚒️</button>
             <button class="damage-controls-btn" onclick="applyDamage(this, 'mag')">🔮</button>
             <button class="damage-controls-btn" onclick="applyDamage(this, 'pierce')">🔪</button>
         </div>
         <div class="damage-controls">
-            <input class="heal-input" placeholder="Leczenie" >
+            <input class="heal-input" placeholder="${t('heal')}" >
             <button class="damage-controls-btn" onclick="healDamage(this, 'single')">❤️</button>
             <button class="damage-controls-btn" onclick="healDamage(this, 'threshold')">💝</button>
             <button class="damage-controls-btn" onclick="healDamage(this, 'group')">💕</button>
         </div>
         <div class="damage-controls">
             <button class="armor-toggle-btn" onclick="toggleArmorMode(this)">+</button>
-            <input class="armor-input" placeholder="Pancerz">
+            <input class="armor-input" placeholder="${t('armor')}">
             <button class="damage-controls-btn" onclick="changeArmor(this, 'phys')">🛡️</button>
             <button class="damage-controls-btn" onclick="changeArmor(this, 'mag')">✨</button>
         </div>
@@ -341,7 +341,7 @@ async function removeCharacter(button) {
     const sidebar = document.getElementById('Sidebar');
     const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
     if (sidebar && sidebarConditions.style.display === 'flex') {
-        sidebarConditions.innerHTML = `<h3>Stany</h3>`;
+        sidebarConditions.innerHTML = `<h3>${t('conditions')}</h3>`;
         activeConditions.forEach(condition => {
             addConditionToSidebar(condition);
         });

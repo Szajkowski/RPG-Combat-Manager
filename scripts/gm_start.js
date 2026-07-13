@@ -64,6 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
         gmToggleBtn.textContent = window.isAudioMuted ? "🔇" : "🔊";
     }
 
+    // Set GM language button flag
+    const gmLangBtn = document.getElementById('gm-lang-btn');
+    if (gmLangBtn) gmLangBtn.textContent = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
+
     // Add monster options to both lists
     for (const monster in monsters) {
         if (monsters[monster].hidden) continue; // skip hidden ones
@@ -242,4 +246,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // --- DYNAMIC INDEX.HTML TRANSLATION ---
+    const translateElement = (selector, key) => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = t(key);
+    };
+
+    // Translate Navbar Buttons
+    translateElement('button[onclick="setTurnOrder()"]', 'btn_turn_order');
+    translateElement('button[onclick="newRound()"]', 'btn_new_round');
+    translateElement('button[onclick="endCombat()"]', 'btn_end_combat');
+    translateElement('button[onclick="showMusicMenu()"]', 'btn_music_list');
+    translateElement('button[onclick="toggleMusic()"]', 'btn_toggle_music');
+    translateElement('button[onclick="toggleSidebar()"]', 'btn_toggle_sidebar');
+
+    // Translate Section Headers (h2)
+    const h2Elements = document.querySelectorAll('.button-group h2');
+    if (h2Elements.length >= 2) {
+        h2Elements[0].textContent = t('enemies');
+        h2Elements[1].textContent = t('heroes');
+    }
+
+    // Translate Select Dropdown Placeholders
+    translateElement('#monsterSelectorEnemy option[disabled]', 'add_specific_monster');
+    translateElement('#monsterSelectorHero option[disabled]', 'add_specific_monster');
+    translateElement('#adventurerSelectorEnemy option[disabled]', 'add_specific_adventurer');
+    translateElement('#adventurerSelectorHero option[disabled]', 'add_specific_adventurer');
+    translateElement('#bossSelector option[disabled]', 'add_boss');
+
+    // Translate "Add" Div Buttons
+    const addButtons = document.querySelectorAll('.add-button');
+    if (addButtons.length >= 4) {
+        addButtons[0].textContent = t('add_monster');
+        addButtons[1].textContent = t('add_adventurer');
+        addButtons[2].textContent = t('add_monster');
+        addButtons[3].textContent = t('add_adventurer');
+    }
 });

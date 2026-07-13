@@ -91,7 +91,7 @@ async function setTurnOrder() {
     const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
     sidebarConditions.style.display = 'flex';
 
-    sidebarTitle.textContent = `Kolejność ruchów: [tura ${currentCombatRound}]`
+    sidebarTitle.textContent = `${t('turn_order_title')} ${currentCombatRound}]`;
 
     sidebarContent.innerHTML = `
         <ol id="turnOrder">
@@ -113,7 +113,7 @@ async function setTurnOrder() {
 async function renderConditionsSidebar(activeConditions) {
     const sidebarConditions = document.querySelector('.sidebar-conditions');
     
-    sidebarConditions.innerHTML = `<h3>Stany</h3>`;
+    sidebarConditions.innerHTML = `<h3>${t('conditions')}</h3>`;
     activeConditions.forEach(condition => addConditionToSidebar(condition));
     await markConditionTargets();
 }
@@ -129,7 +129,7 @@ function addConditionToSidebar(condition) {
         <div class="condition-top-row">
             <input type="text" class="condition-target" onclick="pasteClipboardToInput(this, event)" oninput="updateConditionTarget(this)" value="${condition.target}" />
             <span class="condition-duration">${condition.duration}</span>
-            <button class="copy-condition">Kopiuj</button>
+            <button class="copy-condition">${t('copy')}</button>
             <button class="remove-condition">X</button>
         </div>
         <div class="condition-bottom-row">
@@ -296,7 +296,7 @@ function showMusicMenu() {
     const sidebarContent = sidebar.querySelector('.sidebar-content');
     const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
 
-    sidebarTitle.textContent = `Lista utworów:`
+    sidebarTitle.textContent = t('music_list');
 
     const musicList = document.createElement('div');
     musicList.className = 'music-list';
@@ -435,7 +435,7 @@ function removeSidebar() {
 function toggleGlobalMute() {
     window.isAudioMuted = !window.isAudioMuted;
     
-    localStorage.setItem('Muted', window.isAudioMuted);
+    localStorage.setItem('CombatManager-Muted', window.isAudioMuted);
     
     const toggleBtn = document.getElementById('gm-mute-btn');
     

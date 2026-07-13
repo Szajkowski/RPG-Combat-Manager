@@ -24,8 +24,7 @@ window.onload = () => {
             }
         });
     } else {
-        // UX element left in Polish
-        alert("Brak poprawnych graczy w URL!");
+        alert(t('invalid_url'));
     }
 };
 
@@ -39,9 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
         window.isAudioMuted = !window.isAudioMuted;
         muteBtn.innerHTML = window.isAudioMuted ? '🔇' : '🔊';
         // save the state on localStorage
-        localStorage.setItem('Muted', window.isAudioMuted);
+        localStorage.setItem('CombatManager-Muted', window.isAudioMuted);
     };
     document.body.appendChild(muteBtn);
+
+    // Create floating language toggle button
+    const langBtn = document.createElement('div');
+    langBtn.className = 'global-lang-btn';
+    langBtn.innerHTML = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
+    langBtn.onclick = () => toggleLanguage();
+    document.body.appendChild(langBtn);
 
     // Workaround to handle disconnections on mobile devices
     document.addEventListener('visibilitychange', () => {

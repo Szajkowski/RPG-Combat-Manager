@@ -92,17 +92,17 @@ async function createAbilitiesPanel(abilities, characterDiv) {
 
         // Optional attributes
         if (ability.roll) {
-            const rollName = translateRollName(ability.roll); // Translation function
-            abilityContent += `<div class="ability-stat">Rzut: ${rollName}</div>`;
+            const rollName = translateRollName(ability.roll); 
+            abilityContent += `<div class="ability-stat">${t('roll')} ${rollName}</div>`;
         }
         if (ability.difficulty) {
-            abilityContent += `<div class="ability-stat">Trudność: ${ability.difficulty}</div>`;
+            abilityContent += `<div class="ability-stat">${t('difficulty')} ${ability.difficulty}</div>`;
         }
         if (ability.cooldown !== undefined && ability.cooldown !== null) {
-            abilityContent += `<div class="ability-stat btn-here">Czas oczekiwania: ${ability.cooldown}</div>`;
+            abilityContent += `<div class="ability-stat btn-here">${t('cooldown')} ${ability.cooldown}</div>`;
         }
         if (ability.difficulty && ability.difficulty !== "X") {
-            abilityContent += `<div class="ability-stat">Szansa na powodzenie: <span class="highlighted-property">${calculateaAbilitySuccessRate(characterDiv, ability.roll, ability.difficulty)}%</span></div>`;
+            abilityContent += `<div class="ability-stat">${t('success_chance')} <span class="highlighted-property">${calculateaAbilitySuccessRate(characterDiv, ability.roll, ability.difficulty)}%</span></div>`;
         }
 
         abilityItem.innerHTML = abilityContent;
@@ -207,7 +207,7 @@ function rollDice(diceElement, diceType, difficulty = null) {
     const bigDice = characterDiv.querySelector('.big-dice');
 
     if (!statInput || !modInput) {
-        alert("Brak wymaganych pól statystyki!");
+        alert(t('no_stats_error'));
         return 0;
     }
 
@@ -394,7 +394,7 @@ function createEquipmentPanel(equipment = [], characterDiv) {
     if (gear.length > 0) {
         const gearSection = document.createElement('div');
         gearSection.className = 'equipment-section';
-        gearSection.innerHTML = '<h3>Oporządzenie</h3>';
+        gearSection.innerHTML = `<h3>${t('gear')}</h3>`;
         
         gear.forEach(item => {
             const itemElement = document.createElement('div');
@@ -408,13 +408,13 @@ function createEquipmentPanel(equipment = [], characterDiv) {
             html += `<div class="gear-stats">`;
             
             if (item.damage)
-                html += `<div class="gear-stat">Obrażenia: ${parseDescription(item.damage || "", characterDiv)}</div>`;
+                html += `<div class="gear-stat">${t('damage')}: ${parseDescription(item.damage || "", characterDiv)}</div>`;
             if (item.physArmor)
-                html += `<div class="gear-stat">Pancerz fizyczny: ${parseDescription(item.physArmor || "", characterDiv)}</div>`;
+                html += `<div class="gear-stat">${t('phys_armor')}: ${parseDescription(item.physArmor || "", characterDiv)}</div>`;
             if (item.magArmor)
-                html += `<div class="gear-stat">Pancerz magiczny: ${parseDescription(item.magArmor || "", characterDiv)}</div>`;
+                html += `<div class="gear-stat">${t('mag_armor')}: ${parseDescription(item.magArmor || "", characterDiv)}</div>`;
             if (item.value)
-                html += `<div class="gear-stat">Wartość: ${item.value}S</div>`;
+                html += `<div class="gear-stat">${t('value')}: ${item.value}S</div>`;
 
             html += "</div>"
 
@@ -429,7 +429,7 @@ function createEquipmentPanel(equipment = [], characterDiv) {
     if (other.length > 0) {
         const otherSection = document.createElement('div');
         otherSection.className = 'equipment-section';
-        otherSection.innerHTML = '<h3>Inne przedmioty</h3>';
+        otherSection.innerHTML = `<h3>${t('other_items')}</h3>`;
         
         other.forEach(item => {
             const itemElement = document.createElement('div');
@@ -438,11 +438,11 @@ function createEquipmentPanel(equipment = [], characterDiv) {
                 <div class="item-name">${item.name}</div>
                 <div class="item-description">${item.description}</div>
                 <div class="item-quantity">
-                    <span>Ilość:</span>
+                    <span>${t('quantity')}</span>
                     <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0">
                 </div>
                 <div class="gear-stats">
-                    <div class="gear-stat">Wartość: ${item.value}</div>
+                    <div class="gear-stat">${t('value')}: ${item.value}</div>
                 </div>
             `;
             otherSection.appendChild(itemElement);
