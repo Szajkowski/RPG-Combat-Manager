@@ -22,6 +22,37 @@ async function loadMusicFiles() {
 
 loadMusicFiles();
 
+// Helper function to parse INI format
+function parseINI(data) {
+    const result = {};
+    let currentSection = null;
+    
+    data.split(/\r?\n/).forEach(line => {
+        line = line.trim();
+        // Skip empty lines and comments
+        if (!line || line.startsWith(';') || line.startsWith('#')) return; 
+        
+        // Handle sections like [InitialHeroes]
+        if (line.startsWith('[') && line.endsWith(']')) {
+            currentSection = line.substring(1, line.length - 1);
+            result[currentSection] = {};
+        } 
+        // Handle key=value pairs
+        else if (line.includes('=')) {
+            const parts = line.split('=');
+            const key = parts.shift().trim();
+            const value = parts.join('=').trim(); 
+            
+            if (currentSection) {
+                result[currentSection][key] = value;
+            } else {
+                result[key] = value;
+            }
+        }
+    });
+    return result;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const monsterSelectorEnemy = document.getElementById('monsterSelectorEnemy');
     const monsterSelectorHero = document.getElementById('monsterSelectorHero');
@@ -107,13 +138,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    waitForSocket(() => {
-        addSpecificCharacter('adventurer', "Nadia Cardigan", 'hero');
-        addSpecificCharacter('player', "Elias Shlongue", 'hero');
-        addSpecificCharacter('player', "Aurelia", 'hero');
-        addSpecificCharacter('player', "Shabi Zovalt", 'hero');
-        addSpecificCharacter('player', "Pafnucy", 'hero');
-    });
+    // Fetch config.ini and load initial characters
+    fetch('/config.ini')
+    .then(response => response.text())
+    .then(text => {
+        const config = parseINI(text);
+        
+        waitForSocket(() => {
+            // Load heroes
+            if (config.InitialHeroes) {
+                for (const [name, type] of Object.entries(config.InitialHeroes)) {
+                    addSpecificCharacter(type, name, 'hero');
+                }
+            }
+            
+            // Load enemies
+            if (config.InitialEnemies) {
+                for (const [name, type] of Object.entries(config.InitialEnemies)) {
+                    addSpecificCharacter(type, name, 'enemy');
+                }
+            }
+        });
+    })
+    .catch(error => console.error("Error loading config.ini:", error));
 
     const gmMenuBar = document.getElementById('GM-menu-bar');
 

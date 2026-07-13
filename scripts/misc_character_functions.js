@@ -124,3 +124,14 @@ function showNotification(message, event = null) {
         notification.remove();
     }, 1200);
 }
+
+window.isAudioMuted = false;
+
+function playSoundEffect(src, volume = 0.5) {
+    if (window.isAudioMuted) return null;
+    
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.play().catch(e => console.warn("Audio playback failed:", e));
+    return audio;
+}

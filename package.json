@@ -1,14 +1,14 @@
 {
-  "name": "Campaign-Combat-Manager",
+  "name": "rpg-combat-manager",
   "version": "1.0.0",
   "description": "Tabletop RPG Combat Management System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "gen-ssl": "openssl req -nodes -new -x509 -keyout server.key -out server.cert -days 365 -subj \"/CN=localhost\""
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.21.2",
+    "selfsigned": "^5.5.0",
     "ws": "^8.18.0"
   }
 }

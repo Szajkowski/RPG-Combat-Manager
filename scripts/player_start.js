@@ -6,16 +6,15 @@ let currentCombatRound = 0;
 let diceAudio = null;
 
 window.onload = () => {
-    // Get the 'player' parameter from the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    let playerNames = urlParams.get('player');
+    // Get the parameter directly from the path
+    let pathParam = window.location.pathname.substring(1);
 
-    if (playerNames) {
-        // Remove unnecessary characters
-        playerNames = decodeURI(playerNames).replace(/"/g, "");
+    if (pathParam && !pathParam.includes("player.html")) {
+        // Remove unnecessary characters and decode
+        let playerNames = decodeURIComponent(pathParam).replace(/"/g, "");
 
-        // Split into an array of characters
-        const playersArray = playerNames.split(",");
+        // Split into an array of characters, using '&'
+        const playersArray = playerNames.split("&");
 
         // Add each character to the team
         playersArray.forEach(playerName => {
@@ -27,6 +26,7 @@ window.onload = () => {
             }
         });
     } else {
+        // UX element left in Polish
         alert("Brak poprawnych graczy w URL!");
     }
 };

@@ -178,8 +178,14 @@ function evaluateFormula(formula, stats) {
             return statValue;
         });
 
-        // Calculate formula result
-        const result = Math.max(0, Math.ceil(eval(evaluatedFormula)));
+        // Security Check: Only allow digits, basic math operators, dots and spaces.
+        // This completely prevents XSS attacks and arbitrary code execution.
+        if (!/^[0-9+\-*/().\s]+$/.test(evaluatedFormula)) {
+            throw new Error("Formula contains invalid/unsafe characters!");
+        }
+
+        // Calculate formula result using secure Function constructor instead of eval()
+        const result = Math.max(0, Math.ceil(new Function('return ' + evaluatedFormula)()));
         return result;
 
     } catch (e) {

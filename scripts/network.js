@@ -1,8 +1,13 @@
-const urlParams = new URLSearchParams(window.location.search);
-let clientName = urlParams.get('player');
+// Get the name from the path itself (removing the initial slash) instead of URLSearchParams
+let rawPath = window.location.pathname.substring(1); 
+let clientName = "";
 
-if (clientName) clientName = decodeURI(clientName).replace(/"/g, "");
-else clientName = "GM";
+// Check if it's not empty and not attempting to load raw HTML files
+if (rawPath && !rawPath.includes("index.html") && !rawPath.includes("player.html")) {
+    clientName = decodeURIComponent(rawPath).replace(/"/g, "");
+} else {
+    clientName = "GM";
+}
 
 // Variable to track pending promises
 const pendingPromises = {};
