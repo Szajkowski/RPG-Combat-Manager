@@ -7,7 +7,6 @@ let activeOverlay = null;
 let isRemoving = false;  // Flag to prevent multiple panel removals at once
 
 let currentMusic = null;
-let diceAudio = null;
 let mp3Files = [];
 
 async function loadMusicFiles() {
@@ -59,7 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const adventurerSelectorEnemy = document.getElementById('adventurerSelectorEnemy');
     const adventurerSelectorHero = document.getElementById('adventurerSelectorHero');
     const bossSelector = document.getElementById('bossSelector');
-    diceAudio = new Audio('sound/diceroll.mp3');
+    const gmToggleBtn = document.getElementById('gm-mute-btn');
+
+    if (gmToggleBtn) {
+        gmToggleBtn.textContent = window.isAudioMuted ? "🔇" : "🔊";
+    }
 
     // Add monster options to both lists
     for (const monster in monsters) {

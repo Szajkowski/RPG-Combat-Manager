@@ -4,3 +4,5 @@
 *.txt
 server.cert
 server.key
+/sound
+/music

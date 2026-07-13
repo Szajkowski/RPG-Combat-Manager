@@ -13,6 +13,7 @@
     <script src="scripts/damage_and_armor.js"></script>
     <script src="scripts/abilities_and_equipment.js"></script>
     <script src="scripts/misc_character_functions.js"></script>
+    <script src="scripts/internationalization.js"></script>
     <script src="scripts/network.js"></script>
 
     <script src="data/spells.js"></script>
@@ -30,6 +31,7 @@
             <button onclick="showMusicMenu()">Lista utworów (M)</button>
             <button onclick="toggleMusic()">Zatrzymaj / Wznów utwór (S)</button>
             <button onclick="toggleSidebar()">Wysuń / Schowaj boczne menu (L)</button>
+            <button id="gm-mute-btn" onclick="toggleGlobalMute()">🔊</button>
         </div>
     </div>
     <div id="Sidebar" class="sidebar hidden">

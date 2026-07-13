@@ -67,9 +67,7 @@ function applyDamage(button, type) {
     }
     damageAfterArmor = Math.max(damageAfterArmor, 0);
 
-    const hitAudio = new Audio(damageAfterArmor > 0 ? `sound/${type}_hit.mp3` : 'sound/no_dmg_hit.mp3');
-    hitAudio.volume = 0.5;
-    hitAudio.play();
+    playSoundEffect(damageAfterArmor > 0 ? `sound/${type}_hit.mp3` : 'sound/no_dmg_hit.mp3');
 
     // Check Death's Door before subtracting HP
     if (characterDiv.dataset.hasDeathsDoor === "true" && currentHp <= 0 && damageAfterArmor > 0) {
@@ -118,11 +116,7 @@ function handleDeathsDoor(characterDiv) {
     const baseSurvivalChance = 15; // Base survival chance
     const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); // cannot have more than 75% death resistance
 
-    if (diceAudio) {
-        diceAudio.currentTime = 0; // Set playback time to beginning
-        diceAudio.volume = 0.5;
-        diceAudio.play();
-    }
+    playSoundEffect('sound/diceroll.mp3');
 
     // Roll 1-100
     const rollResult = Math.floor(Math.random() * 100) + 1;
@@ -215,9 +209,7 @@ function healDamage(button, type) {
         healOneCharacter(characterDiv, healAmount, type, healValue);
     }
 
-    const healAudio = new Audio(`sound/heal_${type}.mp3`);
-    healAudio.volume = 0.5;
-    healAudio.play();
+    playSoundEffect(`sound/heal_${type}.mp3`);
 
     healInput.value = ''; // Clear field after healing
 }
@@ -254,7 +246,7 @@ function changeArmor(button, type) {
         flatInput.value = flat;
     }
 
-    const armorAudio = new Audio(isAdding ? `sound/${type}_armor_up.mp3` : `sound/${type}_armor_down.mp3`);
+    playSoundEffect(isAdding ? `sound/${type}_armor_up.mp3` : `sound/${type}_armor_down.mp3`);
     armorAudio.volume = 0.5;
     armorAudio.play();
 

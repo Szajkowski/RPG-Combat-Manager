@@ -431,3 +431,19 @@ function removeSidebar() {
     sidebarContent.innerHTML = '';
     sidebarConditions.style.display = 'none';
 }
+
+function toggleGlobalMute() {
+    window.isAudioMuted = !window.isAudioMuted;
+    
+    localStorage.setItem('Muted', window.isAudioMuted);
+    
+    const toggleBtn = document.getElementById('gm-mute-btn');
+    
+    if (window.isAudioMuted) {
+        if (toggleBtn) toggleBtn.textContent = "🔇";
+        if (typeof currentMusic !== 'undefined' && currentMusic) currentMusic.muted = true;
+    } else {
+        if (toggleBtn) toggleBtn.textContent = "🔊";
+        if (typeof currentMusic !== 'undefined' && currentMusic) currentMusic.muted = false;
+    }
+}

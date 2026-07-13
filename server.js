@@ -53,6 +53,36 @@ async function startServer() {
         }
     }));
 
+    // API endpoint to dynamically fetch character images regardless of their extension
+    app.get('/api/image/:type/:name', (req, res) => {
+        const { type, name } = req.params;
+        const dirPath = path.join(__dirname, 'images', type);
+        const defaultImagePath = path.join(__dirname, 'images', 'default-img.svg');
+
+        fs.readdir(dirPath, (err, files) => {
+            // If the directory doesn't exist (e.g. no 'boss' folder yet), serve the default image
+            if (err) {
+                return res.sendFile(defaultImagePath);
+            }
+
+            // Find the first file that matches the character's name (ignoring the extension)
+            const targetFile = files.find(file => {
+                const parsed = path.parse(file);
+                // Check if the filename matches and if it has a valid image extension
+                return parsed.name === name && 
+                    ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(parsed.ext.toLowerCase());
+            });
+
+            if (targetFile) {
+                // Serve the matched specific character image
+                res.sendFile(path.join(dirPath, targetFile));
+            } else {
+                // If the specific image is not found in the directory, serve the default image
+                res.sendFile(defaultImagePath);
+            }
+        });
+    });
+
     // API endpoint to fetch MP3 files
     const musicFolder = path.join(__dirname, 'music');
 

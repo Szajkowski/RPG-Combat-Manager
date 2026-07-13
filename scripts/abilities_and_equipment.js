@@ -236,10 +236,7 @@ function rollDice(diceElement, diceType, difficulty = null) {
 
     bigDice.textContent = `🎲 ${result}`;
 
-    // Play sound
-    diceAudio.currentTime = 0;
-    diceAudio.volume = 0.5;
-    diceAudio.play();
+    playSoundEffect('sound/diceroll.mp3');
 
     return result; 
 }
@@ -315,7 +312,8 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
                 return getStatValue(characterDiv, stat);
             });
 
-            result = Math.ceil(eval(evaluatedFormula));
+            // Using Function constructor instead of eval()
+            result = Math.ceil(new Function('return ' + evaluatedFormula)());
             return `<strong class="copyable-value" onclick="copyToClipboard(${result})">${result}</strong>`;
         } catch (e) {
             console.error(`Cannot calculate formula: ${formula}`, e);

@@ -49,15 +49,18 @@ function addCharacter(type, team, stats = {}, image = null) {
     // Add 'hasDeathsDoor' and 'type' attributes to dataset
     characterDiv.dataset.hasDeathsDoor = finalStats.hasDeathsDoor || "false";
     characterDiv.dataset.type = type;
-
-    // Build character content - the X button is now after the potential image
-    let characterContent = '';
         
-    // Add image only if it's a specific character (image is defined)
-    if (image) {
-        characterContent += `<img src="images/${type}/${image}.jpg" alt="${image}">`;
-    }
+    // Build character content
+    let characterContent = '';
+            
+    // Determine the source for the image. If 'image' is passed, ask the API. 
+    // If it's a blank character, point directly to the default placeholder.
+    const imgSrc = image ? `/api/image/${type}/${encodeURIComponent(image)}` : '/images/default-img.svg';
+    const imgAlt = image ? image : t('unknown_character');
 
+    // Add the image tag (with an extra onerror fallback just to be absolutely bulletproof)
+    characterContent += `<img src="${imgSrc}" alt="${imgAlt}">`;
+    
     characterContent += `
         <span class="remove-button" onclick="removeCharacter(this)">✖</span>
         <div class="stat"><strong>Nazwa:</strong> <input type="text" onclick="copyInputValue(this)" value="${uniqueName || ''}"></div>

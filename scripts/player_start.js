@@ -3,8 +3,6 @@ let activeOverlay = null;
 let isRemoving = false;  // Flag to prevent multiple panel removals at once
 let currentCombatRound = 0;
 
-let diceAudio = null;
-
 window.onload = () => {
     // Get the parameter directly from the path
     let pathParam = window.location.pathname.substring(1);
@@ -32,7 +30,18 @@ window.onload = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    diceAudio = new Audio('sound/diceroll.mp3');
+    // Create mute button for player
+    const muteBtn = document.createElement('div');
+    muteBtn.className = 'global-mute-btn';
+    muteBtn.innerHTML = window.isAudioMuted ? '🔇' : '🔊';
+    
+    muteBtn.onclick = () => {
+        window.isAudioMuted = !window.isAudioMuted;
+        muteBtn.innerHTML = window.isAudioMuted ? '🔇' : '🔊';
+        // save the state on localStorage
+        localStorage.setItem('Muted', window.isAudioMuted);
+    };
+    document.body.appendChild(muteBtn);
 
     // Workaround to handle disconnections on mobile devices
     document.addEventListener('visibilitychange', () => {

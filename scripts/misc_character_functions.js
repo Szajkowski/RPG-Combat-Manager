@@ -6,9 +6,7 @@ function toggleStun(button) {
     const isStunned = button.classList.toggle('stunned');
 
     if (isStunned) {
-        const stunAudio = new Audio('sound/stun.mp3');
-        stunAudio.volume = 0.5;
-        stunAudio.play();
+        playSoundEffect('sound/stun.mp3');
         if (abilitiesButton)
         {
             hideActivePanel(); // Hide open panel (if any)
@@ -125,7 +123,7 @@ function showNotification(message, event = null) {
     }, 1200);
 }
 
-window.isAudioMuted = false;
+window.isAudioMuted = localStorage.getItem('Muted') === 'true';
 
 function playSoundEffect(src, volume = 0.5) {
     if (window.isAudioMuted) return null;
