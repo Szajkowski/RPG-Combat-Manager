@@ -1,25 +1,25 @@
 let activePanel = null;
 let activeOverlay = null;
-let isRemoving = false;  // Flaga zeby powstrzymac kilka usuwan paneli na raz
+let isRemoving = false;  // Flag to prevent multiple panel removals at once
 let currentCombatRound = 0;
 
 let diceAudio = null;
 
 window.onload = () => {
-    // Pobierz parametr 'player' z URL
+    // Get the 'player' parameter from the URL
     const urlParams = new URLSearchParams(window.location.search);
     let playerNames = urlParams.get('player');
 
     if (playerNames) {
-        // Usuń niepotrzebne znaki
+        // Remove unnecessary characters
         playerNames = decodeURI(playerNames).replace(/"/g, "");
 
-        // Podziel na tablicę postaci
+        // Split into an array of characters
         const playersArray = playerNames.split(",");
 
-        // Dodaj każdą postać do drużyny
+        // Add each character to the team
         playersArray.forEach(playerName => {
-            playerName = playerName.trim();  // Usuń spacje na początku i końcu
+            playerName = playerName.trim();  // Remove leading and trailing spaces
             if (playerName) {
                 waitForSocket(() => {
                     addSpecificCharacter('player', playerName, 'hero');
@@ -34,33 +34,31 @@ window.onload = () => {
 document.addEventListener('DOMContentLoaded', () => {
     diceAudio = new Audio('sound/diceroll.mp3');
 
-    // sposob na ogarniecie tego rozlaczania na telefonach
+    // Workaround to handle disconnections on mobile devices
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
-            console.log("Wrócono na stronę, ponowne łączenie...");
+            console.log("Returned to the page, reconnecting...");
             socket = connectSocket();
 
             const playerNames = Array.from(document.querySelectorAll('.character[data-type="player"]'))
             .map(playerDiv => playerDiv.querySelector('input[type="text"]').value.trim());
 
-            const checkInterval = setInterval(() => {
-                if (socket.readyState === WebSocket.OPEN) { // czekamy az socket sie polaczy
-                    updateSpecificPlayersStats(playerNames);
-                    clearInterval(checkInterval);  // Zatrzymaj sprawdzanie
-                }
-            }, 100);  // Sprawdzaj co 100ms            
+            // Wait for the socket to connect using the existing helper function
+            waitForSocket(() => {
+                updateSpecificPlayersStats(playerNames);
+            });
         }
     });
 
     document.addEventListener('keydown', function(event) {
-        // Sprawdzamy, czy w danym momencie aktywne jest pole tekstowe
+        // Check if a text field is currently active
         const isInputFocused = document.activeElement.tagName.toLowerCase() === 'input' || document.activeElement.tagName.toLowerCase() === 'textarea';
 
-        // Jeśli nie jest aktywne pole tekstowe, wykonujemy skróty klawiszowe
+        // If a text field is not active, execute keyboard shortcuts
         if (!isInputFocused) {
             switch (event.key.toUpperCase()) {
                 case 'Z':
-                    console.log("Połączenie zamknięte");
+                    console.log("Connection closed");
                     socket.close();
                     break;
                 default:

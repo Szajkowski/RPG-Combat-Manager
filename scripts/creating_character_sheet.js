@@ -1,6 +1,6 @@
 function getUniqueCharacterName(baseName) {
     const existingNames = Array.from(document.querySelectorAll('.character input[type="text"]'))
-        .map(input => input.value.trim()); // Pobierz wszystkie istniejące nazwy postaci
+        .map(input => input.value.trim()); // Get all existing character names
 
     let uniqueName = baseName;
     let counter = 2;
@@ -14,7 +14,7 @@ function getUniqueCharacterName(baseName) {
 }
 
 function removeUniqueNameNumber(charName) {
-    return charName.replace(/\s\d{1,2}$/, ''); // Dopasuj spację i liczbę (1-2 cyfry) na końcu i usuń
+    return charName.replace(/\s\d{1,2}$/, ''); // Match a space and a number (1-2 digits) at the end and remove
 }
 
 function addSpecificCharacter(type, name, team) {
@@ -26,7 +26,7 @@ function addSpecificCharacter(type, name, team) {
         addCharacter(type, team, bosses[name], name);
     } else if (type === 'player' && players[name]) {
         addPlayerCharacter(name, team); 
-        // dodawanie teamu w atrybutach moze byc troche dziwne, ale nie lubie hardcodowac rzeczy i moze chcialbym sobie kiedys dodac gracza do przeciwnikow np?
+        // Adding the team in attributes might be a bit weird, but I don't like hardcoding things and maybe I'd like to add a player to the enemies someday?
     }
 }
 
@@ -34,26 +34,26 @@ function addCharacter(type, team, stats = {}, image = null) {
     const teamDiv = document.getElementById(team + 'Team');
 
     let uniqueName = '';
-    // Ustal unikalną nazwę
+    // Determine unique name
     if (stats.name)
     {
         uniqueName = getUniqueCharacterName(stats.name);
     }
 
-    // Uaktualnienie statystyk na podstawie ekwipunku
+    // Update stats based on equipment
     const finalStats = applyGearBonuses(stats);
 
     const characterDiv = document.createElement('div');
     characterDiv.classList.add('character');
 
-    // Dodajemy atrybut 'hasDeathsDoor' i 'type' do dataset
+    // Add 'hasDeathsDoor' and 'type' attributes to dataset
     characterDiv.dataset.hasDeathsDoor = finalStats.hasDeathsDoor || "false";
     characterDiv.dataset.type = type;
 
-    // Konstruujemy zawartość charakteru - przycisk X jest teraz po ewentualnym obrazku
+    // Build character content - the X button is now after the potential image
     let characterContent = '';
         
-    // Dodajemy obraz tylko jeśli jest to konkretna postać (image jest zdefiniowany)
+    // Add image only if it's a specific character (image is defined)
     if (image) {
         characterContent += `<img src="images/${type}/${image}.jpg" alt="${image}">`;
     }
@@ -73,9 +73,9 @@ function addCharacter(type, team, stats = {}, image = null) {
     characterDiv.innerHTML = characterContent;
     teamDiv.appendChild(characterDiv);
 
-    // ta czesc w zasadzie odpowiada za dodanie oninput=aktualizuj do stat inputow oraz za poprawne wczytywanie postaci z serwera po reloadzie lub rozlaczeniu
+    // This part basically handles adding oninput=update to stat inputs and correctly loading the character from the server after reload or disconnect
     if (type === 'player') { 
-        addInputSync(characterDiv);  // Automatyczne wysyłanie zmian po zmianie czegokolwiek w statach
+        addInputSync(characterDiv);  // Automatically send changes after any stat change
         updatePlayer(finalStats.name, finalStats);
     }
 }
@@ -115,20 +115,20 @@ function applyGearBonuses(stats) {
                         updatedStats.hp += healthBonus;
                         updatedStats.maxHp += healthBonus;
                     } else {
-                        console.warn(`Nieznana statystyka: ${stat}`);
+                        console.warn(`Unknown stat: ${stat}`);
                     }
                 });
             }
         }
 
-        // Przetwarzanie obrażeń
+        // Process damage
         if (typeof item.damage === 'string' && item.damage.includes('[')) {
             updatedStats.damage = (updatedStats.damage || 0) + evaluateFormula(item.damage, updatedStats);
         } else if (typeof item.damage === 'number') {
             updatedStats.damage = (updatedStats.damage || 0) + item.damage;
         }
 
-        // Przetwarzanie fizycznego pancerza
+        // Process physical armor
         if (typeof item.physArmor === 'string' && item.physArmor.includes('[')) {
             totalPhysFlat += evaluateFormula(item.physArmor, updatedStats);
         } else if (typeof item.physArmor === 'string' && item.physArmor.endsWith('%')) {  
@@ -138,7 +138,7 @@ function applyGearBonuses(stats) {
             totalPhysFlat += item.physArmor;
         }
 
-        // Przetwarzanie magicznego pancerza
+        // Process magical armor
         if (typeof item.magArmor === 'string' && item.magArmor.includes('[')) {
             totalMagFlat += evaluateFormula(item.magArmor, updatedStats);
         } else if (typeof item.magArmor === 'string' && item.magArmor.endsWith('%')) {
@@ -149,7 +149,7 @@ function applyGearBonuses(stats) {
         }
     });
 
-    // Formatuj wartości modyfikatorów
+    // Format modifier values
     Object.keys(updatedStats).forEach(key => {
         if (key.endsWith("Mod")) {
             updatedStats[key] = formatSigned(updatedStats[key]);
@@ -172,18 +172,18 @@ function formatSigned(value) {
 
 function evaluateFormula(formula, stats) {
     try {
-        // Zamień statystyki na wartości bez tłumaczenia
+        // Replace stats with values without translation
         const evaluatedFormula = formula.replace(/\b([a-zA-Z_]+)\b/gi, (stat) => {
             const statValue = stats[stat] !== undefined ? stats[stat] : 0;
             return statValue;
         });
 
-        // Oblicz wynik formuły
+        // Calculate formula result
         const result = Math.max(0, Math.ceil(eval(evaluatedFormula)));
         return result;
 
     } catch (e) {
-        console.error(`Błąd obliczania formuły: ${formula}`, e);
+        console.error(`Error calculating formula: ${formula}`, e);
         return 0;
     }
 }
@@ -299,11 +299,11 @@ function getCharacterButtons(stats = {}, type) {
                   : type === "boss" ? bosses[stats.name]
                   : {};
 
-        // jesli sa staty i sa w nich umiejetnosci, dodaj przycisk.
+        // If there are stats and they have abilities, add a button
         if (realStats.abilities && realStats.abilities.length !== 0) {
             buttons += '<button class="abilities-button" onclick="showAbilitiesPanel(this)">📖</button>';
         }
-        // jesli sa staty i jest w nich ekwipunek, dodaj przycisk
+        // If there are stats and they have equipment, add a button
         if (realStats.equipment && realStats.equipment.length !== 0) {
             buttons += '<button class="equipment-button" onclick="showEquipmentPanel(this)">💼</button>';
         }
@@ -320,15 +320,15 @@ async function removeCharacter(button) {
     const characterDiv = button.closest('.character');
     const characterName = characterDiv.querySelector('input[type="text"]').value.trim();
 
-    // Usuń stany związane z postacią
+    // Remove conditions related to the character
     let activeConditions = await loadServerActiveConditions();
     activeConditions = activeConditions.filter(condition => condition.target !== characterName);
     await updateServerConditions(activeConditions);
 
-    // Usuń element postaci
+    // Remove character element
     characterDiv.remove();
 
-    // Aktualizuj pasek boczny, jeśli jest widoczny
+    // Update sidebar if it's visible
     const sidebar = document.getElementById('Sidebar');
     const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
     if (sidebar && sidebarConditions.style.display === 'flex') {
@@ -343,7 +343,7 @@ async function reloadPlayer(button) {
     try {
         const characterDiv = button.closest('.character');
         const playerName = characterDiv.querySelector('input[type="text"]').value;
-        characterDiv.remove(); // usun stara karte postaci
+        characterDiv.remove(); // Remove old character card
 
         await reloadPlayersScript();
 
@@ -352,14 +352,14 @@ async function reloadPlayer(button) {
         const newCharacterDiv = Array.from(document.querySelectorAll('.character'))
         .find(div => div.querySelector('input[type="text"]').value.trim() === playerName);
 
-        sendPlayerStats(newCharacterDiv); // zaktualizuj na serwerze
+        sendPlayerStats(newCharacterDiv); // Update on server
     } catch (error) {
-        console.error("Błąd podczas ponownego ładowania players.js:", error);
+        console.error("Error while reloading players.js:", error);
     }
 }
 
 async function reloadPlayersScript() {
-    // Usuń stary skrypt
+    // Remove old script
     const oldScript = document.querySelector('#players-data');
     if (oldScript) {
         oldScript.remove();
@@ -369,8 +369,8 @@ async function reloadPlayersScript() {
         const script = document.createElement('script');
         script.id = 'players-data';
         script.src = 'data/players.js';
-        script.onload = resolve; // Skrypt załadowany pomyślnie
-        script.onerror = () => reject(new Error("Błąd ładowania players.js"));
+        script.onload = resolve; // Script loaded successfully
+        script.onerror = () => reject(new Error("Error loading players.js"));
         document.body.appendChild(script);
     });
 }

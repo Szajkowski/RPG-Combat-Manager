@@ -1,16 +1,16 @@
 async function showAbilitiesPanel(button) {
     const characterDiv = button.closest('.character');
     let name = characterDiv.querySelector('input[type="text"]').value;
-    name = removeUniqueNameNumber(name); // dzieki temu jesli powtarzaja sie postacie, np sa dwa takie same gobliny castery, to kazdy z nich ma te same spelle, za to ich cd sa inne!
+    name = removeUniqueNameNumber(name); // thanks to this, if characters repeat, e.g., there are two of the same goblin casters, each of them has the same spells, but their CDs are different!
 
     const attunementInput = characterDiv.querySelector('.stat-value.attunement');
-    let attunement = 1000; // jesli nie ma statu dostrojenie mozna miec tyle umiejetnosci ile sie chce.
+    let attunement = 1000; // if there is no attunement stat, you can have as many abilities as you want.
     if (attunementInput) attunement = parseInt(attunementInput.value);
 
     const stats = (players[name] || adventurers[name] || monsters[name] || bosses[name] || {});
 
-    // Oblicz maksymalną liczbę umiejętności
-    let maxAbilities = 3;  // Podstawowe 3 umiejętności
+    // Calculate maximum number of abilities
+    let maxAbilities = 3;  // Base 3 abilities
     if (attunement > 10) {
         maxAbilities += Math.floor((attunement - 10) / 2);
     }
@@ -19,12 +19,12 @@ async function showAbilitiesPanel(button) {
     let panel = characterDiv.querySelector('.abilities-panel');
     let overlay = document.querySelector('.overlay');
 
-    if (isRemoving) return; // jesli jakis panel jest aktualnie chowany, daj mu sie schowac
+    if (isRemoving) return; // if any panel is currently being hidden, let it hide
 
-    hideActivePanel(); // schowaj jakikolwiek otwarty panel
+    hideActivePanel(); // hide any open panel
 
-    if (panel) return; // jesli jakis panel jest nieschowany, wroc. W ten sposob klikniecie przycisku jeszcze raz, 
-                       // kiedy jest otwarty panel z umiejetnosciami go chowa, zamiast wysuwac jeszcze raz
+    if (panel) return; // if any panel is not hidden, return. This way, clicking the button again 
+                       // when the abilities panel is open hides it, instead of sliding it out again
 
     panel = await createAbilitiesPanel(abilities, characterDiv);
     characterDiv.appendChild(panel);
@@ -67,15 +67,15 @@ async function createAbilitiesPanel(abilities, characterDiv) {
     abilities.forEach(ability => {
         const abilityName = ability.name;
 
-        // Inicjalizacja stanu w abilitiesStates
+        // Initialize state in abilitiesStates
         if (!abilitiesStates[characterName][abilityName]) {
             const isSingleUse = ability.cooldown === "raz";
             const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
             
             abilitiesStates[characterName][abilityName] = {
-                currentCooldown: 0, // Domyślnie dostępne
+                currentCooldown: 0, // Available by default
                 maxCooldown: maxCooldown,
-                singleUse: isSingleUse // Czy można użyć tylko raz na walkę
+                singleUse: isSingleUse // Can it only be used once per combat
             };
         }
 
@@ -84,15 +84,15 @@ async function createAbilitiesPanel(abilities, characterDiv) {
         const abilityItem = document.createElement('li');
         abilityItem.className = 'ability-item';
 
-        // Budowanie zawartości umiejętności
+        // Build ability content
         let abilityContent = `
             <div class="ability-name">${abilityName}</div>
             <div class="ability-description">${parseDescription(ability.description || "", characterDiv, ability.roll, ability.difficulty)}</div>
         `;
 
-        // Opcjonalne atrybuty
+        // Optional attributes
         if (ability.roll) {
-            const rollName = translateRollName(ability.roll); // Funkcja tłumacząca
+            const rollName = translateRollName(ability.roll); // Translation function
             abilityContent += `<div class="ability-stat">Rzut: ${rollName}</div>`;
         }
         if (ability.difficulty) {
@@ -107,7 +107,7 @@ async function createAbilitiesPanel(abilities, characterDiv) {
 
         abilityItem.innerHTML = abilityContent;
 
-        // Tworzenie przycisku cooldown
+        // Create cooldown button
         if (ability.cooldown !== undefined && ability.cooldown !== null) {
             const cooldownButton = document.createElement('button');
             cooldownButton.className = abilityState.currentCooldown === 0 ? 'cooldown-button available' : 'cooldown-button unavailable';
@@ -132,17 +132,17 @@ function calculateaAbilitySuccessRate(characterDiv, abilityRoll, abilityDifficul
     const modValue = parseInt(characterDiv.querySelector(`.mod-value.${abilityRoll}`).value) || 0;
 
     if (statValue <= 0) {
-        return 0; // Brak statystyki
+        return 0; // No stat
     }
 
     const successThreshold = abilityDifficulty - modValue;
 
     if (successThreshold <= 1) {
-        return 100; // Automatyczny sukces
+        return 100; // Automatic success
     }
 
     if (successThreshold > statValue) {
-        return 0; // Automatyczna porażka
+        return 0; // Automatic failure
     }
 
     const successRolls = statValue - successThreshold + 1;
@@ -157,9 +157,9 @@ async function useAbility(button, characterName, ability) {
 
     if (abilityState.currentCooldown !== 0) return;
 
-    let success = true; // umiejetnosci bez informacji na co to rzut sa traktowane jako zawsze zakonczone sukcesem
+    let success = true; // abilities without info on what to roll are treated as always successful
 
-    if (ability.roll) { // rzut, jesli umiejetnosci takowy posiada
+    if (ability.roll) { // roll, if the ability has one
         const diceElement = characterDiv.querySelector('.dice');
 
         const result = rollDice(diceElement, ability.roll, ability.difficulty);
@@ -170,7 +170,7 @@ async function useAbility(button, characterName, ability) {
 
     if (success) {
         if (abilityState.singleUse) {
-            // Trwałe zablokowanie, jesli umiejetnosc jest jednorazowa i sie uda
+            // Permanent block, if the ability is single-use and succeeds
             button.disabled = true;
             button.classList.remove('available');
             button.classList.add('unavailable');
@@ -179,7 +179,7 @@ async function useAbility(button, characterName, ability) {
             if (ability.condition && ability.conditionDuration) {
                 sendCondition(characterName, ability.condition, ability.conditionDuration, characterDiv);
             }
-        } else { // jesli nie jest to dostaje normalny cd
+        } else { // if it isn't, it gets normal cd
             if (ability.condition && ability.conditionDuration) {
                 sendCondition(characterName, ability.condition, ability.conditionDuration, characterDiv);
             }
@@ -187,11 +187,11 @@ async function useAbility(button, characterName, ability) {
         }
     } else {
         if (abilityState.singleUse && abilityState.currentCooldown !== 'Niedostępne') {
-            // Nieudany rzut dla umiejętności jednorazowej dostaje zawsze jedna ture cd. Wpisane jest dwa bo te cd sa jakby +1 zawsze, zeby wlasnie przeczekac nast ture, 
-            // zamiast tego, ze umiejetnosc bedzie od razu znowu dostepna
+            // A failed roll for a single-use ability always gets a one-turn cd. It's written as two because these cds are sort of +1 always, to wait out the next turn, 
+            // instead of the ability being immediately available again
             setAbilityCooldown(button, 2, abilityState);
         } else if (!abilityState.singleUse) {
-            // Nieudany rzut dla zwykłych umiejętności
+            // Failed roll for regular abilities
             setAbilityCooldown(button, abilityState.maxCooldown, abilityState);
         }
     }
@@ -216,7 +216,7 @@ function rollDice(diceElement, diceType, difficulty = null) {
     const roll = Math.floor(Math.random() * baseStat) + 1;
     let result = Math.max(1, roll + modValue);
 
-    // Bonus intuicji dla Zwinności i Celności
+    // Intuition bonus for Agility and Accuracy
     if (diceType === 'agility' || diceType === 'accuracy') {
         const intuitionInput = characterDiv.querySelector('.stat-value.intuition');
         const intuitionValue = parseInt(intuitionInput.value) || 0;
@@ -226,7 +226,7 @@ function rollDice(diceElement, diceType, difficulty = null) {
         }
     }
 
-    // Kolorowanie wyniku na podstawie trudności
+    // Color the result based on difficulty
     if (difficulty && difficulty !== "X") {
         difficulty = parseInt(difficulty);
         bigDice.style.color = result >= difficulty ? 'green' : 'red';
@@ -236,7 +236,7 @@ function rollDice(diceElement, diceType, difficulty = null) {
 
     bigDice.textContent = `🎲 ${result}`;
 
-    // Odtwarzanie dźwięku
+    // Play sound
     diceAudio.currentTime = 0;
     diceAudio.volume = 0.5;
     diceAudio.play();
@@ -255,17 +255,17 @@ function setAbilityCooldown(button, cooldown, abilityState) {
 function parseDescription(description, characterDiv, rollAbility = null, rollDifficulty = null) {
     if (typeof description === "number") return description;
 
-    // Podświetl właściwości specjalne
+    // Highlight special properties
     const highlightedDescription = description.replace(/(Nieunikalne\.|Penetrujące\.)/g, 
         `<span class="highlighted-property">$1</span>`
     );
 
-    // Parsowanie formuł
+    // Parse formulas
     return highlightedDescription.replace(/\[(.*?)\]/g, (match, formula) => {
         try {
             let result;
 
-            // Obsługa rzutu (roll)
+            // Handle roll
             if (/^\s*(\d+)\s*\*\s*roll\s*$/i.test(formula) && rollAbility) {
                 const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
                 const statValue = getStatValue(characterDiv, rollAbility);
@@ -273,7 +273,7 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
 
                 if (rollDifficulty > statValue + modValue) return `<strong class="calculated-value">0</strong>`;
 
-                // Brak lub "X" dla trudności
+                // Missing or "X" for difficulty
                 if (!rollDifficulty || rollDifficulty === "X") {
                     result = `${multiplier * (1 + modValue)} - ${multiplier * (statValue + modValue)}`;
                 } else {
@@ -282,7 +282,7 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
                 return `<strong class="calculated-value">${result}</strong>`;
             }
 
-            // Obsługa przebicia (over)
+            // Handle penetration (over)
             if (/^\s*(\d+)\s*\*\s*over\s*$/i.test(formula) && rollAbility && rollDifficulty) {
                 const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
                 const statValue = getStatValue(characterDiv, rollAbility);
@@ -296,7 +296,7 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
                 return `<strong class="calculated-value">${result}</strong>`;
             }
 
-            // Obsługa potęgi (X ^ over)
+            // Handle power (X ^ over)
             if (/^\s*(\d+)\s*\^\s*over\s*$/i.test(formula) && rollAbility && rollDifficulty && rollDifficulty !== "X") {
                 const baseValue = parseInt(formula.match(/^\s*(\d+)/)[1]);
                 const statValue = getStatValue(characterDiv, rollAbility);
@@ -310,7 +310,7 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
                 return `<strong class="calculated-value">${result}</strong>`;
             }
 
-            // Obsługa standardowej formuły
+            // Handle standard formula
             const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => {
                 return getStatValue(characterDiv, stat);
             });
@@ -318,19 +318,19 @@ function parseDescription(description, characterDiv, rollAbility = null, rollDif
             result = Math.ceil(eval(evaluatedFormula));
             return `<strong class="copyable-value" onclick="copyToClipboard(${result})">${result}</strong>`;
         } catch (e) {
-            console.error(`Nie można obliczyć formuły: ${formula}`, e);
-            return match; // Zwróć oryginalny tekst w razie błędu
+            console.error(`Cannot calculate formula: ${formula}`, e);
+            return match; // Return original text in case of error
         }
     });
 }
 
-// pobiera wartosc tylko samej statystyki, nie licząc dodatkowo bonusu. Bonusy do rzutu nie mają wpływać na obrażenia umiejętności w konwencji [liczba * stat]
+// Retrieves only the value of the statistic itself, without counting the additional bonus. Roll bonuses shouldn't affect ability damage in the [number * stat] convention
 function getStatValue(characterDiv, stat) {
     const statInput = characterDiv.querySelector(`.stat-value.${stat}`);
     return statInput ? parseInt(statInput.value) || 0 : 0; 
 }
 
-// pobiera wartosc bonusu do statystyki. Przydatne przy liczeniu rzeczy zaleznych od wysokosci rzutu lub punktow przebicia
+// Retrieves the value of the stat bonus. Useful when calculating things dependent on the height of the roll or penetration points
 function getModValue(characterDiv, stat) {
     const modInput = characterDiv.querySelector(`.mod-value.${stat}`);
     return modInput ? parseInt(modInput.value) || 0 : 0; 
@@ -341,18 +341,18 @@ function showEquipmentPanel(button) {
     let panel = characterDiv.querySelector('.equipment-panel');
     let overlay = document.querySelector('.overlay');
     
-    // Jeśli panel jest w trakcie usuwania, nie rób nic
+    // If the panel is being removed, do nothing
     if (isRemoving) {
         return;
     }
     
-    // Najpierw ukryj aktywny panel (jeśli istnieje)
+    // First hide the active panel (if it exists)
     hideActivePanel();
     
-    // Jeśli panel nie istnieje dla tej postaci, stwórz go
+    // If the panel doesn't exist for this character, create it
     if (!panel) {
         let name = characterDiv.querySelector('input[type="text"]').value;
-        name = removeUniqueNameNumber(name); // dzieki temu jesli powtarzaja sie postacie, np sa dwa takie same gobliny, to kazdy z nich ma ten sam ekwipunek
+        name = removeUniqueNameNumber(name); // thanks to this, if characters repeat, e.g., there are two of the same goblins, each of them has the same equipment
         const equipment = (players[name]?.equipment || adventurers[name]?.equipment || monsters[name]?.equipment || bosses[name]?.equipment || []);
         
         panel = createEquipmentPanel(equipment, characterDiv);
@@ -366,7 +366,7 @@ function showEquipmentPanel(button) {
         
         overlay.addEventListener('click', hideActivePanel);
         
-        // Daj czas na renderowanie panelu przed dodaniem klasy active
+        // Give time to render the panel before adding the active class
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 if (panel && panel.parentNode) {
@@ -388,11 +388,11 @@ function createEquipmentPanel(equipment = [], characterDiv) {
     const equipmentList = document.createElement('div');
     equipmentList.className = 'equipment-list';
     
-    // Grupujemy przedmioty na zbroje i inne
+    // Group items into gear and others
     const gear = equipment.filter(item => item.type === 'gear');
     const other = equipment.filter(item => item.type !== 'gear');
     
-    // Dodajemy sekcję zbroi jeśli istnieje
+    // Add gear section if it exists
     if (gear.length > 0) {
         const gearSection = document.createElement('div');
         gearSection.className = 'equipment-section';
@@ -427,7 +427,7 @@ function createEquipmentPanel(equipment = [], characterDiv) {
         equipmentList.appendChild(gearSection);
     }
     
-    // Dodajemy sekcję innych przedmiotów jeśli istnieją
+    // Add other items section if they exist
     if (other.length > 0) {
         const otherSection = document.createElement('div');
         otherSection.className = 'equipment-section';
@@ -488,4 +488,3 @@ function hideActivePanel() {
         }, 500);
     }
 }
-

@@ -14,19 +14,19 @@ async function reduceAbilityCDs() {
             const abilityState = abilitiesStates[characterName][abilityName];
 
             if (abilityState.currentCooldown === 0 || abilityState.currentCooldown === 'Niedostępne') {
-                return; // Pomijamy gotowe lub zablokowane
+                return; // Skip ready or locked abilities
             }
 
-            abilityState.currentCooldown -= 1; // Zmniejsz cooldown
+            abilityState.currentCooldown -= 1; // Reduce cooldown
         });
     });
     await updateServerAbilitiesStates(abilitiesStates);
-    await requestUpdateActivePanel(); // to musi byc na koncu
+    await requestUpdateActivePanel(); // This must be at the end
 }
 
 async function getCharactersInTeam(teamId) {
     const teamDiv = document.getElementById(teamId);
-    // Filtruj tylko żywe postacie
+    // Filter only alive characters
     const aliveCharacters = Array.from(teamDiv.getElementsByClassName('character'))
         .filter(characterDiv => characterDiv.dataset.isDead !== "true");
 
@@ -35,11 +35,11 @@ async function getCharactersInTeam(teamId) {
         const reflexInput = characterDiv.querySelector('.stat-value.reflex');
         const reflex = reflexInput ? parseInt(reflexInput.value) || 0 : 0;
 
-        // Sprawdź, czy postać ma "Dodatkową akcję"
+        // Check if the character has "Dodatkowa akcja" (Extra Action)
         const abilities = (bosses[name]?.abilities || monsters[name]?.abilities || adventurers[name]?.abilities || []);
         const hasExtraAction = abilities.some(ability => ability.name === "Dodatkowa akcja");
 
-        // Jeśli ma "Dodatkową akcję", dodaj dwa wpisy: z pełnym i połową refleksu
+        // If they have "Dodatkowa akcja", add two entries: with full and half reflex
         if (hasExtraAction) {
             return [
                 { name, reflex, team: teamId },
@@ -47,7 +47,7 @@ async function getCharactersInTeam(teamId) {
             ];
         }
 
-        // W przeciwnym razie dodaj tylko jeden wpis
+        // Otherwise, add only one entry
         return { name, reflex, team: teamId };
     });
 }
@@ -84,7 +84,7 @@ async function setTurnOrder() {
         }
     });
 
-    // Wyswietl na sidebarze
+    // Display on the sidebar
     const sidebar = document.getElementById('Sidebar');
     const sidebarTitle = sidebar.querySelector('.sidebar-title');
     const sidebarContent = sidebar.querySelector('.sidebar-content');
@@ -104,10 +104,10 @@ async function setTurnOrder() {
     `;
 
     const activeConditions = await loadServerActiveConditions();
-    // Upewnij się, że pasek jest widoczny
+    // Ensure the sidebar is visible
     sidebar.classList.remove('hidden');
     await renderConditionsSidebar(activeConditions);
-    markExpiredConditions(activeConditions); // tutaj tez to trzeba zrobic, bo inaczej wykrzykniki znikna w nowej turze
+    markExpiredConditions(activeConditions); // This also needs to be done here, otherwise exclamation marks will disappear in a new round
 }
 
 async function renderConditionsSidebar(activeConditions) {
@@ -140,13 +140,13 @@ function addConditionToSidebar(condition) {
     conditionsDiv.appendChild(conditionItem);
 
     const removeButton = conditionItem.querySelector('.remove-condition');
-    // Obsługa przycisku "Usuń"
+    // Handle "Remove" button
     removeButton.onclick = () => {
-        conditionsDiv.removeChild(conditionItem); // usuniecie z oczu
-        removeCondition(condition.id); // usuniecie z serca
+        conditionsDiv.removeChild(conditionItem); // Remove from UI (out of sight)
+        removeCondition(condition.id); // Remove from data (out of mind)
     };
 
-    // Obsługa przycisku "Kopiuj"
+    // Handle "Copy" button
     const copyButton = conditionItem.querySelector('.copy-condition');
     copyButton.onclick = () => {
         copyCondition(condition);
@@ -156,16 +156,16 @@ function addConditionToSidebar(condition) {
 async function markConditionTargets() {
     const activeConditions = await loadServerActiveConditions();
 
-    // Przeszukaj wszystkie characterDiv
+    // Search all characterDivs
     const characterInputs = document.querySelectorAll('.character input[type="text"]');
 
     characterInputs.forEach(charInput => {
         const characterName = charInput.value.trim();
 
-        // Znajdź lub utwórz wykrzyknik
+        // Find or create an exclamation mark
         let exclamationMark = charInput.parentElement.querySelector('.exclamation-mark');
 
-        // Sprawdź, czy istnieje condition powiązany z daną postacią
+        // Check if there is a condition associated with this character
         const hasConditions = activeConditions.some(condition => condition.target === characterName);
 
         if (hasConditions) {
@@ -176,7 +176,7 @@ async function markConditionTargets() {
                 charInput.parentElement.appendChild(exclamationMark);
             }
         } else if (exclamationMark) {
-            exclamationMark.remove(); // Usuń wykrzyknik, jeśli nie ma warunków
+            exclamationMark.remove(); // Remove the exclamation mark if there are no conditions
         }
     });
 }
@@ -185,41 +185,41 @@ async function updateConditionTarget(input) {
     const newTarget = input.value.trim();
     const conditionId = input.closest('.condition-item').dataset.id;
 
-    // Pobierz aktualne stany z serwera
+    // Fetch current conditions from the server
     let activeConditions = await loadServerActiveConditions();
 
-    // Znajdź condition do aktualizacji
+    // Find the condition to update
     const conditionIndex = activeConditions.findIndex(condition => condition.id === conditionId);
 
     if (conditionIndex !== -1) {
-        // Zaktualizuj cel condition
+        // Update the condition's target
         activeConditions[conditionIndex].target = newTarget;
-        await updateServerConditions(activeConditions); // Aktualizacja na serwerze
+        await updateServerConditions(activeConditions); // Update on the server
     }
-    await markConditionTargets(); // oznacz cele przy zmianie celu
+    await markConditionTargets(); // Mark targets when changing a target
 }
 
 async function removeCondition(conditionID) {
     let activeConditions = await loadServerActiveConditions();
     activeConditions = activeConditions.filter(condition => condition.id !== conditionID);
     await updateServerConditions(activeConditions);
-    await markConditionTargets(); // oznacz cele przy usunieciu condition
+    await markConditionTargets(); // Mark targets when removing a condition
 }
 
 function copyCondition(condition) {
-    // Utwórz nowy obiekt stanu z nowym ID
+    // Create a new condition object with a new ID
     const copiedCondition = {
         ...condition,
         id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`
     };
 
-    // Wyślij nowy stan do serwera
+    // Send the new condition to the server
     socket.send(JSON.stringify({
         type: "REQUESTaddCondition",
         condition: copiedCondition
     }));
 
-    // Ręcznie dodaj nowy stan do sidebara (szybka aktualizacja)
+    // Manually add the new condition to the sidebar (quick update)
     addConditionToSidebar(copiedCondition);
 }
 
@@ -229,30 +229,30 @@ async function moveToNextTurn() {
 
     const rows = Array.from(turnOrder.querySelectorAll('li'));
 
-    // Pobierz postacie z aktualnego rzędu
+    // Get characters from the current row
     const currentRow = rows[currentRowIndex];
     const turnEndingCharacters = currentRow.textContent
-    .replace(/\(\d+\)\s*$/, '')  // Usuń liczbę w nawiasach na końcu
+    .replace(/\(\d+\)\s*$/, '')  // Remove the number in parentheses at the end
     .split(',')
     .map(name => name.trim());
 
-    // Przejdź do następnego rzędu
+    // Move to the next row
     if (currentRowIndex < rows.length) {
         currentRow.classList.remove('active-row');
     }
 
     currentRowIndex += 1;
 
-    // Zmniejsz czas trwania dla odpowiednich conditions
+    // Reduce duration for the appropriate conditions
     await reduceConditionDurations(turnEndingCharacters);
 
-    // Jeśli koniec listy, wracamy do początku + nowa runda
+    // If end of list, return to start + new round
     if (currentRowIndex >= rows.length) {
         currentRowIndex = 0;
         await newRound();
     }
 
-    // Ustaw nową klasę na aktualny rząd
+    // Set new class to the current row
     const nextRow = rows[currentRowIndex];
     nextRow.classList.add('active-row');
 }
@@ -260,7 +260,7 @@ async function moveToNextTurn() {
 async function reduceConditionDurations(turnEndingCharacters) {
     let activeConditions = await loadServerActiveConditions();
 
-    // Przetwórz tylko te conditions, które mają liczbowe duration
+    // Process only those conditions that have a numerical duration
     activeConditions = activeConditions.map(condition => {
         if (turnEndingCharacters.includes(condition.target) && condition.duration !== "-") {
             condition.duration = Math.max(condition.duration - 1, 0);
@@ -274,7 +274,7 @@ async function reduceConditionDurations(turnEndingCharacters) {
     markExpiredConditions(activeConditions);
 }
 
-// Dodaj wykrzykniki do warunków z duration === 0
+// Add exclamation marks to conditions with duration === 0
 function markExpiredConditions(activeConditions) {
     const conditionsDiv = document.querySelector('.sidebar-conditions');
     activeConditions.forEach(condition => {
@@ -305,14 +305,14 @@ function showMusicMenu() {
         const musicItem = document.createElement('div');
         musicItem.className = 'music-item';
 
-        // Dodaj przycisk do odtwarzania
+        // Add play button
         const playButton = document.createElement('button');
-        playButton.textContent = '▶️'; // Ikona odtwarzania
+        playButton.textContent = '▶️'; // Play icon
         playButton.onclick = () => playMusic(file);
 
-        // Dodaj nazwę utworu
+        // Add track name
         const musicName = document.createElement('span');
-        musicName.textContent = file.replace('.mp3', ''); // Wyświetl nazwę bez rozszerzenia
+        musicName.textContent = file.replace('.mp3', ''); // Display name without extension
         musicName.className = 'music-name';
 
         musicItem.appendChild(playButton);
@@ -327,18 +327,18 @@ function showMusicMenu() {
 }
 
 function playMusic(filePath) {
-    // Jeśli coś już gra, zatrzymaj
+    // If something is already playing, stop it
     if (currentMusic) {
         currentMusic.pause();
-        currentMusic.currentTime = 0; // Resetuj czas
+        currentMusic.currentTime = 0; // Reset time
     }
 
-    // Odtwarzaj nowy utwór
+    // Play new track
     currentMusic = new Audio(`music/${filePath}`);
     currentMusic.volume = 0.4;
     currentMusic.play();
 
-    // Zapętl
+    // Loop track
     currentMusic.onended = () => {
         currentMusic.play();
     };
@@ -346,7 +346,7 @@ function playMusic(filePath) {
 
 async function endCombat() {
     const abilitiesStates = await loadServerAbilitiesStates();
-    // Usuń cooldown we wszystkich umiejętnościach
+    // Remove cooldown from all abilities
     Object.keys(abilitiesStates).forEach(characterName => {
         Object.keys(abilitiesStates[characterName]).forEach(abilityName => {
             const abilityState = abilitiesStates[characterName][abilityName];
@@ -357,15 +357,15 @@ async function endCombat() {
 
     const sidebar = document.getElementById('Sidebar');
     const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-    sidebarConditions.innerHTML = ''; // usuniecie stanow z htmla
+    sidebarConditions.innerHTML = ''; // Remove conditions from HTML
 
     removeSidebar();
     currentCombatRound = 0;
-    await requestUpdateCurrentCombatRound(); // zeby sie dalo juz uleczyc ze smierci
-    await updateServerConditions(); // brak podania activeConditions po prostu je usuwa na serwerze
-    await markConditionTargets(); // usun wykrzykniki
+    await requestUpdateCurrentCombatRound(); // So that it's possible to heal from death
+    await updateServerConditions(); // Not providing activeConditions simply removes them on the server
+    await markConditionTargets(); // Remove exclamation marks
 
-    await requestUpdateActivePanel(); // to ma byc zawsze na koncu, kropka
+    await requestUpdateActivePanel(); // This must always be at the end, period
 }
 
 function toggleMusic() {
@@ -399,7 +399,7 @@ function toggleSidebar() {
 
         setTimeout(function(){
             sidebar.classList.add('visible');
-        }, 1); // zeby animacja byla ladna
+        }, 1); // To make the animation look nice
 
         isSidebarLocked = true;
         toggleLockButton.classList.add('locked');
@@ -419,14 +419,14 @@ function removeSidebar() {
     sidebar.classList.remove('visible');
     setTimeout(function(){
         sidebar.classList.add('hidden');
-    }, 300); // zeby animacja byla ladna
+    }, 300); // To make the animation look nice
     
-    // Odblokuj pasek
+    // Unlock the sidebar
     isSidebarLocked = false; 
     toggleLockButton.classList.remove('locked');
     toggleLockButton.textContent = "🔓";
 
-    // Wyczysc title i content
+    // Clear title and content
     sidebarTitle.innerHTML = '';
     sidebarContent.innerHTML = '';
     sidebarConditions.style.display = 'none';

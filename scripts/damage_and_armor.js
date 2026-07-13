@@ -18,7 +18,7 @@ function updateHpBar(input) {
 
     if (isDead) {
         hpBar.style.width = '100%';
-        hpBar.style.background = 'black'; // Czarny, jeśli postać zginęła
+        hpBar.style.background = 'black'; // Black if the character is dead
         return;
     }
 
@@ -27,13 +27,13 @@ function updateHpBar(input) {
     hpBar.style.background = `linear-gradient(to right, red ${hpPercentage}%, darkred ${hpPercentage}%)`;
 }
 
-function parseDamageAmount(targetDiv) {
+function parseDamageAmount(targetDiv, damageValue) {
     const maxHp = parseInt(targetDiv.querySelector('.max-hp').value) || 0;
-    if (healValue.endsWith('%')) { // liczy wartosc hp do uleczenia na podstawie max hp celu
-        const percent = parseInt(healValue);
-        return Math.ceil((maxHp * percent) / 100); // zaokraglaj w gore procentowe hp
+    if (damageValue.endsWith('%')) { // calculate HP damage value based on target's max HP
+        const percent = parseInt(damageValue);
+        return Math.ceil((maxHp * percent) / 100); // round up percentage HP
     } else {
-        return parseInt(healValue) || 0;
+        return parseInt(damageValue) || 0;
     }
 }
 
@@ -44,9 +44,9 @@ function applyDamage(button, type) {
     const maxHp = parseInt(characterDiv.querySelector('.max-hp').value) || 0;
     let damage = damageInput.value;
     
-    if (damage.endsWith('%')) { // liczy wartosc hp do uderzenia na podstawie hp uderzanego
+    if (damage.endsWith('%')) { // calculate HP damage value based on attacked character's max HP
         const percent = parseInt(damage);
-        damage = Math.ceil((maxHp * percent) / 100); // zaokraglaj w gore procentowe hp
+        damage = Math.ceil((maxHp * percent) / 100); // round up percentage HP
     } else
         damage = parseInt(damage) || 0;
 
@@ -71,30 +71,30 @@ function applyDamage(button, type) {
     hitAudio.volume = 0.5;
     hitAudio.play();
 
-    // Sprawdzenie Wrót Śmierci przed odejmowaniem HP
+    // Check Death's Door before subtracting HP
     if (characterDiv.dataset.hasDeathsDoor === "true" && currentHp <= 0 && damageAfterArmor > 0) {
         const survived = handleDeathsDoor(characterDiv);
         if (!survived) {
             currentHpInput.value = 0;
-            damageInput.value = ''; // Wyczyść pole po zadaniu obrażeń
+            damageInput.value = ''; // Clear field after dealing damage
 
             characterDiv.dataset.isDead = "true";
-            // robienie updateHpBar dla graczy 2 razy (tu i w sendPlayerStats) wydaje sie troche glupie, ale nie moge z tej funkcji usunac tego. Bo dla postaci nie-graczy musi sie tez robic
+            // running updateHpBar for players 2 times (here and in sendPlayerStats) seems a bit silly, but I can't remove it from this function. Because it must also run for non-player characters
             updateHpBar(currentHpInput); 
 
             if (characterDiv.dataset.type === "player") 
                 sendPlayerStats(characterDiv);
-            return; // Przerwij funkcję, postać zginęła
+            return; // Interrupt function, character died
         }
     }
 
     currentHp -= damageAfterArmor;
 
-    // jesli postac nie ma wrot smierci to ginie od razu
+    // if the character doesn't have Death's Door, they die immediately
     if (characterDiv.dataset.hasDeathsDoor === "false" && currentHp <= 0 && damageAfterArmor > 0) {
-        currentHp = 0; // Ustaw HP na 0 po śmierci
+        currentHp = 0; // Set HP to 0 after death
         currentHpInput.value = currentHp;
-        damageInput.value = ''; // Wyczyść pole po zadaniu obrażeń
+        damageInput.value = ''; // Clear field after dealing damage
 
         characterDiv.dataset.isDead = "true";
         updateHpBar(currentHpInput); 
@@ -105,8 +105,8 @@ function applyDamage(button, type) {
     }
 
     currentHpInput.value = currentHp;
-    updateHpBar(currentHpInput); // Zaktualizuj pasek zdrowia
-    damageInput.value = ''; // Wyczyść pole po zadaniu obrażeń
+    updateHpBar(currentHpInput); // Update health bar
+    damageInput.value = ''; // Clear field after dealing damage
 
     if (characterDiv.dataset.type === "player") 
         sendPlayerStats(characterDiv);
@@ -115,32 +115,80 @@ function applyDamage(button, type) {
 function handleDeathsDoor(characterDiv) {
     const resilienceInput = characterDiv.querySelector('.stat-value.resilience');
     const resilience = parseInt(resilienceInput?.value) || 0;
-    const baseSurvivalChance = 15; // Podstawowa szansa przeżycia
-    const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); // nie można mieć więcej niż 75% odporności na śmierć
+    const baseSurvivalChance = 15; // Base survival chance
+    const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); // cannot have more than 75% death resistance
 
     if (diceAudio) {
-        diceAudio.currentTime = 0; // Ustaw czas odtwarzania na początek
+        diceAudio.currentTime = 0; // Set playback time to beginning
         diceAudio.volume = 0.5;
         diceAudio.play();
     }
 
-    // Wykonujemy rzut 1-100
+    // Roll 1-100
     const rollResult = Math.floor(Math.random() * 100) + 1;
 
-    // Wyświetlamy wynik rzutu
+    // Display roll result
     const bigDice = characterDiv.querySelector('.big-dice');
     bigDice.textContent = `🎲 ${rollResult}`;
     bigDice.style.color = rollResult >= survivalThreshold ? 'green' : 'red';
 
     if (rollResult < survivalThreshold) {
-        // Postać umiera, pasek zdrowia na czarno
+        // Character dies, health bar turns black
         const hpBar = characterDiv.querySelector('.hp-bar');
         hpBar.style.width = '100%';
         hpBar.style.background = 'black';
-        return false; // Postać zginęła
+        return false; // Character died
     }
 
-    return true; // Postać przeżyła
+    return true; // Character survived
+}
+
+function parseHealAmount(targetDiv, healValue) {
+    const maxHp = parseInt(targetDiv.querySelector('.max-hp').value) || 0;
+    if (healValue.endsWith('%')) { // calculate HP heal value based on target's max HP
+        const percent = parseInt(healValue);
+        return Math.ceil((maxHp * percent) / 100); // round up percentage HP
+    } else {
+        return parseInt(healValue) || 0;
+    }
+}
+
+function healOneCharacter(targetDiv, healAmount, type, healValue) {
+    const currentHpInput = targetDiv.querySelector('.current-hp');
+    const maxHp = parseInt(targetDiv.querySelector('.max-hp').value) || 0;
+    let currentHp = parseInt(currentHpInput.value) || 0;
+
+    if (type === 'threshold') {
+        if (healValue.endsWith('%')) { // healing up to a specific percentage of HP
+            const thresholdHp = Math.floor((maxHp * parseInt(healValue)) / 100);
+            if (currentHp < thresholdHp) {
+                currentHp = thresholdHp;
+            } else {
+                return; // Does not heal if HP is already higher or equal
+            }
+        } else { // healing up to a specific HP value
+            const thresholdHp = parseInt(healValue); 
+            if (currentHp < thresholdHp) {
+                currentHp = thresholdHp;
+            } else {
+                return; // Does not heal if HP is already higher or equal
+            }
+        }
+    } else {
+        currentHp += healAmount;
+    }
+
+    if (currentHp > maxHp)
+        currentHp = maxHp; // Do not exceed maximum HP
+
+    if (targetDiv.dataset.isDead === "true" && currentCombatRound !== 0) return; // rising from the dead is only possible after combat
+
+    currentHpInput.value = currentHp;
+    targetDiv.dataset.isDead = "false";
+    updateHpBar(currentHpInput); // Update health bar
+
+    if (targetDiv.dataset.type === "player")
+        sendPlayerStats(targetDiv);
 }
 
 function healDamage(button, type) {
@@ -152,74 +200,26 @@ function healDamage(button, type) {
         return;
     }
 
-    function parseHealAmount(targetDiv) {
-        const maxHp = parseInt(targetDiv.querySelector('.max-hp').value) || 0;
-        if (healValue.endsWith('%')) { // liczy wartosc hp do uleczenia na podstawie max hp celu
-            const percent = parseInt(healValue);
-            return Math.ceil((maxHp * percent) / 100); // zaokraglaj w gore procentowe hp
-        } else {
-            return parseInt(healValue) || 0;
-        }
-    }
-
-    const healAmount = parseHealAmount(characterDiv);
-
-    function healOneCharacter(targetDiv, healAmount) {
-        const currentHpInput = targetDiv.querySelector('.current-hp');
-        const maxHp = parseInt(targetDiv.querySelector('.max-hp').value) || 0;
-        let currentHp = parseInt(currentHpInput.value) || 0;
-
-        if (type === 'threshold') {
-            if (healValue.endsWith('%')) { // leczenie do konkretnego procenta hp
-                const thresholdHp = Math.floor((maxHp * parseInt(healValue)) / 100);
-                if (currentHp < thresholdHp) {
-                    currentHp = thresholdHp;
-                } else {
-                    return; // Nie leczy, jeśli HP jest już wyższe lub równe
-                }
-            } else { // leczenie do konkretnej wartosci hp
-                const thresholdHp = parseInt(healValue); 
-                if (currentHp < thresholdHp) {
-                    currentHp = thresholdHp;
-                } else {
-                    return; // Nie leczy, jeśli HP jest już wyższe lub rowne
-                }
-            }
-        } else {
-            currentHp += healAmount;
-        }
-
-        if (currentHp > maxHp)
-            currentHp = maxHp; // Nie przekraczaj maksymalnego HP
-
-        if (targetDiv.dataset.isDead === "true" && currentCombatRound !== 0) return; // wstac z martwych mozna tylko po walce
-
-        currentHpInput.value = currentHp;
-        targetDiv.dataset.isDead = "false";
-        updateHpBar(currentHpInput); // Zaktualizuj pasek zdrowia
-
-        if (targetDiv.dataset.type === "player")
-            sendPlayerStats(targetDiv);
-    }
+    const healAmount = parseHealAmount(characterDiv, healValue);
 
     if (type === 'group') {
-        const isHero = characterDiv.closest('#heroTeam') !== null; // Sprawdź, czy postać jest bohaterem
+        const isHero = characterDiv.closest('#heroTeam') !== null; // Check if the character is a hero
         const teamSelector = isHero ? '#heroTeam .character' : '#enemyTeam .character';
         const teamMembers = document.querySelectorAll(teamSelector);
 
         teamMembers.forEach(member => {
-            const groupHealAmount = parseHealAmount(member);
-            healOneCharacter(member, groupHealAmount);
+            const groupHealAmount = parseHealAmount(member, healValue);
+            healOneCharacter(member, groupHealAmount, type, healValue);
         });
     } else {
-        healOneCharacter(characterDiv, healAmount);
+        healOneCharacter(characterDiv, healAmount, type, healValue);
     }
 
     const healAudio = new Audio(`sound/heal_${type}.mp3`);
     healAudio.volume = 0.5;
     healAudio.play();
 
-    healInput.value = ''; // Wyczyść pole po leczeniu
+    healInput.value = ''; // Clear field after healing
 }
 
 function toggleArmorMode(button) {
@@ -240,14 +240,14 @@ function changeArmor(button, type) {
     let flat = parseInt(flatInput.value) || 0;
     let percent = parseInt(percentInput.value) || 0;
 
-    if (value.endsWith('%')) {  // Obsługa wartości procentowej
+    if (value.endsWith('%')) {  // Handle percentage value
         const percentValue = parseInt(value);
         percent = isAdding 
             ? percent + Math.floor((100 - percent) * (percentValue / 100))
             : Math.max(percent - percentValue, 0);
 
         percentInput.value = percent > 0 ? `${percent}%` : '';
-    } else {  // Obsługa wartości płaskiej
+    } else {  // Handle flat value
         const flatValue = parseInt(value);
         flat = isAdding ? flat + flatValue : Math.max(flat - flatValue, 0);
 
@@ -258,7 +258,7 @@ function changeArmor(button, type) {
     armorAudio.volume = 0.5;
     armorAudio.play();
 
-    armorInput.value = ''; // Wyczyść pole po zmianie pancerza
+    armorInput.value = ''; // Clear field after armor change
 
     if (characterDiv.dataset.type === "player") {
         sendPlayerStats(characterDiv);

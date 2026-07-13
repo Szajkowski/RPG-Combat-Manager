@@ -1,10 +1,10 @@
 let currentCombatRound = 0;
-let currentRowIndex = 0; // Śledzi aktualny rząd w kolejce ruchów
+let currentRowIndex = 0; // Tracks the current row in the turn order
 let isSidebarLocked = false;
 
 let activePanel = null;
 let activeOverlay = null;
-let isRemoving = false;  // Flaga zeby powstrzymac kilka usuwan paneli na raz
+let isRemoving = false;  // Flag to prevent multiple panel removals at once
 
 let currentMusic = null;
 let diceAudio = null;
@@ -12,11 +12,11 @@ let mp3Files = [];
 
 async function loadMusicFiles() {
     try {
-        const response = await fetch('/api/music-files'); // to w zasadzie zwraca promise z danymi, a nie dane
-        mp3Files = await response.json(); // no i wlasnie dlatego tu jest await
+        const response = await fetch('/api/music-files'); // this basically returns a promise with data, not the data itself
+        mp3Files = await response.json(); // and that's exactly why await is here
         mp3Files = mp3Files.sort();
     } catch (error) {
-        console.error('Błąd ładowania plików:', error);
+        console.error('Error loading files:', error);
     }
 }
 
@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const bossSelector = document.getElementById('bossSelector');
     diceAudio = new Audio('sound/diceroll.mp3');
 
-    // Dodaj opcje potworów do obu list
+    // Add monster options to both lists
     for (const monster in monsters) {
-        if (monsters[monster].hidden) continue; // pomijanie ukrytych
+        if (monsters[monster].hidden) continue; // skip hidden ones
 
         const option = document.createElement('option');
         option.value = monster;
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         monsterSelectorHero.appendChild(option.cloneNode(true));
     }
 
-    // Dodaj opcje poszukiwaczy do obu list poszukiwaczy
+    // Add adventurer options to both adventurer lists
     for (const adventurer in adventurers) {
         if (adventurers[adventurer].hidden) continue;
 
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         adventurerSelectorHero.appendChild(option.cloneNode(true));
     }
 
-    // Dodaj opcje bossów do listy bossów
+    // Add boss options to the boss list
     for (const boss in bosses) {
         if (bosses[boss].hidden) continue;
 
@@ -62,48 +62,48 @@ document.addEventListener('DOMContentLoaded', () => {
         bossSelector.appendChild(option.cloneNode(true));
     }
 
-    // Obsługa wyboru potwora dla przeciwników
+    // Handle monster selection for enemies
     monsterSelectorEnemy.addEventListener('change', (event) => {
         const selectedMonster = event.target.value;
         if (selectedMonster && monsters[selectedMonster]) {
             addSpecificCharacter('monster', selectedMonster, 'enemy');
-            monsterSelectorEnemy.selectedIndex = "0"; // Zresetuj wybór
+            monsterSelectorEnemy.selectedIndex = "0"; // Reset selection
         }
     });
 
-    // Obsługa wyboru potwora dla bohaterów
+    // Handle monster selection for heroes
     monsterSelectorHero.addEventListener('change', (event) => {
         const selectedMonster = event.target.value;
         if (selectedMonster && monsters[selectedMonster]) {
             addSpecificCharacter('monster', selectedMonster, 'hero');
-            monsterSelectorHero.selectedIndex = "0"; // Zresetuj wybór
+            monsterSelectorHero.selectedIndex = "0";
         }
     });
 
-    // Obsługa wyboru poszukiwacza dla przeciwników
+    // Handle adventurer selection for enemies
     adventurerSelectorEnemy.addEventListener('change', (event) => {
         const selectedAdventurer = event.target.value;
         if (selectedAdventurer && adventurers[selectedAdventurer]) {
             addSpecificCharacter('adventurer', selectedAdventurer, 'enemy');
-            adventurerSelectorEnemy.selectedIndex = "0"; // Zresetuj wybór
+            adventurerSelectorEnemy.selectedIndex = "0";
         }
     });
 
-    // Obsługa wyboru poszukiwacza dla bohaterów
+    // Handle adventurer selection for heroes
     adventurerSelectorHero.addEventListener('change', (event) => {
         const selectedAdventurer = event.target.value;
         if (selectedAdventurer && adventurers[selectedAdventurer]) {
             addSpecificCharacter('adventurer', selectedAdventurer, 'hero');
-            adventurerSelectorHero.selectedIndex = "0"; // Zresetuj wybór
+            adventurerSelectorHero.selectedIndex = "0";
         }
     });
 
-    // Obsługa wyboru bossa
+    // Handle boss selection
     bossSelector.addEventListener('change', (event) => {
         const selectedBoss = event.target.value;
         if (selectedBoss && bosses[selectedBoss]) {
             addSpecificCharacter('boss', selectedBoss, 'enemy');
-            bossSelector.selectedIndex = "0"; // Zresetuj wybór
+            bossSelector.selectedIndex = "0";
         }
     });
 
@@ -118,53 +118,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const gmMenuBar = document.getElementById('GM-menu-bar');
 
     gmMenuBar.addEventListener('mouseenter', () => {
-        gmMenuBar.style.top = '0'; // Pełne wysunięcie
+        gmMenuBar.style.top = '0'; // Slide out fully
     });
 
     gmMenuBar.addEventListener('mouseleave', () => {
         gmMenuBar.style.top = `-50px`;
     });
 
-    // Referencje do elementów
+    // Element references
     const sidebar = document.getElementById('Sidebar');
 
-    // Wysuwanie paska przy najechaniu myszką
+    // Slide out sidebar on mouse enter
     sidebar.addEventListener('mouseenter', () => {
         if (!isSidebarLocked) {
             sidebar.classList.add('visible');
         }
     });
 
-    // Chowanie paska po zdjęciu myszki
+    // Hide sidebar on mouse leave
     sidebar.addEventListener('mouseleave', () => {
         if (!isSidebarLocked) {
             sidebar.classList.remove('visible');
         }
     });
 
-    // taki tam dupochron na wypadek rozlaczenia
+    // Just a failsafe in case of disconnection
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
-            console.log("Wrócono na stronę, ponowne łączenie...");
+            console.log("Returned to the page, reconnecting...");
             socket = connectSocket();
 
             const playerNames = Array.from(document.querySelectorAll('.character[data-type="player"]'))
             .map(playerDiv => playerDiv.querySelector('input[type="text"]').value.trim());
 
-            const checkInterval = setInterval(() => {
-                if (socket.readyState === WebSocket.OPEN) { // czekamy az socket sie polaczy
-                    updateSpecificPlayersStats(playerNames);
-                    clearInterval(checkInterval);  // Zatrzymaj sprawdzanie
-                }
-            }, 100);  // Sprawdzaj co 100ms            
+            // Wait for the socket to connect using the existing helper function
+            waitForSocket(() => {
+                updateSpecificPlayersStats(playerNames);
+            });
         }
     });
 
     document.addEventListener('keydown', function(event) {
-        // Sprawdzamy, czy w danym momencie aktywne jest pole tekstowe
+        // Check if a text field is currently active
         const isInputFocused = document.activeElement.tagName.toLowerCase() === 'input' || document.activeElement.tagName.toLowerCase() === 'textarea';
     
-        // Jeśli nie jest aktywne pole tekstowe, wykonujemy skróty klawiszowe
+        // If a text field is not active, execute keyboard shortcuts
         if (!isInputFocused) {
             switch (event.key.toUpperCase()) {
                 case 'K':

@@ -60,7 +60,7 @@ function connectSocket() {
                     else
                         console.warn(`No data found for character: ${playerName}`);
                 });
-                break; // ADDED MISSING BREAK HERE!
+                break;
             }
     
             // Give the client abilitiesStates needed to execute the next code

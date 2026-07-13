@@ -2,7 +2,7 @@ function toggleStun(button) {
     const characterDiv = button.closest('.character');
     const abilitiesButton = characterDiv.querySelector('.abilities-button');
 
-    // Przełącz stan stuna
+    // Toggle stun state
     const isStunned = button.classList.toggle('stunned');
 
     if (isStunned) {
@@ -11,14 +11,14 @@ function toggleStun(button) {
         stunAudio.play();
         if (abilitiesButton)
         {
-            hideActivePanel(); // schowaj otwarty panel (jesli jakis jest)
+            hideActivePanel(); // Hide open panel (if any)
             abilitiesButton.disabled = true;
         } 
     } else if (abilitiesButton) {
         abilitiesButton.disabled = false;
     }
 
-    // Wysłanie aktualizacji stuna na serwer
+    // Send stun update to server
     if (characterDiv.dataset.type === "player") {
         sendPlayerStats(characterDiv);
     }
@@ -36,7 +36,7 @@ function translateRollName(roll) {
         reflex: "refleks",
         resilience: "nieustępliwość",
     };
-    return translations[roll] || roll; // Domyślnie zwróć oryginalną nazwę, jeśli brak tłumaczenia
+    return translations[roll] || roll; // Default to original name if translation is missing
 }
 
 function translateStatName(statName) {
@@ -55,61 +55,72 @@ function translateStatName(statName) {
     return translations[statName] || statName;
 }
 
-function copyInputValue(input) {
-    input.select();
-    document.execCommand("copy");
-
-    // Ustawienie kursora na końcu tekstu
-    input.setSelectionRange(input.value.length, input.value.length);
-
-    // Wyświetlenie powiadomienia
-    showNotification(`Skopiowano: ${input.value}`);
+// Merged and cleaned up copyInputValue function
+async function copyInputValue(input) {
+    try {
+        // Write text to clipboard
+        await navigator.clipboard.writeText(input.value);
+        showNotification(`Skopiowano: ${input.value}`);
+    } catch (err) {
+        console.error("Failed to copy text: ", err);
+        showNotification("Błąd kopiowania!");
+    }
 }
 
-function copyInputValue(input) {
-    // wpisz tekst do schowka
-    navigator.clipboard.writeText(input.value)
+async function copyToClipboard(value) {
+    try {
+        if (typeof value === "number") await navigator.clipboard.writeText(value.toString());
+        else await navigator.clipboard.writeText(value);
 
-    showNotification(`Skopiowano: ${input.value}`);
-}
-
-function copyToClipboard(value) {
-    if (typeof value === "number") navigator.clipboard.writeText(value.toString());
-    else navigator.clipboard.writeText(value);
-
-    showNotification(`Skopiowano: ${value}`);
+        showNotification(`Skopiowano: ${value}`);
+    } catch (err) {
+        console.error("Failed to copy text: ", err);
+        showNotification("Błąd kopiowania!");
+    }
 }
 
 async function pasteClipboardToInput(input, event) {
-    // Wyczyść zawartość inputa
-    input.value = '';
+    try {
+        // Clear input content
+        input.value = '';
 
-    // Pobierz zawartość schowka i zamień
-    const clipboardText = await navigator.clipboard.readText();
-    input.value = clipboardText;
-    await updateConditionTarget(input);
+        // Get clipboard content and replace
+        const clipboardText = await navigator.clipboard.readText();
+        input.value = clipboardText;
+        await updateConditionTarget(input);
 
-    showNotification(`Wklejono: ${clipboardText}`, event); // bez przekazywania eventa cos sie pierniczy w zwiazku z awaitem
+        // Without passing the event, something messes up due to await
+        showNotification(`Wklejono: ${clipboardText}`, event); 
+    } catch (err) {
+        console.error("Failed to read clipboard contents: ", err);
+        showNotification("Błąd wklejania z domyślnego schowka!");
+    }
 }
 
 function showNotification(message, event = null) {
-    // Tworzymy element powiadomienia
+    // Create notification element
     const notification = document.createElement('div');
     notification.className = 'copy-notification';
     notification.textContent = message;
 
-    // Ustawiamy pozycję powiadomienia na podstawie pozycji kursora
-    const { clientX: x, clientY: y } = event || window.event;
+    // Set notification position based on cursor position
+    const e = event || window.event;
+    if (e) {
+        const { clientX: x, clientY: y } = e;
+        notification.style.left = `${x + 20}px`;
+        notification.style.top = `${y - 50}px`;
+    } else {
+        // Fallback if event is missing entirely (e.g. lost context after async operations)
+        notification.style.left = `50%`;
+        notification.style.top = `20px`;
+        notification.style.transform = `translateX(-50%)`;
+    }
 
-    notification.style.left = `${x + 20}px`;
-    notification.style.top = `${y - 50}px`;
-
-    // Dodajemy powiadomienie do dokumentu
+    // Add notification to document
     document.body.appendChild(notification);
 
-    // Usuwamy powiadomienie po 2 sekundach
+    // Remove notification after 1.2 seconds
     setTimeout(() => {
         notification.remove();
     }, 1200);
 }
-
