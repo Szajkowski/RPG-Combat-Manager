@@ -294,17 +294,6 @@ function updateSpecificPlayersStats(playerNames) {
     }));
 }
 
-function addInputSync(characterDiv) {
-    let inputs = characterDiv.querySelectorAll('.stat-value');
-    inputs.forEach(input => {
-        input.addEventListener('input', () => sendPlayerStats(characterDiv));
-    });
-    inputs = characterDiv.querySelectorAll('.mod-value');
-    inputs.forEach(input => {
-        input.addEventListener('input', () => sendPlayerStats(characterDiv));
-    });
-}
-
 function updateServerAbilitiesStates(abilitiesStates) {
     return new Promise((resolve, reject) => {
         const requestId = Date.now();
@@ -363,10 +352,13 @@ async function updateActivePanel() {
             button.disabled = false; 
             button.classList.remove('unavailable');
             button.classList.add('available');
-            button.textContent = 'Dostępne';
-        } else if (abilityState.currentCooldown !== 'Niedostępne') {
+            button.textContent = t('available');
+        } else if (abilityState.currentCooldown !== 'unavailable') {
             button.classList.add('unavailable');
             button.textContent = abilityState.currentCooldown;
+        } else {
+            button.classList.add('unavailable');
+            button.textContent = t('unavailable');
         }
     });
 }

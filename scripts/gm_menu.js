@@ -13,7 +13,7 @@ async function reduceAbilityCDs() {
         Object.keys(abilitiesStates[characterName]).forEach(abilityName => {
             const abilityState = abilitiesStates[characterName][abilityName];
 
-            if (abilityState.currentCooldown === 0 || abilityState.currentCooldown === 'Niedostępne') {
+            if (abilityState.currentCooldown === 0 || abilityState.currentCooldown === 'unavailable') {
                 return; // Skip ready or locked abilities
             }
 
@@ -31,13 +31,13 @@ async function getCharactersInTeam(teamId) {
         .filter(characterDiv => characterDiv.dataset.isDead !== "true");
 
     return aliveCharacters.flatMap(characterDiv => {
-        const name = characterDiv.querySelector('input[type="text"]').value || 'Nieznana postać';
+        const name = characterDiv.querySelector('input[type="text"]').value || t('unknown_character');
         const reflexInput = characterDiv.querySelector('.stat-value.reflex');
         const reflex = reflexInput ? parseInt(reflexInput.value) || 0 : 0;
 
         // Check if the character has "Dodatkowa akcja" (Extra Action)
         const abilities = (bosses[name]?.abilities || monsters[name]?.abilities || adventurers[name]?.abilities || []);
-        const hasExtraAction = abilities.some(ability => ability.name === "Dodatkowa akcja");
+        const hasExtraAction = abilities.some(ability => matchesAnyLanguage(ability.name, 'extra_action_ability'));
 
         // If they have "Dodatkowa akcja", add two entries: with full and half reflex
         if (hasExtraAction) {

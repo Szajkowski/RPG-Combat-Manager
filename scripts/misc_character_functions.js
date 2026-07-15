@@ -22,21 +22,6 @@ function toggleStun(button) {
     }
 }
 
-function translateRollName(roll) {
-    const translations = {
-        vitality: "żywotność",
-        intuition: "intuicja",
-        strength: "siła",
-        agility: "zwinność",
-        attunement: "dostrojenie",
-        perception: "percepcja",
-        accuracy: "celność",
-        reflex: "refleks",
-        resilience: "nieustępliwość",
-    };
-    return translations[roll] || roll; // Default to original name if translation is missing
-}
-
 function translateStatName(statName) {
     const translations = {
         intuicji: "intuition",

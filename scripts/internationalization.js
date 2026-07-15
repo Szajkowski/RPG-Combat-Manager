@@ -22,6 +22,22 @@ const i18n = {
         'damage': 'Obrażenia',
         'phys_armor': 'Pancerz fizyczny',
         'mag_armor': 'Pancerz magiczny',
+
+        // Lowercase and grammatically declined stat names for inline descriptions
+        'desc_hp': 'zdrowia',
+        'desc_vitality': 'żywotności',
+        'desc_intuition': 'intuicji',
+        'desc_strength': 'siły',
+        'desc_agility': 'zwinności',
+        'desc_attunement': 'dostrojenia',
+        'desc_perception': 'percepcji',
+        'desc_accuracy': 'celności',
+        'desc_reflex': 'refleksu',
+        'desc_resilience': 'nieustępliwości',
+        'desc_damage': 'obrażeń',
+        'desc_phys_armor': 'pancerza fizycznego',
+        'desc_mag_armor': 'pancerza magicznego',
+        'desc_mod': 'mod',
         
         // UI Elements & Placeholders
         'value': 'Wartość',
@@ -64,6 +80,10 @@ const i18n = {
         'gear': 'Oporządzenie',
         'other_items': 'Inne przedmioty',
         'quantity': 'Ilość:',
+        'extra_action_ability': 'dodatkowa akcja',
+        'cooldown_once': 'raz',
+        'prop_unavoidable': 'Nieunikalne.',
+        'prop_penetrating': 'Penetrujące.',
         
         // Notifications
         'copied': 'Skopiowano:',
@@ -94,8 +114,24 @@ const i18n = {
         'reflex': 'Reflex',
         'resilience': 'Resilience',
         'damage': 'Damage',
-        'phys_armor': 'Physical Armor',
-        'mag_armor': 'Magical Armor',
+        'phys_armor': 'Physical armor',
+        'mag_armor': 'Magical armor',
+
+        // Lowercase stat names for inline descriptions
+        'desc_hp': 'HP',
+        'desc_vitality': 'vitality',
+        'desc_intuition': 'intuition',
+        'desc_strength': 'strength',
+        'desc_agility': 'agility',
+        'desc_attunement': 'attunement',
+        'desc_perception': 'perception',
+        'desc_accuracy': 'accuracy',
+        'desc_reflex': 'reflex',
+        'desc_resilience': 'resilience',
+        'desc_damage': 'damage',
+        'desc_phys_armor': 'physical armor',
+        'desc_mag_armor': 'magical armor',
+        'desc_mod': 'mod',
         
         // UI Elements & Placeholders
         'value': 'Value',
@@ -138,6 +174,10 @@ const i18n = {
         'gear': 'Gear',
         'other_items': 'Other items',
         'quantity': 'Quantity:',
+        'extra_action_ability': 'extra action',
+        'cooldown_once': 'once',
+        'prop_unavoidable': 'Unavoidable.',
+        'prop_penetrating': 'Penetrating.',
         
         // Notifications
         'copied': 'Copied:',
@@ -154,6 +194,14 @@ const i18n = {
 // Returns a translated word, or the key itself if the translation is missing
 function t(key) {
     return (i18n[window.currentLanguage] && i18n[window.currentLanguage][key]) || key;
+}
+
+// Checks if a given text matches any translation of a specific key across all languages
+function matchesAnyLanguage(text, dictionaryKey) {
+    const lowerText = text.toLowerCase().trim();
+    return Object.keys(i18n).some(lang => {
+        return i18n[lang][dictionaryKey] && i18n[lang][dictionaryKey].toLowerCase() === lowerText;
+    });
 }
 
 // Function triggered by the Player and GM language buttons

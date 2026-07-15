@@ -69,7 +69,7 @@ async function createAbilitiesPanel(abilities, characterDiv) {
 
         // Initialize state in abilitiesStates
         if (!abilitiesStates[characterName][abilityName]) {
-            const isSingleUse = ability.cooldown === "raz";
+            const isSingleUse = ability.cooldown === "[cooldown_once]";
             const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
             
             abilitiesStates[characterName][abilityName] = {
@@ -92,14 +92,16 @@ async function createAbilitiesPanel(abilities, characterDiv) {
 
         // Optional attributes
         if (ability.roll) {
-            const rollName = translateRollName(ability.roll); 
+            const rollName = t(ability.roll); 
             abilityContent += `<div class="ability-stat">${t('roll')} ${rollName}</div>`;
         }
         if (ability.difficulty) {
             abilityContent += `<div class="ability-stat">${t('difficulty')} ${ability.difficulty}</div>`;
         }
         if (ability.cooldown !== undefined && ability.cooldown !== null) {
-            abilityContent += `<div class="ability-stat btn-here">${t('cooldown')} ${ability.cooldown}</div>`;
+            // If it's a tag, translate it
+            let displayCooldown = ability.cooldown === "[cooldown_once]" ? t('cooldown_once') : ability.cooldown;
+            abilityContent += `<div class="ability-stat btn-here">${t('cooldown')} ${displayCooldown}</div>`;
         }
         if (ability.difficulty && ability.difficulty !== "X") {
             abilityContent += `<div class="ability-stat">${t('success_chance')} <span class="highlighted-property">${calculateaAbilitySuccessRate(characterDiv, ability.roll, ability.difficulty)}%</span></div>`;
@@ -111,8 +113,8 @@ async function createAbilitiesPanel(abilities, characterDiv) {
         if (ability.cooldown !== undefined && ability.cooldown !== null) {
             const cooldownButton = document.createElement('button');
             cooldownButton.className = abilityState.currentCooldown === 0 ? 'cooldown-button available' : 'cooldown-button unavailable';
-            cooldownButton.textContent = abilityState.currentCooldown === 0 ? 'Dostępne' : abilityState.currentCooldown;
-            cooldownButton.disabled = abilityState.currentCooldown > 0;
+            cooldownButton.textContent = abilityState.currentCooldown === 0 ? t('available') : (abilityState.currentCooldown === 'unavailable' ? t('unavailable') : abilityState.currentCooldown);
+            cooldownButton.disabled = abilityState.currentCooldown !== 0;
             cooldownButton.onclick = () => useAbility(cooldownButton, characterName, ability);
 
             abilityItem.querySelector('.ability-stat.btn-here').appendChild(cooldownButton);
@@ -174,8 +176,8 @@ async function useAbility(button, characterName, ability) {
             button.disabled = true;
             button.classList.remove('available');
             button.classList.add('unavailable');
-            button.textContent = 'Niedostępne';
-            abilityState.currentCooldown = 'Niedostępne';
+            button.textContent = t('unavailable');
+            abilityState.currentCooldown = 'unavailable';
             if (ability.condition && ability.conditionDuration) {
                 sendCondition(characterName, ability.condition, ability.conditionDuration, characterDiv);
             }
@@ -186,7 +188,7 @@ async function useAbility(button, characterName, ability) {
             setAbilityCooldown(button, abilityState.maxCooldown, abilityState);
         }
     } else {
-        if (abilityState.singleUse && abilityState.currentCooldown !== 'Niedostępne') {
+        if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {
             // A failed roll for a single-use ability always gets a one-turn cd. It's written as two because these cds are sort of +1 always, to wait out the next turn, 
             // instead of the ability being immediately available again
             setAbilityCooldown(button, 2, abilityState);
@@ -249,77 +251,180 @@ function setAbilityCooldown(button, cooldown, abilityState) {
     button.textContent = cooldown;
 }
 
+// TEXT REPLACEMENTS (Used only in text blocks like descriptions)
+
+/**
+ * Replaces property tags with translated HTML spans.
+ * Example Input: "This attack is [prop_unavoidable]."
+ * Example Output: "This attack is <span class="highlighted-property">Nieunikalne.</span>"
+ */
+ function parsePropertyTags(description) {
+    return description.replace(/\[(prop_[a-zA-Z0-9_]+)\]/gi, (match, tag) => {
+        return `<span class="highlighted-property">${t(tag.toLowerCase())}</span>`;
+    });
+}
+
+/**
+ * Replaces stat modifier tags with translated and formatted HTML strings.
+ * Example Input: "Grants [+2 strength] and [-1 agility mod]."
+ * Example Output: "Grants <strong class="stat-bonus">+2 siły</strong> and <strong class="stat-bonus">-1 zwinności mod</strong>."
+ */
+function parseStatTags(description) {
+    return description.replace(/\[([+-]?\d+(?:\.\d+)?)\s+([a-zA-Z0-9_]+)(?:\s+(mod))?\]/gi, (match, value, stat, isMod) => {
+        const statTranslated = t('desc_' + stat.toLowerCase());
+        const modText = isMod ? ` ${t('desc_mod')}` : '';
+        const numVal = parseFloat(value);
+        const prefix = numVal > 0 ? '+' : '';
+        return `<strong class="stat-bonus">${prefix}${numVal} ${statTranslated}${modText}</strong>`;
+    });
+}
+
+
+// MATH & TRANSLATION CORE (Used by both Gear and Abilities)
+
+/**
+ * Extracts the final numerical result of a gear stat, whether it's flat or a formula.
+ * Example Input 1: 15 (Number) -> Returns: 15
+ * Example Input 2: "[-10 + 0.5 * vitality]" (String) -> Returns: 5 (Number), assuming vitality is 30
+ */
+ function getFormulaValue(statValue, characterDiv) {
+    if (typeof statValue === "number") return statValue;
+    
+    if (typeof statValue === "string" && statValue.includes('[')) {
+        const formula = statValue.replace(/[\[\]]/g, '');
+        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => getStatValue(characterDiv, stat));
+        
+        if (!/^[0-9+\-*/().\s]+$/.test(evaluatedFormula)) {
+            console.error("Formula contains invalid characters:", evaluatedFormula);
+            return 0;
+        }
+        
+        return Math.round(new Function('return ' + evaluatedFormula)());
+    }
+    
+    const parsed = parseFloat(statValue);
+    return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Generates the readable formula breakdown for the UI. Returns empty string if not applicable.
+ * Example Input 1: "[10 + 0.5 * vitality]" -> Returns: "10 + 0.5 * żywotności"
+ * Example Input 2: 15 -> Returns: "" (No formula to display)
+ * Example Input 3: "[15]" -> Returns: "" (No formula to display)
+ */
+function getFormulaBreakdown(statValue) {
+    if (typeof statValue !== "string" || !statValue.includes('[')) return "";
+    
+    const formula = statValue.replace(/[\[\]]/g, '');
+    const displayFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => {
+        const descKey = 'desc_' + stat.toLowerCase();
+        const translatedDesc = t(descKey);
+        
+        return translatedDesc === descKey ? t(stat.toLowerCase()) : translatedDesc;
+    });
+    
+    // Ignore formulas that are just plain numbers wrapped in brackets (e.g., "[15]")
+    if (/^\d+(\.\d+)?$/.test(formula.replace(/\s+/g, ''))) return "";
+    
+    return displayFormula;
+}
+
+
+// ABILITY SPECIFIC PARSERS (Used only for Ability Descriptions)
+
+/**
+ * Handles dynamic range calculations specifically for ability rolls and penetration.
+ * Example Input (X * roll): "2 * roll" -> Returns: "4 - 24" (String range)
+ * Example Input (X * over): "3 * over" -> Returns: "3 - 15" (String range)
+ */
+function evaluateDynamicAbilityRoll(formula, characterDiv, rollAbility, rollDifficulty) {
+    if (!rollAbility) return "0";
+
+    const statValue = getStatValue(characterDiv, rollAbility);
+    const modValue = getModValue(characterDiv, rollAbility);
+
+    // Multiplier roll (X * roll)
+    if (/^\s*(\d+)\s*\*\s*roll\s*$/i.test(formula)) {
+        const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
+        if (rollDifficulty > statValue + modValue) return "0";
+        
+        if (!rollDifficulty || rollDifficulty === "X") {
+            return `${multiplier * (1 + modValue)} - ${multiplier * (statValue + modValue)}`;
+        }
+        return `${rollDifficulty > modValue ? multiplier * rollDifficulty : multiplier * (1 + modValue)} - ${multiplier * (statValue + modValue)}`;
+    }
+
+    // Penetration points (X * over)
+    if (/^\s*(\d+)\s*\*\s*over\s*$/i.test(formula) && rollDifficulty) {
+        const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
+        if (rollDifficulty >= (statValue + modValue) || rollDifficulty === "X") return "0";
+
+        const maxOverPoints = statValue + modValue - rollDifficulty;
+        const minOverPoints = modValue > rollDifficulty ? modValue - rollDifficulty : 1;
+        return `${multiplier * minOverPoints} - ${multiplier * maxOverPoints}`;
+    }
+
+    // Power scaling (X ^ over)
+    if (/^\s*(\d+)\s*\^\s*over\s*$/i.test(formula) && rollDifficulty && rollDifficulty !== "X") {
+        const baseValue = parseInt(formula.match(/^\s*(\d+)/)[1]);
+        if (rollDifficulty >= (statValue + modValue) || rollDifficulty === "X") return "0";
+
+        const maxOverPoints = statValue + modValue - rollDifficulty;
+        const minOverPoints = modValue > rollDifficulty ? modValue - rollDifficulty : 1;
+        return `${Math.pow(baseValue, minOverPoints)} - ${Math.pow(baseValue, maxOverPoints)}`;
+    }
+
+    return "0";
+}
+
+/**
+ * Specifically parses formulas embedded inside text blocks (e.g. descriptions).
+ * Wraps calculated results in clickable HTML tags.
+ * Example Input: "Deals [2 * roll] damage and [10 + 1 * vitality] frost damage."
+ * Example Output: "Deals <strong ...>2-24</strong> damage and <strong ...>20</strong> <span ...>(10 + 1 * żywotności)</span> frost damage."
+ */
+function parseFormulaTags(description, characterDiv, rollAbility, rollDifficulty) {
+    return description.replace(/\[(.*?)\]/g, (match, formula) => {
+        try {
+            // Forward ability-specific keywords (roll/over) to the dynamic handler
+            if (/roll|over/i.test(formula)) {
+                const result = evaluateDynamicAbilityRoll(formula, characterDiv, rollAbility, rollDifficulty);
+                return `<strong class="calculated-value">${result}</strong>`;
+            }
+
+            // Route standard math to the universal math handler
+            const result = calculateMathFormula(formula, characterDiv);
+            const displayFormula = translateFormulaText(formula);
+            
+            // Only append the formula breakdown if it's not a raw number
+            let displayHtml = '';
+            if (displayFormula.replace(/\s+/g, '') !== result.toString()) {
+                displayHtml = ` <span class="formula-display">(${displayFormula})</span>`;
+            }
+
+            return `<strong class="copyable-value" onclick="copyToClipboard(${result})">${result}</strong>${displayHtml}`;
+        } catch (e) {
+            console.error(`Cannot calculate formula: ${formula}`, e);
+            return match; 
+        }
+    });
+}
+
+
+// MASTER TEXT WRAPPER
+
+/**
+ * Master wrapper used strictly for formatting text blocks (e.g., item or ability descriptions).
+ * Sequentially applies property highlights, stat highlights, and formula calculations.
+ */
 function parseDescription(description, characterDiv, rollAbility = null, rollDifficulty = null) {
     if (typeof description === "number") return description;
 
-    // Highlight special properties
-    const highlightedDescription = description.replace(/(Nieunikalne\.|Penetrujące\.)/g, 
-        `<span class="highlighted-property">$1</span>`
-    );
+    let processedDescription = parsePropertyTags(String(description));
+    processedDescription = parseStatTags(processedDescription);
+    processedDescription = parseFormulaTags(processedDescription, characterDiv, rollAbility, rollDifficulty);
 
-    // Parse formulas
-    return highlightedDescription.replace(/\[(.*?)\]/g, (match, formula) => {
-        try {
-            let result;
-
-            // Handle roll
-            if (/^\s*(\d+)\s*\*\s*roll\s*$/i.test(formula) && rollAbility) {
-                const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
-                const statValue = getStatValue(characterDiv, rollAbility);
-                const modValue = getModValue(characterDiv, rollAbility);
-
-                if (rollDifficulty > statValue + modValue) return `<strong class="calculated-value">0</strong>`;
-
-                // Missing or "X" for difficulty
-                if (!rollDifficulty || rollDifficulty === "X") {
-                    result = `${multiplier * (1 + modValue)} - ${multiplier * (statValue + modValue)}`;
-                } else {
-                    result = `${rollDifficulty > modValue ? multiplier * rollDifficulty : multiplier * (1 + modValue)} - ${multiplier * (statValue + modValue)}`;
-                }
-                return `<strong class="calculated-value">${result}</strong>`;
-            }
-
-            // Handle penetration (over)
-            if (/^\s*(\d+)\s*\*\s*over\s*$/i.test(formula) && rollAbility && rollDifficulty) {
-                const multiplier = parseInt(formula.match(/^\s*(\d+)/)[1]);
-                const statValue = getStatValue(characterDiv, rollAbility);
-                const modValue = getModValue(characterDiv, rollAbility);
-
-                if (rollDifficulty >= (statValue + modValue) || rollDifficulty === "X") return `<strong class="calculated-value">0</strong>`;
-
-                const maxOverPoints = statValue + modValue - rollDifficulty;
-                const minOverPoints = modValue > rollDifficulty ? modValue - rollDifficulty : 1;
-                result = `${multiplier * minOverPoints} - ${multiplier * maxOverPoints}`;
-                return `<strong class="calculated-value">${result}</strong>`;
-            }
-
-            // Handle power (X ^ over)
-            if (/^\s*(\d+)\s*\^\s*over\s*$/i.test(formula) && rollAbility && rollDifficulty && rollDifficulty !== "X") {
-                const baseValue = parseInt(formula.match(/^\s*(\d+)/)[1]);
-                const statValue = getStatValue(characterDiv, rollAbility);
-                const modValue = getModValue(characterDiv, rollAbility);
-
-                if (rollDifficulty >= (statValue + modValue) || rollDifficulty === "X") return `<strong class="calculated-value">0</strong>`;
-
-                const maxOverPoints = statValue + modValue - rollDifficulty;
-                const minOverPoints = modValue > rollDifficulty ? modValue - rollDifficulty : 1;
-                result = `${Math.pow(baseValue, minOverPoints)} - ${Math.pow(baseValue, maxOverPoints)}`;
-                return `<strong class="calculated-value">${result}</strong>`;
-            }
-
-            // Handle standard formula
-            const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => {
-                return getStatValue(characterDiv, stat);
-            });
-
-            // Using Function constructor instead of eval()
-            result = Math.ceil(new Function('return ' + evaluatedFormula)());
-            return `<strong class="copyable-value" onclick="copyToClipboard(${result})">${result}</strong>`;
-        } catch (e) {
-            console.error(`Cannot calculate formula: ${formula}`, e);
-            return match; // Return original text in case of error
-        }
-    });
+    return processedDescription;
 }
 
 // Retrieves only the value of the statistic itself, without counting the additional bonus. Roll bonuses shouldn't affect ability damage in the [number * stat] convention
@@ -399,24 +504,51 @@ function createEquipmentPanel(equipment = [], characterDiv) {
         gear.forEach(item => {
             const itemElement = document.createElement('div');
             itemElement.className = 'equipment-item gear-item';
-            isWeapon = 'damage' in item;
-            html = ''
+            let html = '';
+            
             html += `<div class="item-name">${item.name}</div>`;
-            if (item.description)
-                html += `<div class="item-description">${item.description}</div>`;
+            
+            if (item.description) {
+                html += `<div class="item-description">${parseDescription(item.description, characterDiv)}</div>`;
+            }
 
             html += `<div class="gear-stats">`;
             
-            if (item.damage)
-                html += `<div class="gear-stat">${t('damage')}: ${parseDescription(item.damage || "", characterDiv)}</div>`;
-            if (item.physArmor)
-                html += `<div class="gear-stat">${t('phys_armor')}: ${parseDescription(item.physArmor || "", characterDiv)}</div>`;
-            if (item.magArmor)
-                html += `<div class="gear-stat">${t('mag_armor')}: ${parseDescription(item.magArmor || "", characterDiv)}</div>`;
-            if (item.value)
+            if (item.damage !== undefined) {
+                const val = getFormulaValue(item.damage, characterDiv);
+                const breakdown = getFormulaBreakdown(item.damage);
+                html += `<div class="gear-stat">${t('damage')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            
+            if (item.physArmor !== undefined) {
+                const val = getFormulaValue(item.physArmor, characterDiv);
+                const breakdown = getFormulaBreakdown(item.physArmor);
+                html += `<div class="gear-stat">${t('phys_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            
+            if (item.physArmorPerc !== undefined) {
+                const val = getFormulaValue(item.physArmorPerc, characterDiv);
+                const breakdown = getFormulaBreakdown(item.physArmorPerc);
+                html += `<div class="gear-stat">${t('phys_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            
+            if (item.magArmor !== undefined) {
+                const val = getFormulaValue(item.magArmor, characterDiv);
+                const breakdown = getFormulaBreakdown(item.magArmor);
+                html += `<div class="gear-stat">${t('mag_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            
+            if (item.magArmorPerc !== undefined) {
+                const val = getFormulaValue(item.magArmorPerc, characterDiv);
+                const breakdown = getFormulaBreakdown(item.magArmorPerc);
+                html += `<div class="gear-stat">${t('mag_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            
+            if (item.value !== undefined) {
                 html += `<div class="gear-stat">${t('value')}: ${item.value}S</div>`;
+            }
 
-            html += "</div>"
+            html += "</div>";
 
             itemElement.innerHTML = html;
             gearSection.appendChild(itemElement);
@@ -436,7 +568,7 @@ function createEquipmentPanel(equipment = [], characterDiv) {
             itemElement.className = 'equipment-item other-item';
             itemElement.innerHTML = `
                 <div class="item-name">${item.name}</div>
-                <div class="item-description">${item.description}</div>
+                <div class="item-description">${parseDescription(item.description, characterDiv)}</div>
                 <div class="item-quantity">
                     <span>${t('quantity')}</span>
                     <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0">

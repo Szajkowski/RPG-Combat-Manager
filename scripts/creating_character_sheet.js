@@ -76,125 +76,276 @@ function addCharacter(type, team, stats = {}, image = null) {
     characterDiv.innerHTML = characterContent;
     teamDiv.appendChild(characterDiv);
 
-    // This part basically handles adding oninput=update to stat inputs and correctly loading the character from the server after reload or disconnect
+    // Bind dynamic stat recalculation for all characters, network sync is only for player chars though
+    bindCharacterInputs(characterDiv, type);
+
+    // Initial sync to server only for players
     if (type === 'player') { 
-        addInputSync(characterDiv);  // Automatically send changes after any stat change
         updatePlayer(finalStats.name, finalStats);
     }
 }
 
-function applyGearBonuses(stats) {
-    if (!stats.equipment || !Array.isArray(stats.equipment)) return stats;
-
-    let totalPhysFlat = parseInt(stats.physArmor) || 0;
-    let totalPhysPercent = parseInt(stats.physArmorMod) || 0;
-    let totalMagFlat = parseInt(stats.magArmor) || 0;
-    let totalMagPercent = parseInt(stats.magArmorMod) || 0;
-
+// Calculates core stats (HP, Strength, Agility, etc.) from item description tags
+function calculateCoreStatBonuses(stats) {
     const updatedStats = { ...stats };
+    if (!stats.equipment || !Array.isArray(stats.equipment)) return updatedStats;
+
+    stats.equipment.forEach(item => {
+        if (item.type !== 'gear' || !item.description) return;
+
+        // Extract and process tags like [+2 strength], [-1 agility mod], [+50 hp]
+        const statBonuses = item.description.match(/\[([+-]?\d+(?:\.\d+)?)\s+([a-zA-Z0-9_]+)(?:\s+(mod))?\]/gi);
+        if (statBonuses) {
+            statBonuses.forEach(bonus => {
+                const match = bonus.match(/\[([+-]?\d+(?:\.\d+)?)\s+([a-zA-Z0-9_]+)(?:\s+(mod))?\]/i);
+                if (match) {
+                    const value = parseFloat(match[1]);
+                    const statKey = match[2].toLowerCase();
+                    const isMod = match[3] ? true : false;
+
+                    // Handle HP specifically (base HP and Max HP)
+                    if (statKey === "hp" || statKey === "health") {
+                        updatedStats.hp = Math.max(1, (updatedStats.hp || 0) + value);
+                        updatedStats.maxHp = Math.max(1, (updatedStats.maxHp || 0) + value);
+                    } 
+                    // Handle stat modifiers (can drop below 0)
+                    else if (isMod) {
+                        const modKey = `${statKey}Mod`;
+                        updatedStats[modKey] = (updatedStats[modKey] || 0) + value;
+                    } 
+                    // Handle core stats (minimum value is 1)
+                    else {
+                        updatedStats[statKey] = Math.max(1, (updatedStats[statKey] || 0) + value);
+                        // Vitality secretly adds 10 HP per point
+                        if (statKey === "vitality") {
+                            updatedStats.hp = Math.max(1, (updatedStats.hp || 0) + 10 * value);
+                            updatedStats.maxHp = Math.max(1, (updatedStats.maxHp || 0) + 10 * value);
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    return updatedStats;
+}
+
+// Calculates additional stats (Damage, Armor) using the core stats
+function calculateAdditionalStatsBonuses(stats) {
+    const updatedStats = { ...stats };
+    if (!stats.equipment || !Array.isArray(stats.equipment)) return updatedStats;
+
+    let totalPhysFlat = parseFloat(stats.physArmor) || 0;
+    let totalMagFlat = parseFloat(stats.magArmor) || 0;
+
+    // Multipliers start at 1.0 (representing 100% damage taken)
+    let physDamageMult = 1.0;
+    let magDamageMult = 1.0;
+
+    // Apply native/base character armor percentage from json
+    if (stats.physArmorPerc) {
+        const basePhysPerc = parseFloat(stats.physArmorPerc);
+        physDamageMult *= basePhysPerc > 0 ? (1 - basePhysPerc / 100) : (1 + Math.abs(basePhysPerc) / 100);
+    }
+    if (stats.magArmorPerc) {
+        const baseMagPerc = parseFloat(stats.magArmorPerc);
+        magDamageMult *= baseMagPerc > 0 ? (1 - baseMagPerc / 100) : (1 + Math.abs(baseMagPerc) / 100);
+    }
 
     stats.equipment.forEach(item => {
         if (item.type !== 'gear') return;
 
-        if (item.description) {
-            const statBonuses = item.description.match(/([+-]\d+)\s+(wyniku\s+)?([\p{L}]+)/gu);
-            if (statBonuses) {
-                statBonuses.forEach(bonus => {
-                    const [, value, isRollBonus, stat] = bonus.match(/([+-]\d+)\s+(wyniku\s+)?([\p{L}]+)/u);
-                    const statKey = translateStatName(stat.toLowerCase());
-                    const statValue = parseInt(value, 10);
-
-                    if (isRollBonus) {
-                        const rollKey = `${statKey}Mod`;
-                        updatedStats[rollKey] = (updatedStats[rollKey] || 0) + statValue;
-                    } else if (statKey && updatedStats[statKey] !== undefined) {
-                        updatedStats[statKey] += statValue;
-                        if (statKey === "vitality") {
-                            updatedStats.hp += 10 * statValue;
-                            updatedStats.maxHp += 10 * statValue;
-                        }
-                    } else if (stat.toLowerCase() === "zdrowia") {
-                        const healthBonus = parseInt(value, 10);
-                        updatedStats.hp += healthBonus;
-                        updatedStats.maxHp += healthBonus;
-                    } else {
-                        console.warn(`Unknown stat: ${stat}`);
-                    }
-                });
+        // Process Damage (Flat or Formula)
+        if (item.damage !== undefined) {
+            if (typeof item.damage === 'string' && item.damage.includes('[')) {
+                updatedStats.damage = (updatedStats.damage || 0) + evaluateFormula(item.damage, updatedStats);
+            } else {
+                updatedStats.damage = (updatedStats.damage || 0) + (parseFloat(item.damage) || 0);
             }
         }
 
-        // Process damage
-        if (typeof item.damage === 'string' && item.damage.includes('[')) {
-            updatedStats.damage = (updatedStats.damage || 0) + evaluateFormula(item.damage, updatedStats);
-        } else if (typeof item.damage === 'number') {
-            updatedStats.damage = (updatedStats.damage || 0) + item.damage;
+        // Process Physical Armor (Flat or Formula)
+        if (item.physArmor !== undefined) {
+            if (typeof item.physArmor === 'string' && item.physArmor.includes('[')) {
+                totalPhysFlat += evaluateFormula(item.physArmor, updatedStats);
+            } else {
+                totalPhysFlat += (parseFloat(item.physArmor) || 0);
+            }
         }
 
-        // Process physical armor
-        if (typeof item.physArmor === 'string' && item.physArmor.includes('[')) {
-            totalPhysFlat += evaluateFormula(item.physArmor, updatedStats);
-        } else if (typeof item.physArmor === 'string' && item.physArmor.endsWith('%')) {  
-            const itemPhysArmor = parseInt(item.physArmor, 10);
-            totalPhysPercent += (100 - totalPhysPercent) * itemPhysArmor / 100;
-        } else if (typeof item.physArmor === 'number') {
-            totalPhysFlat += item.physArmor;
+        // Process Physical Armor Percentage (Flat or Formula)
+        if (item.physArmorPerc !== undefined) {
+            let percVal = 0;
+            if (typeof item.physArmorPerc === 'string' && item.physArmorPerc.includes('[')) {
+                percVal = evaluateFormula(item.physArmorPerc, updatedStats);
+            } else {
+                percVal = parseFloat(item.physArmorPerc) || 0;
+            }
+            physDamageMult *= percVal > 0 ? (1 - percVal / 100) : (1 + Math.abs(percVal) / 100);
         }
 
-        // Process magical armor
-        if (typeof item.magArmor === 'string' && item.magArmor.includes('[')) {
-            totalMagFlat += evaluateFormula(item.magArmor, updatedStats);
-        } else if (typeof item.magArmor === 'string' && item.magArmor.endsWith('%')) {
-            const itemMagArmor = parseInt(item.magArmor, 10);
-            totalMagPercent += (100 - totalMagPercent) * itemMagArmor / 100;
-        } else if (typeof item.magArmor === 'number') {
-            totalMagFlat += item.magArmor;
+        // Process Magical Armor (Flat or Formula)
+        if (item.magArmor !== undefined) {
+            if (typeof item.magArmor === 'string' && item.magArmor.includes('[')) {
+                totalMagFlat += evaluateFormula(item.magArmor, updatedStats);
+            } else {
+                totalMagFlat += (parseFloat(item.magArmor) || 0);
+            }
+        }
+
+        // Process Magical Armor Percentage (Flat or Formula)
+        if (item.magArmorPerc !== undefined) {
+            let percVal = 0;
+            if (typeof item.magArmorPerc === 'string' && item.magArmorPerc.includes('[')) {
+                percVal = evaluateFormula(item.magArmorPerc, updatedStats);
+            } else {
+                percVal = parseFloat(item.magArmorPerc) || 0;
+            }
+            magDamageMult *= percVal > 0 ? (1 - percVal / 100) : (1 + Math.abs(percVal) / 100);
         }
     });
 
-    // Format modifier values
+    // Convert damage multipliers back into armor percentages
+    const finalPhysPercent = (1 - physDamageMult) * 100;
+    const finalMagPercent = (1 - magDamageMult) * 100;
+
+    return {
+        ...updatedStats,
+        physArmor: Math.round(totalPhysFlat),
+        physArmorMod: Math.round(finalPhysPercent) !== 0 ? `${Math.round(finalPhysPercent)}%` : '',
+        magArmor: Math.round(totalMagFlat),
+        magArmorMod: Math.round(finalMagPercent) !== 0 ? `${Math.round(finalMagPercent)}%` : ''
+    };
+}
+
+// Master wrapper that runs the full item compilation
+function applyGearBonuses(stats) {
+    // Run core stats processing
+    let updatedStats = calculateCoreStatBonuses(stats);
+    
+    // Run additional stats processing using the newly boosted core stats
+    updatedStats = calculateAdditionalStatsBonuses(updatedStats);
+
+    // Format modifier values to include the '+' sign for UI display
     Object.keys(updatedStats).forEach(key => {
-        if (key.endsWith("Mod")) {
+        // Skip formatting the percentage armor strings as they format themselves
+        if (key.endsWith("Mod") && key !== "physArmorMod" && key !== "magArmorMod") {
             updatedStats[key] = formatSigned(updatedStats[key]);
         }
     });
 
-    return {
-        ...updatedStats,
-        physArmor: totalPhysFlat,
-        physArmorMod: totalPhysPercent > 0 ? `${Math.floor(totalPhysPercent)}%` : '',
-        magArmor: totalMagFlat,
-        magArmorMod: totalMagPercent > 0 ? `${Math.floor(totalMagPercent)}%` : ''
-    };
+    return updatedStats;
 }
 
+// Formats modifiers to include a '+' sign for positive values. Handles empty inputs to prevent NaN bugs.
 function formatSigned(value) {
-    if (value === 0) return '';
-    return `${value > 0 ? '+' : ''}${value}`;
+    if (value === 0 || value === "0" || value === "" || value === null || value === undefined) return '';
+    const floatVal = parseFloat(value);
+    if (isNaN(floatVal)) return '';
+    return `${floatVal > 0 ? '+' : ''}${floatVal}`;
 }
 
 function evaluateFormula(formula, stats) {
     try {
+        // Remove square brackets if they were passed in the formula string
+        const cleanFormula = formula.replace(/[\[\]]/g, '');
+
         // Replace stats with values without translation
-        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]+)\b/gi, (stat) => {
+        const evaluatedFormula = cleanFormula.replace(/\b([a-zA-Z_]+)\b/gi, (stat) => {
             const statValue = stats[stat] !== undefined ? stats[stat] : 0;
             return statValue;
         });
 
-        // Security Check: Only allow digits, basic math operators, dots and spaces.
-        // This completely prevents XSS attacks and arbitrary code execution.
+        // Security Check: Only allow digits, basic math operators, dots, and spaces.
         if (!/^[0-9+\-*/().\s]+$/.test(evaluatedFormula)) {
             throw new Error("Formula contains invalid/unsafe characters!");
         }
 
-        // Calculate formula result using secure Function constructor instead of eval()
-        const result = Math.max(0, Math.ceil(new Function('return ' + evaluatedFormula)()));
+        // Calculate formula result using secure Function constructor
+        // Math.round is used to handle potential decimals from the gear multipliers properly
+        const result = Math.round(new Function('return ' + evaluatedFormula)());
         return result;
 
     } catch (e) {
         console.error(`Error calculating formula: ${formula}`, e);
         return 0;
     }
+}
+
+// Binds event listeners to inputs. Handles both UI recalculation and network syncing seamlessly
+function bindCharacterInputs(characterDiv, type) {
+    // Core inputs trigger recalculation first, then network sync
+    const coreInputs = characterDiv.querySelectorAll('.stat-value:not(.damage):not(.physArmor):not(.magArmor), .mod-value:not(.physArmor):not(.magArmor)');
+    
+    coreInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            recalculateAdditionalStats(characterDiv);
+            
+            // Network sync is restricted to player characters only
+            if (type === 'player' && typeof sendPlayerStats === 'function') {
+                sendPlayerStats(characterDiv);
+            }
+        });
+    });
+
+    // ONLY Additional stat inputs trigger network sync (to prevent infinite calculation loops)
+    const additionalInputs = characterDiv.querySelectorAll('.stat-value.damage, .stat-value.physArmor, .stat-value.magArmor, .mod-value.physArmor, .mod-value.magArmor');
+    
+    additionalInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            // Network sync is restricted to player characters only
+            if (type === 'player' && typeof sendPlayerStats === 'function') {
+                sendPlayerStats(characterDiv);
+            }
+        });
+    });
+}
+
+// Safely recalculates only Damage and Armor based on the current UI input values
+function recalculateAdditionalStats(characterDiv) {
+    const nameInput = characterDiv.querySelector('input[type="text"]').value;
+    const baseName = removeUniqueNameNumber(nameInput);
+    
+    // Fetch raw base character data to prevent infinite stacking of item bonuses
+    const baseData = players[baseName] || adventurers[baseName] || monsters[baseName] || bosses[baseName];
+    if (!baseData || !baseData.equipment || baseData.equipment.length === 0) return;
+
+    // Build a hybrid stat object using the current values typed into the UI
+    let currentStats = { equipment: baseData.equipment };
+
+    const getVal = (selector) => {
+        const el = characterDiv.querySelector(selector);
+        return el ? (parseFloat(el.value) || 0) : 0;
+    };
+
+    const statsList = ['vitality', 'intuition', 'strength', 'agility', 'accuracy', 'reflex', 'resilience', 'attunement', 'perception'];
+    
+    statsList.forEach(stat => {
+        currentStats[stat] = getVal(`.stat-value.${stat}`);
+        currentStats[`${stat}Mod`] = getVal(`.mod-value.${stat}`);
+    });
+
+    // Inject the original base Damage and Armor values (to start with a clean slate before items)
+    currentStats.damage = baseData.damage || 0;
+    currentStats.physArmor = baseData.physArmor || 0;
+    currentStats.magArmor = baseData.magArmor || 0;
+    currentStats.physArmorMod = baseData.physArmorMod || 0;
+    currentStats.magArmorMod = baseData.magArmorMod || 0;
+
+    // 4. Run ONLY the additional stats calculation!
+    const finalStats = calculateAdditionalStatsBonuses(currentStats);
+
+    // 5. Safely update the additional fields in the UI
+    const setVal = (selector, val) => {
+        const el = characterDiv.querySelector(selector);
+        if (el) el.value = val;
+    };
+
+    setVal('.stat-value.damage', finalStats.damage);
+    setVal('.stat-value.physArmor', finalStats.physArmor);
+    setVal('.mod-value.physArmor', finalStats.physArmorMod);
+    setVal('.stat-value.magArmor', finalStats.magArmor);
+    setVal('.mod-value.magArmor', finalStats.magArmorMod);
 }
 
 function getCharacterStats(stats = {}, type) {

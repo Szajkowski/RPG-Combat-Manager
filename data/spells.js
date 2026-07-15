@@ -138,14 +138,14 @@ const spell = {
         description: "Penetrujące. Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
         roll: "vitality",
         difficulty: 30,
-        cooldown: "raz"
+        cooldown: "[once]"
     },
     "Feniks": {
         name: "Feniks",
         description: "Tworzy ogniste skrzydła, umożliwiające lot. Zaklęcie trwa do końca walki lub do śmierci maga. W przypadku śmierci mag wywołuje potężną eksplozję za [10 * vitality] i odradza się z pełnym zdrowiem.",
         roll: "vitality",
         difficulty: 20,
-        cooldown: "raz",
+        cooldown: "[once]",
         condition: "Feniks. Możliwość lotu. W razie śmierci eksploduje za [10 * vitality] i wraca z pełnym zdrowiem.",
         conditionDuration: "-"
     },
@@ -309,7 +309,7 @@ const spell = {
 
     "Lodowy miecz": {
         name: "Lodowy miecz",
-        description: "Tworzy lodowy miecz, który zadaje [1 * intuition] obrażeń po turze maga. Roztapia się po walce, albo gdy zostanie uderzony.",
+        description: "Tworzy lodowy miecz, który zadaje [1 * intuition] obrażeń po turze maga. Roztapia się po wykonaniu 3 cięć, albo gdy zostanie uderzony.",
         roll: "intuition",
         difficulty: 5,
         cooldown: 0
