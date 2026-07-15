@@ -21,7 +21,7 @@ const bosses = {
                 description: "Psychicznie zmusza inne postacie do czynienia jego woli. Przeciwników może uratować tylko rzut na nieustępliwość z trudnością 25. Musi się on powieść za każdym razem, gdy chce się oprzeć woli Edeusa.",
                 roll: "resilience",
                 difficulty: 1,
-                cooldown: "raz"
+                cooldown: "[cooldown_once]"
             },
             spell["Feniks"],
             spell["Narastający żar zagłady"],
@@ -63,14 +63,14 @@ const bosses = {
             },
             {
                 name: "Zgubne przyspieszenie",
-                description: "Rzuca na przeciwnika przyspieszenie, które wyprowadza go ze stanu spowolnienia na jedną turę. Otrzymanie zgubnego przyspieszenia zadaje 20 penetrujących obrażeń. Obrażenia wzrastają o 10 co turę.",
+                description: "Rzuca na przeciwnika przyspieszenie, które wyprowadza go ze stanu spowolnienia na jedną turę. Otrzymanie zgubnego przyspieszenia zadaje [20] penetrujących obrażeń. Obrażenia wzrastają o 10 co turę.",
             },
         ],
         equipment: [
             {
                 type: "gear",
                 name: "Potworna tarcza zegarowa",
-                description: "+2 do refleksu. Raz dziennie pozwala użytkownikowi na chwilę się mocno przyspieszyć. Użytkownik zyskuje 2 dodatkowe akcje w swojej kolejce. Sama aktywacja tarczy nie kosztuje akcji",
+                description: "[+2 reflex]. Raz dziennie pozwala użytkownikowi na chwilę się mocno przyspieszyć. Użytkownik zyskuje 2 dodatkowe akcje w swojej kolejce. Sama aktywacja tarczy nie kosztuje akcji",
                 physArmor: 5,
                 magArmor: 8,
                 value: "20 Z",
@@ -94,7 +94,7 @@ const bosses = {
         abilities: [
             {
                 name: "Szybka ręka",
-                description: "Pasywne. Jeśli gracz będzie potrzebował więcej niż 10 sekund, aby namyśleć się co robi, zostanie postrzelony za 100 obrażeń",
+                description: "Pasywne. Jeśli gracz będzie potrzebował więcej niż 10 sekund, aby namyśleć się co robi, zostanie postrzelony za [100] obrażeń",
             },
             {
                 name: "Dodatkowa akcja",
@@ -124,8 +124,8 @@ const bosses = {
             },
             {
                 name: "Furia Czerwonych Szali",
-                description: "Można użyć tylko raz na bitwę i dopiero mając mniej niż 50% zdrowia. Wystrzeliwuje 30 pocisków w losowych wrogów, każdy z nich zadaje 100 obrażeń.",
-                cooldown: "raz"
+                description: "Można użyć tylko raz na bitwę i dopiero mając mniej niż 50% zdrowia. Wystrzeliwuje 30 pocisków w losowych wrogów, każdy z nich zadaje [100] obrażeń.",
+                cooldown: "[cooldown_once]"
             },
         ],
     },

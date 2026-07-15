@@ -40,6 +40,12 @@ function parseDamageAmount(targetDiv, damageValue) {
 function applyDamage(button, type) {
     const characterDiv = button.closest('.character');
     const damageInput = characterDiv.querySelector('.damage-input');
+
+    // Ignore damage requests if the character is already dead
+    if (characterDiv.dataset.isDead === "true") {
+        damageInput.value = '';
+        return;
+    }
     
     const maxHp = parseInt(characterDiv.querySelector('.max-hp').value) || 0;
     let damage = damageInput.value;

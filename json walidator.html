@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Data Validator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2e; color: #d4d4d4;
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+        }
+        h1 { color: #89ddff; margin-bottom: 5px; }
+        p.subtitle { color: #a6accd; margin-bottom: 30px; text-align: center; }
+        #dropzone {
+            width: 100%; max-width: 800px; height: 150px;
+            border: 3px dashed #89ddff; border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; color: #89ddff; background-color: #282a36;
+            transition: all 0.3s ease; cursor: pointer;
+        }
+        #dropzone.hover { background-color: #3b3f51; border-color: #82aaff; transform: scale(1.02); }
+        #file-input { display: none; }
+        #results {
+            margin-top: 30px; width: 100%; max-width: 800px;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+        .file-card { background-color: #282a36; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .file-header {
+            font-size: 1.2rem; font-weight: bold; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding-bottom: 10px; border-bottom: 1px solid #44475a;
+        }
+        .status-success { color: #a6e22e; }
+        .status-error { color: #ff5555; }
+        .error-list { list-style: none; padding: 0; margin: 0; }
+        .error-item {
+            background-color: rgba(255, 85, 85, 0.1); border-left: 4px solid #ff5555;
+            padding: 10px 15px; margin-bottom: 10px; border-radius: 0 5px 5px 0;
+            font-family: 'Consolas', monospace; word-wrap: break-word;
+        }
+        .error-item.warning { border-left-color: #f1fa8c; background-color: rgba(241, 250, 140, 0.1); }
+        .error-item.structural { border-left-color: #89ddff; background-color: rgba(137, 221, 255, 0.1); }
+        .line-number { font-weight: bold; color: #ffb86c; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>RPG Data Validator</h1>
+    <p class="subtitle">Drag & Drop your .js data files here to validate structure, types, and math logic.</p>
+
+    <div id="dropzone">Drag files here or click to browse</div>
+    <input type="file" id="file-input" multiple accept=".js,.json">
+
+    <div id="results"></div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const resultsContainer = document.getElementById('results');
+
+        const SPELL_SCHEMA = new Set(['name', 'description', 'roll', 'difficulty', 'cooldown', 'condition', 'conditionDuration']);
+        const ITEM_SCHEMA = new Set(['type', 'name', 'description', 'damage', 'physArmor', 'magArmor', 'physArmorPerc', 'magArmorPerc', 'value', 'quantity', 'vitalityMod', 'intuitionMod', 'strengthMod', 'agilityMod', 'attunementMod', 'perceptionMod', 'accuracyMod', 'reflexMod', 'resilienceMod']);
+        const CHAR_SCHEMA = new Set(['name', 'hp', 'maxHp', 'lvl', 'hasDeathsDoor', 'vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage', 'physArmor', 'magArmor', 'physArmorPerc', 'magArmorPerc', 'abilities', 'equipment', 'hidden']);
+        
+        const ALLOWED_KEYS = new Set([...SPELL_SCHEMA, ...ITEM_SCHEMA, ...CHAR_SCHEMA, 'players', 'adventurers', 'monsters', 'bosses', 'spell']);
+
+        const CORE_STATS = new Set(['lvl', 'vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'hp', 'maxHp', 'health', 'quantity']); 
+        const MODIFIER_STATS = new Set(['vitalityMod', 'intuitionMod', 'strengthMod', 'agilityMod', 'attunementMod', 'perceptionMod', 'accuracyMod', 'reflexMod', 'resilienceMod']); 
+        const NUM_FORMULA_FIELDS = new Set(['physArmor', 'magArmor', 'physArmorPerc', 'magArmorPerc', 'damage']);
+        const BOOLEAN_FIELDS = new Set(['hasDeathsDoor', 'hidden']);
+        
+        const VALID_STATS = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'hp', 'maxhp', 'health'];
+        const VALID_MATH_VARS = [...VALID_STATS, 'roll', 'over'];
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('hover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('hover'));
+        dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('hover'); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            resultsContainer.innerHTML = ''; 
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => validateFile(file.name, e.target.result);
+                reader.readAsText(file);
+            });
+        }
+
+        function validateFile(fileName, content) {
+            const errors = [];
+            const lines = content.split(/\r?\n/);
+
+            let expectsComma = false;
+            let lastValueLine = null;
+            const braceStack = [];
+            const bracketStack = [];
+            const keyStack = []; 
+
+            lines.forEach((line, index) => {
+                const lineNum = index + 1;
+                
+                let text = line.trim();
+                text = text.replace(/\/\/.*/, '').trim(); 
+                if (!text) return; 
+
+                let structuralText = text.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, '""').replace(/'[^'\\]*(?:\\.[^'\\]*)*'/g, "''");
+
+                const isNewKey = /^(?:(["'])(.*?)\1|([a-zA-Z0-9_$]+))\s*:/.test(structuralText);
+                const isNewItemInArray = structuralText.startsWith('{') || structuralText.startsWith('[');
+                const isArrayElement = structuralText.startsWith('spell[') || /^['"]/.test(structuralText);
+                
+                if (expectsComma && lastValueLine !== null) {
+                    if (isNewKey || (isNewItemInArray && !text.startsWith('}') && !text.startsWith(']')) || isArrayElement) {
+                        errors.push({ lineNum: lastValueLine, msg: `MISSING COMMA: You forgot a comma (,) at the end of this line.` });
+                    }
+                }
+
+                const lastChar = structuralText.slice(-1);
+                if (/[a-zA-Z0-9_"'\}\]]/.test(lastChar)) {
+                    expectsComma = true;
+                    lastValueLine = lineNum;
+                } else {
+                    expectsComma = false;
+                    lastValueLine = null;
+                }
+
+                const singleQuotes = (text.match(/(?<!\\)'/g) || []).length;
+                const doubleQuotes = (text.match(/(?<!\\)"/g) || []).length;
+                if (singleQuotes % 2 !== 0) errors.push({ lineNum, msg: `UNCLOSED QUOTE: Odd number of single quotes ('). You forgot to close a string.` });
+                if (doubleQuotes % 2 !== 0) errors.push({ lineNum, msg: `UNCLOSED QUOTE: Odd number of double quotes ("). You forgot to close a string.` });
+
+                for (let char of structuralText) {
+                    if (char === '{') {
+                        braceStack.push(lineNum);
+                        keyStack.push(new Set());
+                    }
+                    if (char === '}') {
+                        if (braceStack.length === 0) errors.push({ lineNum, msg: `EXTRA BRACE: Found closing "}" without a matching opening "{".` });
+                        else { braceStack.pop(); keyStack.pop(); }
+                    }
+                    if (char === '[') bracketStack.push(lineNum);
+                    if (char === ']') {
+                        if (bracketStack.length === 0) errors.push({ lineNum, msg: `EXTRA BRACKET: Found closing "]" without a matching opening "[".` });
+                        else bracketStack.pop();
+                    }
+                }
+
+                const arrayAccesses = [...structuralText.matchAll(/([a-zA-Z_]\w*)\s*\[/g)];
+                arrayAccesses.forEach(match => {
+                    const varName = match[1];
+                    if (varName !== 'spell') errors.push({ lineNum, msg: `TYPO IN VARIABLE: Found "${varName}[...]". Did you mean "spell[...]"?` });
+                });
+
+                // Zmiana parsująca klucz vs wartość
+                const kvMatch = text.match(/^(?:(["'])(.*?)\1|([a-zA-Z0-9_$]+))\s*:/);
+                if (kvMatch) {
+                    const key = kvMatch[2] || kvMatch[3]; 
+
+                    if (keyStack.length > 0) {
+                        const currentScope = keyStack[keyStack.length - 1];
+                        if (currentScope.has(key)) errors.push({ lineNum, msg: `DUPLICATE KEY: "${key}" is defined more than once in this block. Data will be overwritten.` });
+                        currentScope.add(key);
+                    }
+
+                    // Kluczowy fix: odcięcie na podstawie długości dopasowanego regexa
+                    let val = text.substring(kvMatch[0].length).trim();
+                    if (val.endsWith(',')) val = val.slice(0, -1).trim();
+
+                    if (val !== '{' && val !== '[' && val !== '' && !ALLOWED_KEYS.has(key)) {
+                        errors.push({ lineNum, msg: `UNKNOWN KEY: "${key}". Is this a typo?` });
+                    }
+
+                    if (CORE_STATS.has(key)) {
+                        if (!/^\d+$/.test(val)) errors.push({ lineNum, msg: `DATA TYPE ERROR: "${key}" must be a POSITIVE INTEGER (No decimals, no negatives). Found: ${val}` });
+                    }
+                    if (MODIFIER_STATS.has(key)) {
+                        if (!/^-?\d+$/.test(val)) errors.push({ lineNum, msg: `DATA TYPE ERROR: "${key}" must be an INTEGER (Negatives allowed, no decimals). Found: ${val}` });
+                    }
+                    if (NUM_FORMULA_FIELDS.has(key)) {
+                        if (val.includes('%')) errors.push({ lineNum, msg: `DATA TYPE ERROR: You used "%" inside "${key}". If it's a percentage, use "${key}Perc" instead!` });
+                        else {
+                            const isNumber = /^-?\d+(\.\d+)?$/.test(val);
+                            const isFormulaString = /^['"`].*\[.*\].*['"`]$/.test(val);
+                            if (!isNumber && !isFormulaString) errors.push({ lineNum, msg: `DATA TYPE ERROR: "${key}" must be a raw number or a formula string. Found: ${val}` });
+                        }
+                    }
+                    if (BOOLEAN_FIELDS.has(key)) {
+                        if (val !== 'true' && val !== 'false') errors.push({ lineNum, msg: `DATA TYPE ERROR: "${key}" must be true or false (Without quotes). Found: ${val}` });
+                    }
+                    if (key === 'roll') {
+                        const rollVal = val.replace(/['"]/g, ''); 
+                        const stats = rollVal.split(',').map(s => s.trim().toLowerCase());
+                        stats.forEach(s => {
+                            if (!VALID_STATS.includes(s)) errors.push({ lineNum, msg: `INVALID STAT IN ROLL: "${s}" is not a valid statistic for a roll.` });
+                        });
+                    }
+                }
+
+                const stringsInLine = line.match(/(['"`])(.*?)\1/g);
+                if (stringsInLine) {
+                    stringsInLine.forEach(str => {
+                        const innerText = str.slice(1, -1);
+                        const brackets = innerText.match(/\[(.*?)\]/g);
+                        if (brackets) {
+                            brackets.forEach(b => {
+                                const formulaError = validateFormulaContent(b.slice(1, -1));
+                                if (formulaError) errors.push({ lineNum, msg: formulaError });
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (braceStack.length > 0) braceStack.forEach(openLine => errors.push({ lineNum: 'FILE END', msg: `CRITICAL: Unclosed brace "{" opened on line ${openLine}.` }));
+            if (bracketStack.length > 0) bracketStack.forEach(openLine => errors.push({ lineNum: 'FILE END', msg: `CRITICAL: Unclosed bracket "[" opened on line ${openLine}.` }));
+
+            runStructuralValidation(content, errors);
+
+            renderResult(fileName, errors);
+        }
+
+        function validateFormulaContent(content) {
+            if (content.startsWith('prop_') || content === 'cooldown_once') return null;
+
+            const statTagMatch = content.match(/^[+-]?\d+(?:\.\d+)?\s+([a-zA-Z0-9_]+)(?:\s+mod)?$/i);
+            if (statTagMatch) {
+                const stat = statTagMatch[1].toLowerCase();
+                if (!VALID_STATS.includes(stat)) return `UNKNOWN STAT: "${stat}" inside [${content}].`;
+                return null; 
+            }
+
+            const words = content.match(/[a-zA-Z_]\w*/g) || [];
+            for (let word of words) {
+                if (!VALID_MATH_VARS.includes(word.toLowerCase())) {
+                    return `UNKNOWN VARIABLE: "${word}" inside math formula [${content}]. Allowed: stats, 'roll', 'over'.`;
+                }
+            }
+
+            const testMath = content.replace(/[a-zA-Z_]\w*/g, '1'); 
+            if (!/^[0-9+\-*/().\s^]+$/.test(testMath)) return `INVALID MATH: Formula contains unallowed characters: [${content}].`;
+            try {
+                new Function('return ' + testMath.replace(/\^/g, '**'));
+            } catch(e) {
+                return `BROKEN MATH SYNTAX: [${content}]. Did you forget an operator (like '*')? e.g., "[2 vitality]" instead of "[2 * vitality]".`;
+            }
+
+            return null;
+        }
+
+        function runStructuralValidation(content, errors) {
+            try {
+                let evalContent = content.replace(/(const|let)\s+(spell|players|adventurers|monsters|bosses)\s*=/g, 'var $2 =');
+                const mocks = "var spell = new Proxy({}, { get: (t, p) => p }); var players = {}; var adventurers = {}; var monsters = {}; var bosses = {};\n";
+                const data = new Function(mocks + evalContent + "\nreturn {players, adventurers, monsters, bosses, spell};")();
+
+                const checkCharacters = (category, obj) => {
+                    if (!obj || typeof obj !== 'object') return;
+                    for (let charName in obj) {
+                        const char = obj[charName];
+                        if (typeof char !== 'object') continue;
+                        
+                        for (let k in char) {
+                            if (!CHAR_SCHEMA.has(k)) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `${category} "${charName}" has an invalid property: "${k}".`});
+                        }
+
+                        if (!char.name) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `${category} "${charName}" is missing the 'name' property.`});
+                        if (char.hp === undefined) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `${category} "${charName}" is missing 'hp'.`});
+                        
+                        if (char.equipment !== undefined && !Array.isArray(char.equipment)) {
+                            errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `${category} "${charName}" -> 'equipment' must be an Array [...].`});
+                        } else if (char.equipment) {
+                            char.equipment.forEach((eq, idx) => {
+                                if (typeof eq !== 'object') return;
+                                for (let k in eq) {
+                                    if (!ITEM_SCHEMA.has(k)) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Equipment[${idx}] in "${charName}" has an invalid property: "${k}".`});
+                                }
+                                if (!eq.type) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Equipment[${idx}] in "${charName}" is missing 'type' ("gear" or "other").`});
+                                if (!eq.name) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Equipment[${idx}] in "${charName}" is missing 'name'.`});
+                            });
+                        }
+                        
+                        if (char.abilities !== undefined && !Array.isArray(char.abilities)) {
+                            errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `${category} "${charName}" -> 'abilities' must be an Array [...].`});
+                        } else if (char.abilities) {
+                            char.abilities.forEach((ab, idx) => {
+                                if (ab === undefined) {
+                                    errors.push({lineNum: 'REFERENCE', type: 'structural', msg: `${category} "${charName}" -> abilities[${idx}] is UNDEFINED. You probably made a typo in the spell's name.`});
+                                } else if (typeof ab === 'object' && !ab.name) {
+                                    errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Inline ability[${idx}] in "${charName}" is missing 'name'.`});
+                                }
+                            });
+                        }
+                    }
+                };
+
+                checkCharacters('Player', data.players);
+                checkCharacters('Adventurer', data.adventurers);
+                checkCharacters('Monster', data.monsters);
+                checkCharacters('Boss', data.bosses);
+
+                if (data.spell && typeof data.spell === 'object' && !data.spell.isProxy) {
+                    for (let spellName in data.spell) {
+                        const sp = data.spell[spellName];
+                        if (typeof sp !== 'object') continue;
+                        
+                        for (let k in sp) {
+                            if (!SPELL_SCHEMA.has(k)) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Spell "${spellName}" has an invalid property: "${k}".`});
+                        }
+
+                        if (!sp.name) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Spell "${spellName}" is missing 'name'.`});
+                        if (!sp.description) errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Spell "${spellName}" is missing 'description'.`});
+                        
+                        // Check for missing condition logic
+                        if (sp.condition && !sp.conditionDuration) {
+                            errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Spell "${spellName}" has a 'condition' but is missing 'conditionDuration'.`});
+                        }
+                        if (!sp.condition && sp.conditionDuration) {
+                            errors.push({lineNum: 'SCHEMA', type: 'structural', msg: `Spell "${spellName}" has a 'conditionDuration' but is missing a 'condition'.`});
+                        }
+                    }
+                }
+            } catch (e) { } 
+        }
+
+        function renderResult(fileName, errors) {
+            const card = document.createElement('div');
+            card.className = 'file-card';
+            const hasErrors = errors.length > 0;
+            
+            let html = `
+                <div class="file-header">
+                    <span>📄 ${fileName}</span>
+                    <span class="${hasErrors ? 'status-error' : 'status-success'}">
+                        ${hasErrors ? `❌ Found ${errors.length} issue(s)` : '✅ All clean and correct!'}
+                    </span>
+                </div>
+            `;
+
+            if (hasErrors) {
+                html += `<ul class="error-list">`;
+                errors.forEach(err => {
+                    const isWarning = err.type === 'warning';
+                    const isStructural = err.type === 'structural';
+                    const lineText = typeof err.lineNum === 'number' ? `Line ${err.lineNum}:` : `[${err.lineNum}]`;
+                    let cssClass = isWarning ? 'warning' : (isStructural ? 'structural' : '');
+
+                    html += `
+                        <li class="error-item ${cssClass}">
+                            <span class="line-number">${lineText}</span> 
+                            <span>${err.msg}</span>
+                        </li>
+                    `;
+                });
+                html += `</ul>`;
+            }
+
+            card.innerHTML = html;
+            resultsContainer.appendChild(card);
+        }
+    </script>
+</body>
+</html>

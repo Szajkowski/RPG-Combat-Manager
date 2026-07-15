@@ -38,27 +38,25 @@ function translateStatName(statName) {
     return translations[statName] || statName;
 }
 
-// Merged and cleaned up copyInputValue function
-async function copyInputValue(input) {
+async function copyInputValue(input, event) {
     try {
-        // Write text to clipboard
         await navigator.clipboard.writeText(input.value);
-        showNotification(`${t('copied')} ${input.value}`);
+        showNotification(`${t('copied')} ${input.value}`, event);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'));
+        showNotification(t('copy_error'), event);
     }
 }
 
-async function copyToClipboard(value) {
+async function copyToClipboard(value, event) {
     try {
         if (typeof value === "number") await navigator.clipboard.writeText(value.toString());
         else await navigator.clipboard.writeText(value);
 
-        showNotification(`${t('copied')} ${value}`);
+        showNotification(`${t('copied')} ${value}`, event);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'));
+        showNotification(t('copy_error'), event);
     }
 }
 

@@ -36,13 +36,13 @@ const adventurers = {
             {
                 type: "gear",
                 name: "Pierścień małej zwinności",
-                description: "+1 Zwinności",
+                description: "[+1 agility]",
                 value: 10,
             },
             {
                 type: "gear",
                 name: "Amulet Evranda",
-                description: "+1 Zwinności, +1 Celności, +1 Nieustępliwości",
+                description: "[+1 agility], [+1 accuracy], [+1 resilience]",
                 value: 1000,
             },
             {
@@ -124,6 +124,7 @@ const adventurers = {
         resilience: 30,
         damage: 200,
         physArmor: 50,
-        magArmor: "10 + 50%",
+        magArmor: 10,
+        magArmorPerc: 50,
     },
 };

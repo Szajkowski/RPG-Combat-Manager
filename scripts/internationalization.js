@@ -38,6 +38,17 @@ const i18n = {
         'desc_phys_armor': 'pancerza fizycznego',
         'desc_mag_armor': 'pancerza magicznego',
         'desc_mod': 'mod',
+
+        // Ability modifications
+        'mod_vitality': 'do rzutu na żywotność',
+        'mod_intuition': 'do rzutu na intuicję',
+        'mod_strength': 'do rzutu na siłę',
+        'mod_agility': 'do rzutu na zwinność',
+        'mod_attunement': 'do rzutu na dostrojenie',
+        'mod_perception': 'do rzutu na percepcję',
+        'mod_accuracy': 'do rzutu na celność',
+        'mod_reflex': 'do rzutu na refleks',
+        'mod_resilience': 'do rzutu na nieustępliwość',
         
         // UI Elements & Placeholders
         'value': 'Wartość',
@@ -132,6 +143,17 @@ const i18n = {
         'desc_phys_armor': 'physical armor',
         'desc_mag_armor': 'magical armor',
         'desc_mod': 'mod',
+
+        // Ability modifications
+        'mod_vitality': 'to vitality roll',
+        'mod_intuition': 'to intuition roll',
+        'mod_strength': 'to strength roll',
+        'mod_agility': 'to agility roll',
+        'mod_attunement': 'to attunement roll',
+        'mod_perception': 'to perception roll',
+        'mod_accuracy': 'to accuracy roll',
+        'mod_reflex': 'to reflex roll',
+        'mod_resilience': 'to resilience roll',
         
         // UI Elements & Placeholders
         'value': 'Value',

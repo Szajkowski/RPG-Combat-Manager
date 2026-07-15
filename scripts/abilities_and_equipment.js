@@ -267,15 +267,25 @@ function setAbilityCooldown(button, cooldown, abilityState) {
 /**
  * Replaces stat modifier tags with translated and formatted HTML strings.
  * Example Input: "Grants [+2 strength] and [-1 agility mod]."
- * Example Output: "Grants <strong class="stat-bonus">+2 siły</strong> and <strong class="stat-bonus">-1 zwinności mod</strong>."
+ * Example Output: "Grants <strong class="stat-bonus">+2 siły</strong> and <strong class="stat-bonus">-1 do rzutu na zwinność</strong>."
  */
 function parseStatTags(description) {
     return description.replace(/\[([+-]?\d+(?:\.\d+)?)\s+([a-zA-Z0-9_]+)(?:\s+(mod))?\]/gi, (match, value, stat, isMod) => {
-        const statTranslated = t('desc_' + stat.toLowerCase());
-        const modText = isMod ? ` ${t('desc_mod')}` : '';
+        const statKey = stat.toLowerCase();
+        let statTranslated;
+
+        if (isMod) {
+            const modKey = 'mod_' + statKey;
+            const modTranslation = t(modKey);
+            // If specific translation for the mod exists, use it. Otherwise fallback to "statname mod".
+            statTranslated = modTranslation !== modKey ? modTranslation : `${t('desc_' + statKey)} ${t('desc_mod')}`;
+        } else {
+            statTranslated = t('desc_' + statKey);
+        }
+        
         const numVal = parseFloat(value);
         const prefix = numVal > 0 ? '+' : '';
-        return `<strong class="stat-bonus">${prefix}${numVal} ${statTranslated}${modText}</strong>`;
+        return `<strong class="stat-bonus">${prefix}${numVal} ${statTranslated}</strong>`;
     });
 }
 
@@ -323,8 +333,8 @@ function getFormulaBreakdown(statValue) {
         return translatedDesc === descKey ? t(stat.toLowerCase()) : translatedDesc;
     });
     
-    // Ignore formulas that are just plain numbers wrapped in brackets (e.g., "[15]")
-    if (/^\d+(\.\d+)?$/.test(formula.replace(/\s+/g, ''))) return "";
+    // Ignore formulas that are just plain numbers wrapped in brackets (e.g., "[-15]")
+    if (/^[+-]?\d+(\.\d+)?$/.test(formula.replace(/\s+/g, ''))) return "";
     
     return displayFormula;
 }
@@ -392,19 +402,19 @@ function parseFormulaTags(description, characterDiv, rollAbility, rollDifficulty
                 return `<strong class="calculated-value">${result}</strong>`;
             }
 
-            // Route standard math to the universal math handler
-            const result = calculateMathFormula(formula, characterDiv);
-            const displayFormula = translateFormulaText(formula);
+            // Using 'match' (which includes brackets) to utilize the universal getFormula functions
+            const result = getFormulaValue(match, characterDiv);
+            const breakdown = getFormulaBreakdown(match);
             
             // Only append the formula breakdown if it's not a raw number
             let displayHtml = '';
-            if (displayFormula.replace(/\s+/g, '') !== result.toString()) {
-                displayHtml = ` <span class="formula-display">(${displayFormula})</span>`;
+            if (breakdown) {
+                displayHtml = ` <span class="formula-display">(${breakdown})</span>`;
             }
 
-            return `<strong class="copyable-value" onclick="copyToClipboard(${result})">${result}</strong>${displayHtml}`;
+            return `<strong class="copyable-value" onclick="copyToClipboard(${result}, event)">${result}</strong>${displayHtml}`;
         } catch (e) {
-            console.error(`Cannot calculate formula: ${formula}`, e);
+            console.error(`Cannot calculate formula: ${match}`, e);
             return match; 
         }
     });
@@ -517,31 +527,31 @@ function createEquipmentPanel(equipment = [], characterDiv) {
             if (item.damage !== undefined) {
                 const val = getFormulaValue(item.damage, characterDiv);
                 const breakdown = getFormulaBreakdown(item.damage);
-                html += `<div class="gear-stat">${t('damage')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div class="gear-stat">${t('damage')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             
             if (item.physArmor !== undefined) {
                 const val = getFormulaValue(item.physArmor, characterDiv);
                 const breakdown = getFormulaBreakdown(item.physArmor);
-                html += `<div class="gear-stat">${t('phys_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div class="gear-stat">${t('phys_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             
             if (item.physArmorPerc !== undefined) {
                 const val = getFormulaValue(item.physArmorPerc, characterDiv);
                 const breakdown = getFormulaBreakdown(item.physArmorPerc);
-                html += `<div class="gear-stat">${t('phys_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div class="gear-stat">${t('phys_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             
             if (item.magArmor !== undefined) {
                 const val = getFormulaValue(item.magArmor, characterDiv);
                 const breakdown = getFormulaBreakdown(item.magArmor);
-                html += `<div class="gear-stat">${t('mag_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div class="gear-stat">${t('mag_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             
             if (item.magArmorPerc !== undefined) {
                 const val = getFormulaValue(item.magArmorPerc, characterDiv);
                 const breakdown = getFormulaBreakdown(item.magArmorPerc);
-                html += `<div class="gear-stat">${t('mag_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div class="gear-stat">${t('mag_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             
             if (item.value !== undefined) {

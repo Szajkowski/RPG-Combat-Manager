@@ -63,7 +63,7 @@ function addCharacter(type, team, stats = {}, image = null) {
     
     characterContent += `
         <span class="remove-button" onclick="removeCharacter(this)">✖</span>
-        <div class="stat"><strong>${t('name')}:</strong> <input type="text" onclick="copyInputValue(this)" value="${uniqueName || ''}"></div>
+        <div class="stat"><strong>${t('name')}:</strong> <input type="text" onclick="copyInputValue(this, event)" value="${uniqueName || ''}"></div>
         ${getCharacterStats(finalStats, type)}
         <div class="character-buttons">
             ${getCharacterButtons(finalStats, type)}
@@ -412,7 +412,7 @@ function getCharacterStats(stats = {}, type) {
             <button class="dice" onclick="rollDice(this, 'resilience')">🎲</button>
         </div>
         <div class="stat"><span class="stat-label">${t('damage')}:</span>
-            <input class="stat-value damage" onclick="copyInputValue(this)" placeholder="${t('value')}" value="${stats.damage ?? ''}">
+            <input class="stat-value damage" onclick="copyInputValue(this, event)" placeholder="${t('value')}" value="${stats.damage ?? ''}">
         </div>
         <div class="stat"><span class="stat-label">${t('phys_armor')}:</span>
             <input type="number" class="stat-value physArmor" placeholder="${t('value')}" value="${stats.physArmor ?? ''}">

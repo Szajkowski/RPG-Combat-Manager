@@ -1,8 +1,7 @@
 const spell = {
     
-// ogień, pierwszego stopnia
-
-
+    // ogień, pierwszego stopnia
+    
     "Żarzący dotyk": {
         name: "Żarzący dotyk",
         description: "Rozgrzewa do czerwoności ręce maga i zadaje nimi [3 * vitality] obrażeń.",
@@ -12,11 +11,11 @@ const spell = {
     },
     "Mniejsze rozpalenie": {
         name: "Mniejsze rozpalenie",
-        description: "Zwiększa żywotność celu o 5. Trwa 8 tur.",
+        description: "Zwiększa żywotność celu o [5]. Trwa [8] tur.",
         roll: "vitality",
         difficulty: 4,
         cooldown: 0,
-        condition: "Rozpalony. Zwiększa żywotność o 5.",
+        condition: "Rozpalony. Zwiększa żywotność o [5].",
         conditionDuration: 8
     },
     "Kula ognia": {
@@ -28,20 +27,20 @@ const spell = {
     },
     "Płomień ochronny": {
         name: "Płomień ochronny",
-        description: "Leczy za [4 * vitality] zdrowia i daje tarczę, która przypali wroga za 50% następnego ataku wręcz (maksymalnie [8 * vitality]).",
+        description: "Leczy za [4 * vitality] zdrowia i daje tarczę, która przypali wroga za [50]% następnego ataku wręcz (maksymalnie [8 * vitality]).",
         roll: "vitality",
         difficulty: 6,
         cooldown: 1,
-        condition: "Ognista tarcza. Zadaje 50% obrażeń ataku wręcz. Maksymalnie [8 * vitality]",
+        condition: "Ognista tarcza. Zadaje [50]% obrażeń ataku wręcz. Maksymalnie [8 * vitality]",
         conditionDuration: "-"
     },
     "Oślepiający rozbłysk": {
         name: "Oślepiający rozbłysk",
-        description: "Wytwarza przed magiem rozbłysk pełen jasnych iskier, które lekko oślepiają (-5 do rzutów na celność przez następną turę) wszystkie jednostki patrzące w jego kierunku.",
+        description: "Wytwarza przed magiem rozbłysk pełen jasnych iskier, które lekko oślepiają ([-5] do rzutów na celność przez następną turę) wszystkie jednostki patrzące w jego kierunku.",
         roll: "vitality",
         difficulty: 6,
         cooldown: 0,
-        condition: "Oślepiony. -5 do rzutów na celność",
+        condition: "Oślepiony. [-5] do rzutów na celność",
         conditionDuration: 1
     },
     "Mały smok": {
@@ -62,7 +61,7 @@ const spell = {
     },
     "Ognisty sabotaż": {
         name: "Ognisty sabotaż",
-        description: "Nieunikalne. Rozgrzewa broń celu. Rzut na żywotność maga kontra nieustępliwość celu. Jeśli mag wygra, cel puszcza broń i nie może jej podnieść przez swoją następną kolejkę.",
+        description: "[prop_unavoidable] Rozgrzewa broń celu. Rzut na żywotność maga kontra nieustępliwość celu. Jeśli mag wygra, cel puszcza broń i nie może jej podnieść przez swoją następną kolejkę.",
         roll: "vitality",
         difficulty: "X",
         cooldown: 2,
@@ -97,14 +96,14 @@ const spell = {
     },
     "Roztapiacz pancerza": {
         name: "Roztapiacz pancerza",
-        description: "Nieunikalne. Zmniejsza pancerz magiczny celu o [2 * roll].",
+        description: "[prop_unavoidable] Zmniejsza pancerz magiczny celu o [2 * roll].",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
     },
     "Pętla ognia": {
         name: "Pętla ognia",
-        description: "Nieunikalne. Rysuje pod celem runę, która wybucha za [5 * roll] obrażeń.",
+        description: "[prop_unavoidable] Rysuje pod celem runę, która wybucha za [5 * roll] obrażeń.",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
@@ -135,17 +134,17 @@ const spell = {
 
     "Narastający żar zagłady": {
         name: "Narastający żar zagłady",
-        description: "Penetrujące. Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
+        description: "[prop_penetrating] Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
         roll: "vitality",
         difficulty: 30,
-        cooldown: "[once]"
+        cooldown: "[cooldown_once]"
     },
     "Feniks": {
         name: "Feniks",
         description: "Tworzy ogniste skrzydła, umożliwiające lot. Zaklęcie trwa do końca walki lub do śmierci maga. W przypadku śmierci mag wywołuje potężną eksplozję za [10 * vitality] i odradza się z pełnym zdrowiem.",
         roll: "vitality",
         difficulty: 20,
-        cooldown: "[once]",
+        cooldown: "[cooldown_once]",
         condition: "Feniks. Możliwość lotu. W razie śmierci eksploduje za [10 * vitality] i wraca z pełnym zdrowiem.",
         conditionDuration: "-"
     },
@@ -156,7 +155,7 @@ const spell = {
 
     "Płonący omen": {
         name: "Płonący omen",
-        description: "Nieunikalne. Tworzy nad celem ognistą runę. Runa aktywuje się, gdy cel otrzyma obrażenia magiczne i przypali go za drugie tyle.",
+        description: "[prop_unavoidable] Tworzy nad celem ognistą runę. Runa aktywuje się, gdy cel otrzyma obrażenia magiczne i przypali go za drugie tyle.",
         roll: "vitality",
         difficulty: 12,
         cooldown: 5
@@ -168,20 +167,20 @@ const spell = {
 
     "Mrożący dotyk": {
         name: "Mrożący dotyk",
-        description: "Mrozi ręce na lód i zadaje nimi [2 * intuition] obrażeń oraz podmraża cel, zmniejszając jego rzuty na zwinność o -4 przez 2 tury.",
+        description: "Mrozi ręce na lód i zadaje nimi [2 * intuition] obrażeń oraz podmraża cel, zmniejszając jego rzuty na zwinność o [-4] przez [2] tury.",
         roll: "intuition",
         difficulty: 3,
         cooldown: 0,
-        condition: "Podmrożony. -4 do rzutów na zwinność",
+        condition: "Podmrożony. [-4] do rzutów na zwinność",
         conditionDuration: 2
     },
     "Wodny bicz": {
         name: "Wodny bicz",
-        description: "Tworzy bicz z wody. Uderza on za [2 * intuition] obrażeń oraz podmraża cel, zmniejszając jego rzuty na zwinność o -4 przez 2 tury.",
+        description: "Tworzy bicz z wody. Uderza on za [2 * intuition] obrażeń oraz podmraża cel, zmniejszając jego rzuty na zwinność o [-4] przez [2] tury.",
         roll: "intuition",
         difficulty: 5,
         cooldown: 0,
-        condition: "Podmrożony. -4 do rzutów na zwinność",
+        condition: "Podmrożony. [-4] do rzutów na zwinność",
         conditionDuration: 2
     },
     "Regeneracja": {
@@ -195,18 +194,18 @@ const spell = {
     },
     "Lodowe wiertło": {
         name: "Lodowe wiertło",
-        description: "Penetrujące. Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
+        description: "[prop_penetrating] Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
         roll: "intuition",
         difficulty: 8,
         cooldown: 1
     },
     "Łagodząca fala": {
         name: "Łagodząca fala",
-        description: "Zdejmuje przerażenie, szaleństwo i inne podobne efekty z celu oraz może go zgasić. Dodatkowo fala zmniejsza trudność zaklęć rzucanych przez cel o -4 przez 2 tury.",
+        description: "Zdejmuje przerażenie, szaleństwo i inne podobne efekty z celu oraz może go zgasić. Dodatkowo fala zmniejsza trudność zaklęć rzucanych przez cel o [-4] przez [2] tury.",
         roll: "intuition",
         difficulty: 9,
         cooldown: 2,
-        condition: "Skupiony. -4 do trudności rzucania zaklęć",
+        condition: "Skupiony. [-4] do trudności rzucania zaklęć",
         conditionDuration: 2
     },
     "Pazur oceanu": {
@@ -218,11 +217,11 @@ const spell = {
     },
     "Magiczne zwierciadło": {
         name: "Magiczne zwierciadło",
-        description: "Tworzy lodowe lustro przed celem. Lustro odbije 50% następnych magicznych obrażeń z powrotem w agresora. Nie odbija penetrujących ataków. Użycie penetrującego ataku niszczy lustro.",
+        description: "Tworzy lodowe lustro przed celem. Lustro odbije [50]% następnych magicznych obrażeń z powrotem w agresora. Nie odbija penetrujących ataków. Użycie penetrującego ataku niszczy lustro.",
         roll: "intuition",
         difficulty: 10,
         cooldown: 2,
-        condition: "Lodowe lustro. Odbija 50% następnych magicznych obrażeń",
+        condition: "Lodowe lustro. Odbija [50]% następnych magicznych obrażeń",
         conditionDuration: "-"
     },
     "Oczyszczenie": {
@@ -246,16 +245,16 @@ const spell = {
     },
     "Przeszywający mróz": {
         name: "Przeszywający mróz",
-        description: "Nieunikalne. Mocno schładza wodę w organizmie celu, zadając [5 * intuition] obrażeń i zmniejszając jego rzuty na zwinność o -6 przez 2 tury.",
+        description: "[prop_unavoidable] Mocno schładza wodę w organizmie celu, zadając [5 * intuition] obrażeń i zmniejszając jego rzuty na zwinność o [-6] przez [2] tury.",
         roll: "intuition",
         difficulty: 12,
         cooldown: 3,
-        condition: "Zmrożony. -6 do rzutów na zwinność",
+        condition: "Zmrożony. [-6] do rzutów na zwinność",
         conditionDuration: 2
     },
     "Wodna powłoka": {
         name: "Wodna powłoka",
-        description: "Dodaj celowi 10 pancerza magicznego. Pancerz utrzymuje się przez całą walkę.",
+        description: "Dodaj celowi [10] pancerza magicznego. Pancerz utrzymuje się przez całą walkę.",
         roll: "intuition",
         difficulty: 15,
         cooldown: 3
@@ -286,20 +285,20 @@ const spell = {
 
     "Uduszenie": {
         name: "Uduszenie",
-        description: "Tworzy bańkę skondensowanej wody wokół głowy celu. W każdej turze musi on znaleźć sposób jak pozbyć się tej bańki, albo zaliczyć coraz trudniejszy rzut na nieustępliwość. Jeśli nie zaliczy rzutu, traci przytomność. Jeśli nie zaliczy kolejnego rzutu, dusi się i ginie. Rzuty są wykonywane na końcu tury celu. Zabicie tym zaklęciem kogoś, kto nie zasługuje na śmierć zwiększa rozkład o 5.",
+        description: "Tworzy bańkę skondensowanej wody wokół głowy celu. W każdej turze musi on znaleźć sposób jak pozbyć się tej bańki, albo zaliczyć coraz trudniejszy rzut na nieustępliwość. Jeśli nie zaliczy rzutu, traci przytomność. Jeśli nie zaliczy kolejnego rzutu, dusi się i ginie. Rzuty są wykonywane na końcu tury celu. Zabicie tym zaklęciem kogoś, kto nie zasługuje na śmierć zwiększa rozkład o [5].",
         roll: "intuition",
         difficulty: 30,
         cooldown: 5,
-        condition: "Duszenie. Narastająca trudność rzutów na nieustępliwość. 5 -> 10 -> 15 itd.",
+        condition: "Duszenie. Narastająca trudność rzutów na nieustępliwość. [5] -> [10] -> [15] itd.",
         conditionDuration: "-"
     },
     "Przepływ losu Artursa": {
         name: "Przepływ losu Artursa",
-        description: "Jeśli to zaklęcie się uda, wówczas przez kolejne 5 tur wszystkie rzuty decydujące o szansie na coś stają się rzutami 50:50. Zaklęcie obejmuje wszystkich zaangażowanych w walkę.",
+        description: "Jeśli to zaklęcie się uda, wówczas przez kolejne [5] tur wszystkie rzuty decydujące o szansie na coś stają się rzutami [50]:[50]. Zaklęcie obejmuje wszystkich zaangażowanych w walkę.",
         roll: "intuition",
         difficulty: 18,
         cooldown: 6,
-        condition: "Losowość. Wszystkie rzuty są 50:50",
+        condition: "Losowość. Wszystkie rzuty są [50]:[50]",
         conditionDuration: 5
     },
 
@@ -309,14 +308,14 @@ const spell = {
 
     "Lodowy miecz": {
         name: "Lodowy miecz",
-        description: "Tworzy lodowy miecz, który zadaje [1 * intuition] obrażeń po turze maga. Roztapia się po wykonaniu 3 cięć, albo gdy zostanie uderzony.",
+        description: "Tworzy lodowy miecz, który zadaje [1 * intuition] obrażeń po turze maga. Roztapia się po wykonaniu [3] cięć, albo gdy zostanie uderzony.",
         roll: "intuition",
         difficulty: 5,
         cooldown: 0
     },
     "Lodowy arsenał": {
         name: "Lodowy arsenał",
-        description: "Tworzy 3 lodowe miecze, z których każdy zadaje [1 * intuition] obrażeń po turze maga. Roztapiają się po walce, albo gdy zostaną uderzone.",
+        description: "Tworzy [3] lodowe miecze, z których każdy zadaje [1 * intuition] obrażeń po turze maga. Roztapiają się po walce, albo gdy zostaną uderzone.",
         roll: "intuition",
         difficulty: 10,
         cooldown: 1
@@ -330,7 +329,7 @@ const spell = {
     },
     "Miecze: Naostrzenie!": {
         name: "Miecze: Naostrzenie!",
-        description: "Sprawia, że posiadane lodowe miecze zaczynają zadawać penetrujące obrażenia. Trwa 2 tury.",
+        description: "Sprawia, że posiadane lodowe miecze zaczynają zadawać penetrujące obrażenia. Trwa [2] tury.",
         roll: "intuition",
         difficulty: 15,
         cooldown: 2,
@@ -358,36 +357,36 @@ const spell = {
     },
     "Twardy jak skała": {
         name: "Twardy jak skała",
-        description: "Mnoży każdy rzut celu na nieustępliwość przez 2. Trwa 3 tury. Nie stackuje się same ze sobą.",
+        description: "Mnoży każdy rzut celu na nieustępliwość przez [2]. Trwa [3] tury. Nie stackuje się same ze sobą.",
         roll: "strength",
         difficulty: 5,
         cooldown: 0,
-        condition: "Zdeterminowany. Rzuty na nieustępliwość mnożone x2",
+        condition: "Zdeterminowany. Rzuty na nieustępliwość mnożone x[2]",
         conditionDuration: 3
     },
     "Pomoc ziemi": {
         name: "Pomoc ziemi",
-        description: "Leczy cel za [4 * strength] zdrowia oraz obdarowuje go kamienną barierą, która zmniejszy obrażenia następnego ataku fizycznego o 50%.",
+        description: "Leczy cel za [4 * strength] zdrowia oraz obdarowuje go kamienną barierą, która zmniejszy obrażenia następnego ataku fizycznego o [50]%.",
         roll: "strength",
         difficulty: 6,
         cooldown: 1,
-        condition: "Kamienna bariera. Redukcja następnych obrażeń fizycznych o 50%",
+        condition: "Kamienna bariera. Redukcja następnych obrażeń fizycznych o [50]%",
         conditionDuration: "-"
     },
     "Spadająca bryła": {
         name: "Spadająca bryła",
-        description: "Przywołuje sporą skałę nad głową celu, która spadnie i go zmiażdży, zadając [4 * strength] obrażeń. Rzuty na to zaklęcie mają -4 celności.",
+        description: "Przywołuje sporą skałę nad głową celu, która spadnie i go zmiażdży, zadając [4 * strength] obrażeń. Rzuty na to zaklęcie mają [-4] celności.",
         roll: "strength",
         difficulty: 8,
         cooldown: 0
     },
     "Bastion": {
         name: "Bastion",
-        description: "Zakopuje nogi maga w ziemi. Nie może się on poruszać oraz być poruszanym przez cokolwiek. Ciało maga pokrywa się kamienną skorupą, która zmniejsza otrzymywane obrażenia fizyczne o 50%. Efekt trwa 3 tury.",
+        description: "Zakopuje nogi maga w ziemi. Nie może się on poruszać oraz być poruszanym przez cokolwiek. Ciało maga pokrywa się kamienną skorupą, która zmniejsza otrzymywane obrażenia fizyczne o [50]%. Efekt trwa [3] tury.",
         roll: "strength",
         difficulty: 8,
         cooldown: 3,
-        condition: "Unieruchomiony. Redukcja obrażeń fizycznych o 50%",
+        condition: "Unieruchomiony. Redukcja obrażeń fizycznych o [50]%",
         conditionDuration: 3
     },
     "Pędzący głaz": {
@@ -399,7 +398,7 @@ const spell = {
     },
     "Bagnista powierzchnia": {
         name: "Bagnista powierzchnia",
-        description: "Nieunikalne. Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa 2 tury.",
+        description: "[prop_unavoidable] Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa [2] tury.",
         roll: "strength",
         difficulty: 10,
         cooldown: 2,
@@ -408,7 +407,7 @@ const spell = {
     },
     "Kamienny chwyt": {
         name: "Kamienny chwyt",
-        description: "Nieunikalne. Tworzy ręce z ziemi, które próbują unieruchomić cel na 1 turę (rzut siła kontra siła).",
+        description: "[prop_unavoidable] Tworzy ręce z ziemi, które próbują unieruchomić cel na [1] turę (rzut siła kontra siła).",
         roll: "strength",
         difficulty: "X",
         cooldown: 2
@@ -420,22 +419,23 @@ const spell = {
 
     "Oczy na mnie": {
         name: "Oczy na mnie",
-        description: "Mag obiera sobie za cel jednego przeciwnika. Tworzy skalne kastety na swoich dłoniach. Gdy dany przeciwnik zaatakuje kogoś innego niż mag i jest w jego zasięgu, może on użyć swojej reakcji i zadać przeciwnikowi nieunikalny cios za [5 * siła] obrażeń z szansą na ogłuszenie go.",
+        description: "Mag obiera sobie za cel jednego przeciwnika. Tworzy skalne kastety na swoich dłoniach. Gdy dany przeciwnik zaatakuje kogoś innego niż mag i jest w jego zasięgu, może on użyć swojej reakcji i zadać przeciwnikowi nieunikalny cios za [5 * strength] obrażeń z szansą na ogłuszenie go.",
         roll: "strength",
         difficulty: 8,
         cooldown: 2,
         condition: "Cel skupienia. Zaatakowanie innego przeciwnika niż mag skończy się źle",
+        conditionDuration: 3,
     },
     "Skalne włócznie": {
         name: "Skalne włócznie",
-        description: "Penetrujące. Wyczarowuje dwie włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
+        description: "[prop_penetrating] Wyczarowuje [2] włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
         roll: "strength",
         difficulty: 12,
         cooldown: 3
     },
     "Obsydianowa eksplozja": {
         name: "Obsydianowa eksplozja",
-        description: "Mag eksploduje dookoła siebie ostrymi, obsydianowymi kawałkami, które zranią wszystkich znajdujących się w promieniu kilku metrów od niego. Odłamki zadają [3 * strength] obrażeń + [1 * strength] penetrujących obrażeń od krwotoku przez 3 następne tury.",
+        description: "Mag eksploduje dookoła siebie ostrymi, obsydianowymi kawałkami, które zranią wszystkich znajdujących się w promieniu kilku metrów od niego. Odłamki zadają [3 * strength] obrażeń + [1 * strength] penetrujących obrażeń od krwotoku przez [3] następne tury.",
         roll: "strength",
         difficulty: 15,
         cooldown: 4,
@@ -489,7 +489,7 @@ const spell = {
 
     "Ofiara": {
         name: "Ofiara",
-        description: "Spod celu wystrzeliwuje naostrzony ziemny kolec, który przebija go na wylot, zadając [15 * strength] penetrujących obrażeń. Cel staje się uwięziony w powietrzu, nadziany na kolec, co czyni go niezdolnym ruchu i uników. Kolec trwa 3 tury.",
+        description: "Spod celu wystrzeliwuje naostrzony ziemny kolec, który przebija go na wylot, zadając [15 * strength] penetrujących obrażeń. Cel staje się uwięziony w powietrzu, nadziany na kolec, co czyni go niezdolnym ruchu i uników. Kolec trwa [3] tury.",
         roll: "strength",
         difficulty: 25,
         cooldown: 3,
@@ -498,7 +498,7 @@ const spell = {
     },
     "Wzniesienie": {
         name: "Wzniesienie",
-        description: "Chwyta ziemię i wznosi duży kawał terenu na 30 metrów w górę, łącznie ze wszystkim co się na nim znajduje. Teren pozostanie w takim kształcie dopóki mag tego nie cofnie, albo nie rzuci tego zaklęcia na jakiś inny obszar.",
+        description: "Chwyta ziemię i wznosi duży kawał terenu na [30] metrów w górę, łącznie ze wszystkim co się na nim znajduje. Teren pozostanie w takim kształcie dopóki mag tego nie cofnie, albo nie rzuci tego zaklęcia na jakiś inny obszar.",
         roll: "strength",
         difficulty: 15,
         cooldown: 2
@@ -510,27 +510,27 @@ const spell = {
 
     "Zawirowanie": {
         name: "Zawirowanie",
-        description: "Nieunikalne. Zakręca szybko celem wokół jego własnej osi, dezorientując go i zmniejszając jego następny rzut na celność oraz na unik o -6.",
+        description: "[prop_unavoidable] Zakręca szybko celem wokół jego własnej osi, dezorientując go i zmniejszając jego następny rzut na celność oraz na unik o [-6].",
         roll: "agility",
         difficulty: 4,
         cooldown: 0,
-        condition: "Dezorientacja. -6 do rzutów na celność i unik",
+        condition: "Dezorientacja. [-6] do rzutów na celność i unik",
         conditionDuration: 1
     },
     "Tnące łuki": {
         name: "Tnące łuki",
-        description: "Nieunikalne. Wystrzeliwuje 3 pociski z powietrza w kształcie łuków, które uderzą w wybrany cel. Każdy zadaje [1 * agility] obrażeń.",
+        description: "[prop_unavoidable] Wystrzeliwuje [3] pociski z powietrza w kształcie łuków, które uderzą w wybrany cel. Każdy zadaje [1 * agility] obrażeń.",
         roll: "agility",
         difficulty: 6,
         cooldown: 0
     },
     "Leczniczy podmuch": {
         name: "Leczniczy podmuch",
-        description: "Leczy cel za [4 * agility] zdrowia i mnoży następny rzut na unik x2.",
+        description: "Leczy cel za [4 * agility] zdrowia i mnoży następny rzut na unik x[2].",
         roll: "agility",
         difficulty: 6,
         cooldown: 1,
-        condition: "Naenergetyzowany. Następny rzut na unik mnożony x2",
+        condition: "Naenergetyzowany. Następny rzut na unik mnożony x[2]",
         conditionDuration: "-"
     },
     "Rozpędzony cios": {
@@ -542,25 +542,25 @@ const spell = {
     },
     "Powietrzna tarcza": {
         name: "Powietrzna tarcza",
-        description: "Tworzy tarczę z powietrza, która przekieruje jeden atak dystansowy. Nie działa na ataki i zaklęcia penetrujące.",
+        description: "Tworzy tarczę z powietrza, która przekieruje [1] atak dystansowy. Nie działa na ataki i zaklęcia penetrujące.",
         roll: "agility",
         difficulty: 8,
         cooldown: 0,
-        condition: "Powietrzna tarcza. Przekierowanie jednego ataku dystansowego",
+        condition: "Powietrzna tarcza. Przekierowanie [1] ataku dystansowego",
         conditionDuration: "-"
     },
     "Małe przyspieszenie": {
         name: "Małe przyspieszenie",
-        description: "Wybrany cel zyskuje dodatkową akcję w swojej następnej turze.",
+        description: "Wybrany cel zyskuje [1] dodatkową akcję w swojej następnej turze.",
         roll: "agility",
         difficulty: 9,
         cooldown: 2,
-        condition: "Przyśpieszony. Dodatkowa akcja w następnej turze",
+        condition: "Przyśpieszony. [1] dodatkowa akcja w następnej turze",
         conditionDuration: 1,
     },
     "Wir pięści": {
         name: "Wir pięści",
-        description: "Nieunikalne. Wyczarowuje 10 pięści z powietrza. Każda uderza cel za [0.5 * agility].",
+        description: "[prop_unavoidable] Wyczarowuje [10] pięści z powietrza. Każda uderza cel za [0.5 * agility].",
         roll: "agility",
         difficulty: 10,
         cooldown: 1
@@ -586,7 +586,7 @@ const spell = {
     },
     "Trąba": {
         name: "Trąba",
-        description: "Nieunikalne. Uderza cel skompresowanym powietrzem za [4 * agility] i próbuje go przewrócić.",
+        description: "[prop_unavoidable] Uderza cel skompresowanym powietrzem za [4 * agility] i próbuje go przewrócić.",
         roll: "agility",
         difficulty: 15,
         cooldown: 3
@@ -626,16 +626,16 @@ const spell = {
 
     "Grupowe przyspieszenie": {
         name: "Grupowe przyspieszenie",
-        description: "Przez swoje następne 3 tury, wszyscy sojusznicy wraz z magiem zostają obdarowani przyspieszeniem, dzięki czemu zyskują dodatkową akcję na turę, zawsze poruszają się pierwsi przed przeciwnikami oraz ich rzuty na unik zostają pomnożone przez 2.",
+        description: "Przez swoje następne [3] tury, wszyscy sojusznicy wraz z magiem zostają obdarowani przyspieszeniem, dzięki czemu zyskują dodatkową akcję na turę, zawsze poruszają się pierwsi przed przeciwnikami oraz ich rzuty na unik zostają pomnożone przez [2].",
         roll: "agility",
         difficulty: 25,
         cooldown: 8,
-        condition: "Przyśpieszenie. Dodatkowa akcja, pierwszeństwo ruchu, x2 do uników",
+        condition: "Przyśpieszenie. Dodatkowa akcja, pierwszeństwo ruchu, x[2] do uników",
         conditionDuration: 3
     },
     "Tornado": {
         name: "Tornado",
-        description: "Wznieca ogromne tornado w wybranym miejscu. Wszystkie jednostki i obiekty zostają porwane przez trąbę powietrzną. Jest to efekt, którego można uniknąć tylko będąc bardzo ciężkim albo przytwierdzonym do ziemi. Tornado trwa 2 tury.",
+        description: "Wznieca ogromne tornado w wybranym miejscu. Wszystkie jednostki i obiekty zostają porwane przez trąbę powietrzną. Jest to efekt, którego można uniknąć tylko będąc bardzo ciężkim albo przytwierdzonym do ziemi. Tornado trwa [2] tury.",
         roll: "agility",
         difficulty: 35,
         cooldown: 10,
@@ -664,7 +664,7 @@ const spell = {
 
     "Test1": {
         name: "Test1",
-        description: "Nieunikalne. Penetrujące. 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], trelele, 8 * przebicie = [8 * over]",
+        description: "[prop_unavoidable] [prop_penetrating] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], trelele, 8 * przebicie = [8 * over]",
         roll: "vitality",
         difficulty: 6,
         cooldown: 0

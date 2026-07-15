@@ -104,7 +104,7 @@ const monsters = {
             {
                 type: "gear",
                 name: "Gobliński ciachacz wodza",
-                description: "+1 Siły",
+                description: "[+1 strength]",
                 damage: 40,
                 value: "10S",
             },
@@ -139,7 +139,7 @@ const monsters = {
             {
                 type: "gear",
                 name: "Gobliński kostur szamana",
-                description: "+1 Intuicji",
+                description: "[+1 intuition]",
                 damage: 40,
                 value: "10S",
             },
@@ -215,7 +215,7 @@ const monsters = {
             {
                 name: "Niepokonany",
                 description: "Pasywne. Zyskuje całkowitą odporność na stuny i ograniczenia ruchu na 1 turę. Umiejętność aktywuje się po zostaniu poddanym takiemu efektowi",
-                cooldown: "1"
+                cooldown: 1
             },
         ]
     },
@@ -258,7 +258,7 @@ const monsters = {
             {
                 type: "gear",
                 name: "Szata kultysty",
-                description: "+2 Żywotności",
+                description: "[+2 vitality]",
                 value: 50,
             },
         ],
@@ -293,13 +293,13 @@ const monsters = {
             {
                 type: "gear",
                 name: "Szata elitarnego kultysty",
-                description: "+30 Zdrowia, +2 Siły",
+                description: "[+30 hp], [+2 strength]",
                 value: 300,
             },
             {
                 type: "gear",
                 name: "Młot elitarnego kultysty",
-                description: "+2 Żywotności, +2 Siły. Wymaga 18 siły. Możesz rzucić na żywotność (trudność 10), aby rozpalić młot, zwiększając jego obrażenia o 50%.",
+                description: "[+2 vitality], [+2 strength]. Wymaga 18 siły. Możesz rzucić na żywotność (trudność 10), aby rozpalić młot, zwiększając jego obrażenia o 50%.",
                 damage: 80,
                 value: 500,
             },
@@ -326,13 +326,13 @@ const monsters = {
             {
                 type: "gear",
                 name: "Szata kultysty proroka",
-                description: "+2 Żywotności, +1 wyniku Żywotności",
+                description: "[+2 vitality], [+1 vitality mod]",
                 value: 300,
             },
             {
                 type: "gear",
                 name: "Kostur kultysty proroka",
-                description: "+2 Żywotności. Możesz rzucić na żywotność (trudność 10), aby rozpalić kostur, zwiększając dodając sobie bonus +2 do rzutów na żywotność",
+                description: "[+2 vitality]. Możesz rzucić na żywotność (trudność 10), aby rozpalić kostur, zwiększając dodając sobie bonus +2 do rzutów na żywotność",
                 damage: 40,
                 value: 500,
             },
