@@ -1,4 +1,4 @@
-const monsters = {
+const mobs = {
     "Ziemisty": {
         name: "Ziemisty",
         hp: 40,

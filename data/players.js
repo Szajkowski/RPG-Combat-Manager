@@ -213,7 +213,7 @@ players = {
             {
                 type: "gear",
                 name: "Ostateczny Item Testowy 2",
-                description: "[prop_penetrating] Jest wredny, odejmuje [-70 hp].",
+                description: "[prop_piercing] Jest wredny, odejmuje [-70 hp].",
                 damage: "[1 * resilience]",
                 physArmor: "[-10 + 2 * vitality]",
                 physArmorPerc: -30,

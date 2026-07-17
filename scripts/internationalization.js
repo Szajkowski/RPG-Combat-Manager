@@ -2,14 +2,37 @@ window.currentLanguage = localStorage.getItem('CombatManager-Language') || 'PL';
 
 const i18n = {
     'PL': {
-        // UI States
-        'unavailable': 'Niedostępne',
-        'available': 'Dostępne',
+        // --- INTERFEJS / UI ---
+        'active_conditions': 'Aktywne Stany',
+        'music_list': 'Lista Muzyki',
+        'turn_order_title': 'Kolejność ruchów: [tura',
+        'round': 'tura',
+        'conditions': 'Stany',
         'unknown_character': 'Nieznana postać',
+        'target': 'Cel:',
+        'copy': 'Kopiuj',
+        'value': 'wartość',
+        'value_flat': 'Wartość: stała',
+        'value_perc': 'Wartość: procentowa',
+
+        // --- TOP BAR ---
+        'btn_new_round': 'Nowa tura (N)',
+        'btn_end_combat': 'Zakończ walkę (Z)',
         
-        // Stats
-        'name': 'Nazwa',
+        // --- DODAWANIE POSTACI ---
+        'add_mob': '+ Dodaj moba',
+        'add_npc': '+ Dodaj NPC',
+        'add_boss': '+ Dodaj bossa',
+        'add_player': '+ Dodaj gracza',
+        'add_character': '+ Dodaj postać',
+        
+        // --- KARTA POSTACI (LEWA KOLUMNA) ---
         'health': 'Zdrowie',
+        'tab_rolls': 'Rzuty',
+        'tab_damage': 'Obrażenia',
+        'last_roll': 'Ostatni Rzut',
+        
+        // --- STATYSTYKI (RZUTY) ---
         'vitality': 'Żywotność',
         'intuition': 'Intuicja',
         'strength': 'Siła',
@@ -19,11 +42,9 @@ const i18n = {
         'accuracy': 'Celność',
         'reflex': 'Refleks',
         'resilience': 'Nieustępliwość',
-        'damage': 'Obrażenia',
-        'phys_armor': 'Pancerz fizyczny',
-        'mag_armor': 'Pancerz magiczny',
+        'mod': 'mod',
 
-        // Lowercase and grammatically declined stat names for inline descriptions
+        // Zmiany gramatyczne do opisów umiejętności
         'desc_hp': 'zdrowia',
         'desc_vitality': 'żywotności',
         'desc_intuition': 'intuicji',
@@ -39,7 +60,7 @@ const i18n = {
         'desc_mag_armor': 'pancerza magicznego',
         'desc_mod': 'mod',
 
-        // Ability modifications
+        // Zmiany gramatyczne do rzutów umiejętności
         'mod_vitality': 'do rzutu na żywotność',
         'mod_intuition': 'do rzutu na intuicję',
         'mod_strength': 'do rzutu na siłę',
@@ -49,41 +70,45 @@ const i18n = {
         'mod_accuracy': 'do rzutu na celność',
         'mod_reflex': 'do rzutu na refleks',
         'mod_resilience': 'do rzutu na nieustępliwość',
-        
-        // UI Elements & Placeholders
-        'value': 'Wartość',
-        'heal': 'Leczenie',
-        'armor': 'Pancerz',
-        'mod': 'mod',
-        'proc': 'proc',
-        'conditions': 'Stany',
-        'turn_order': 'Kolejność ruchów',
-        'round': 'tura',
-        
-        // GM Menu
-        'btn_turn_order': 'Pokaż kolejność ruchów (K)',
-        'btn_new_round': 'Nowa tura (N)',
-        'btn_end_combat': 'Zakończ walkę (Z)',
-        'btn_music_list': 'Lista utworów (M)',
-        'btn_toggle_music': 'Zatrzymaj / Wznów utwór (S)',
-        'btn_toggle_sidebar': 'Wysuń / Schowaj boczne menu (L)',
-        
-        // GM Adding Characters
-        'heroes': 'Bohaterowie',
-        'enemies': 'Przeciwnicy',
-        'add_specific_monster': '+ Dodaj konkretnego potwora',
-        'add_specific_adventurer': '+ Dodaj konkretnego poszukiwacza',
-        'add_boss': '+ Dodaj bossa',
-        'add_monster': '+ Dodaj potwora',
-        'add_adventurer': '+ Dodaj poszukiwacza',
 
-        // Sidebar
-        'turn_order_title': 'Kolejność ruchów: [tura',
-        'conditions': 'Stany',
-        'copy': 'Kopiuj',
-        'music_list': 'Lista utworów:',
+        // --- WALKA I OBRAŻENIA ---
+        'damage': 'Obrażenia',
+        'base_damage': 'Obrażenia Baz.',
+        'heal': 'Leczenie',
+        'add_armor': 'Dodaj Pancerz',
+        'phys_armor': 'Pancerz fizyczny',
+        'mag_armor': 'Pancerz magiczny',
+        'phys_armor_caps': 'Panc. FIZYCZNY',
+        'mag_armor_caps': 'Panc. MAGICZNY',
+        'deaths_door': "Wrota śmierci",
+
+        'dmg_type_phys': 'Fizyczne',
+        'dmg_type_phys_short': 'FIZ',
+        'dmg_type_mag': 'Magiczne',
+        'dmg_type_mag_short': 'MAG',
+        'dmg_type_pierce': 'Przebijające',
+        'dmg_type_pierce_short': 'PRZ',
         
-        // Abilities & Equipment
+        'heal_type_normal': 'Zwykłe',
+        'heal_type_normal_short': 'ZWY',
+        'heal_type_threshold': 'Do progu',
+        'heal_type_threshold_short': 'PRÓG',
+        'heal_type_group': 'Grupowe',
+        'heal_type_group_short': 'GRP',
+
+        'armor_type_phys': 'Fizyczny',
+        'armor_type_phys_short': 'FIZ',
+        'armor_type_mag': 'Magiczny',
+        'armor_type_mag_short': 'MAG',
+
+        'armor_value_base': 'Wartość podstawowa',
+        'armor_value_percent': 'Wartość procentowa',
+
+        // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
+        'tab_skills': 'Umiejętności',
+        'tab_equip': 'Ekwipunek',
+        'unavailable': 'Niedostępne',
+        'available': 'Dostępne',
         'roll': 'Rzut:',
         'difficulty': 'Trudność:',
         'cooldown': 'Czas oczekiwania:',
@@ -94,27 +119,49 @@ const i18n = {
         'extra_action_ability': 'dodatkowa akcja',
         'cooldown_once': 'raz',
         'prop_unavoidable': 'Nieunikalne.',
-        'prop_penetrating': 'Penetrujące.',
+        'prop_piercing': 'Przebijające.',
+        'dead': 'Nie żyje',
         
-        // Notifications
+        // --- POWIADOMIENIA I BŁĘDY ---
         'copied': 'Skopiowano:',
         'pasted': 'Wklejono:',
-
-        // Errors
         'copy_error': 'Błąd kopiowania!',
         'paste_error': 'Błąd wklejania z domyślnego schowka!',
         'no_stats_error': 'Brak wymaganych pól statystyki!',
-        'invalid_url': 'Brak poprawnych graczy w URL!',
+        'invalid_url': 'Brak poprawnych graczy w URL!'
     },
     'EN': {
-        // UI States
-        'unavailable': 'Unavailable',
-        'available': 'Available',
+        // --- INTERFEJS / UI ---
+        'active_conditions': 'Active Conditions',
+        'music_list': 'Music List',
+        'turn_order_title': 'Turn order: [round',
+        'round': 'round',
+        'conditions': 'Conditions',
         'unknown_character': 'Unknown character',
+        'target': 'Target:',
+        'copy': 'Copy',
+        'value': 'value',
+        'value_flat': 'Value: flat',
+        'value_perc': 'Value: percentage',
+
+        // --- TOP BAR ---
+        'btn_new_round': 'New round (N)',
+        'btn_end_combat': 'End combat (Z)',
         
-        // Stats
-        'name': 'Name',
+        // --- DODAWANIE POSTACI ---
+        'add_mob': '+ Add mob',
+        'add_npc': '+ Add NPC',
+        'add_boss': '+ Add boss',
+        'add_player': '+ Add player',
+        'add_character': '+ Add character',
+        
+        // --- KARTA POSTACI (LEWA KOLUMNA) ---
         'health': 'Health',
+        'tab_rolls': 'Rolls',
+        'tab_damage': 'Damage',
+        'last_roll': 'Last Roll',
+        
+        // --- STATYSTYKI (RZUTY) ---
         'vitality': 'Vitality',
         'intuition': 'Intuition',
         'strength': 'Strength',
@@ -124,11 +171,9 @@ const i18n = {
         'accuracy': 'Accuracy',
         'reflex': 'Reflex',
         'resilience': 'Resilience',
-        'damage': 'Damage',
-        'phys_armor': 'Physical armor',
-        'mag_armor': 'Magical armor',
+        'mod': 'mod',
 
-        // Lowercase stat names for inline descriptions
+        // Zmiany gramatyczne (w j.ang. w zasadzie podstawowe słowa)
         'desc_hp': 'HP',
         'desc_vitality': 'vitality',
         'desc_intuition': 'intuition',
@@ -144,7 +189,7 @@ const i18n = {
         'desc_mag_armor': 'magical armor',
         'desc_mod': 'mod',
 
-        // Ability modifications
+        // Zmiany gramatyczne do rzutów umiejętności
         'mod_vitality': 'to vitality roll',
         'mod_intuition': 'to intuition roll',
         'mod_strength': 'to strength roll',
@@ -154,41 +199,45 @@ const i18n = {
         'mod_accuracy': 'to accuracy roll',
         'mod_reflex': 'to reflex roll',
         'mod_resilience': 'to resilience roll',
-        
-        // UI Elements & Placeholders
-        'value': 'Value',
-        'heal': 'Heal',
-        'armor': 'Armor',
-        'mod': 'mod',
-        'proc': 'perc',
-        'conditions': 'Conditions',
-        'turn_order': 'Turn order',
-        'round': 'round',
-        
-        // GM Menu
-        'btn_turn_order': 'Show turn order (K)',
-        'btn_new_round': 'New round (N)',
-        'btn_end_combat': 'End combat (Z)',
-        'btn_music_list': 'Music list (M)',
-        'btn_toggle_music': 'Pause / Resume music (S)',
-        'btn_toggle_sidebar': 'Toggle sidebar (L)',
-        
-        // GM Adding Characters
-        'heroes': 'Heroes',
-        'enemies': 'Enemies',
-        'add_specific_monster': '+ Add specific monster',
-        'add_specific_adventurer': '+ Add specific adventurer',
-        'add_boss': '+ Add boss',
-        'add_monster': '+ Add monster',
-        'add_adventurer': '+ Add adventurer',
 
-        // Sidebar
-        'turn_order_title': 'Turn order: [round',
-        'conditions': 'Conditions',
-        'copy': 'Copy',
-        'music_list': 'Music list:',
+        // --- WALKA I OBRAŻENIA ---
+        'damage': 'Damage',
+        'base_damage': 'Base Damage',
+        'heal': 'Heal',
+        'add_armor': 'Add Armor',
+        'phys_armor': 'Physical armor',
+        'mag_armor': 'Magical armor',
+        'phys_armor_caps': 'PHYS Armor',
+        'mag_armor_caps': 'MAG Armor',
+        'deaths_door': "Death's door",
+
+        'dmg_type_phys': 'Physical',
+        'dmg_type_phys_short': 'PHYS',
+        'dmg_type_mag': 'Magical',
+        'dmg_type_mag_short': 'MAG',
+        'dmg_type_pierce': 'Piercing',
+        'dmg_type_pierce_short': 'PIERCE',
         
-        // Abilities & Equipment
+        'heal_type_normal': 'Normal',
+        'heal_type_normal_short': 'NORM',
+        'heal_type_threshold': 'To threshold',
+        'heal_type_threshold_short': 'THRESH',
+        'heal_type_group': 'Group',
+        'heal_type_group_short': 'GRP',
+    
+        'armor_type_phys': 'Physical',
+        'armor_type_phys_short': 'PHYS',
+        'armor_type_mag': 'Magical',
+        'armor_type_mag_short': 'MAG',
+
+        'armor_value_base': 'Base value',
+        'armor_value_percent': 'Percent value',
+
+        // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
+        'tab_skills': 'Skills',
+        'tab_equip': 'Equipment',
+        'unavailable': 'Unavailable',
+        'available': 'Available',
         'roll': 'Roll:',
         'difficulty': 'Difficulty:',
         'cooldown': 'Cooldown:',
@@ -199,17 +248,16 @@ const i18n = {
         'extra_action_ability': 'extra action',
         'cooldown_once': 'once',
         'prop_unavoidable': 'Unavoidable.',
-        'prop_penetrating': 'Penetrating.',
+        'prop_piercing': 'Piercing.',
+        'dead': 'Dead',
         
-        // Notifications
+        // --- POWIADOMIENIA I BŁĘDY ---
         'copied': 'Copied:',
         'pasted': 'Pasted:',
-
-        // Errors
         'copy_error': 'Copy error!',
         'paste_error': 'Paste error from clipboard!',
         'no_stats_error': 'Required stat fields missing!',
-        'invalid_url': 'No valid players in URL!',
+        'invalid_url': 'No valid players in URL!'
     }
 };
 

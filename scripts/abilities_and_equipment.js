@@ -1,64 +1,83 @@
-async function showAbilitiesPanel(button) {
-    const characterDiv = button.closest('.character');
-    let name = characterDiv.querySelector('input[type="text"]').value;
-    name = removeUniqueNameNumber(name); // thanks to this, if characters repeat, e.g., there are two of the same goblin casters, each of them has the same spells, but their CDs are different!
+// Main entry point for rendering the Extra Panel (Skills & Equipment tabs)
+async function renderExtraPanel(combatantId) {
+    const combatant = activeCombatants.find(c => c.id === combatantId);
+    if (!combatant) return;
 
-    const attunementInput = characterDiv.querySelector('.stat-value.attunement');
+    const extraPanel = document.getElementById('panel-extra');
+    if (!extraPanel) return;
+
+    const baseName = combatant.baseName;
+    const baseData = players[baseName] || npcs[baseName] || mobs[baseName] || bosses[baseName] || {};
+    const rightPanel = document.getElementById('characterDetailsPanel');
+    
+    const attunementInput = rightPanel.querySelector('.stat-val-input[data-stat="attunement"]');
     let attunement = 1000; // if there is no attunement stat, you can have as many abilities as you want.
     if (attunementInput) attunement = parseInt(attunementInput.value);
-
-    const stats = (players[name] || adventurers[name] || monsters[name] || bosses[name] || {});
 
     // Calculate maximum number of abilities
     let maxAbilities = 3;  // Base 3 abilities
     if (attunement > 10) {
         maxAbilities += Math.floor((attunement - 10) / 2);
     }
-    const abilities = stats.abilities?.slice(0, maxAbilities) || [];
     
-    let panel = characterDiv.querySelector('.abilities-panel');
-    let overlay = document.querySelector('.overlay');
+    const abilities = baseData.abilities?.slice(0, maxAbilities) || [];
+    const equipment = baseData.equipment || [];
 
-    if (isRemoving) return; // if any panel is currently being hidden, let it hide
+    const hasAbilities = abilities.length > 0;
+    const hasEquipment = equipment.length > 0;
 
-    hideActivePanel(); // hide any open panel
-
-    if (panel) return; // if any panel is not hidden, return. This way, clicking the button again 
-                       // when the abilities panel is open hides it, instead of sliding it out again
-
-    panel = await createAbilitiesPanel(abilities, characterDiv);
-    characterDiv.appendChild(panel);
-
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.className = 'overlay';
-        document.body.appendChild(overlay);
+    // If character has neither skills nor equipment, clear and hide the panel completely
+    if (!hasAbilities && !hasEquipment) {
+        extraPanel.innerHTML = '';
+        return;
     }
 
-    overlay.addEventListener('click', hideActivePanel);
+    let html = '';
 
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            if (panel && panel.parentNode) {
-                characterDiv.style.zIndex = '1002';
-                panel.classList.add('active');
-                overlay.classList.add('active');
-                activePanel = panel;
-                activeOverlay = overlay;
-            }
+    // Always render the tabs container if there's at least one, to serve as a visual header
+    html += `<div class="char-extra-tabs">`;
+    if (hasAbilities) {
+        html += `<div class="char-extra-tab active" data-target="panel-skills">${t('tab_skills')}</div>`;
+    }
+    if (hasEquipment) {
+        // Make it active if it's the ONLY tab present
+        const equipActiveClass = !hasAbilities ? 'active' : '';
+        html += `<div class="char-extra-tab ${equipActiveClass}" data-target="panel-equip">${t('tab_equip')}</div>`;
+    }
+    html += `</div>`;
+
+    // Prepare content containers
+    html += `<div class="char-extra-content ${hasAbilities ? 'active' : ''}" id="panel-skills"></div>`;
+    html += `<div class="char-extra-content ${!hasAbilities && hasEquipment ? 'active' : ''}" id="panel-equip"></div>`;
+
+    extraPanel.innerHTML = html;
+
+    // Attach tab switching logic ONLY if both tabs are present
+    if (hasAbilities && hasEquipment) {
+        extraPanel.querySelectorAll('.char-extra-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                extraPanel.querySelectorAll('.char-extra-tab').forEach(t => t.classList.remove('active'));
+                extraPanel.querySelectorAll('.char-extra-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.target).classList.add('active');
+            });
         });
-    });
+    }
+
+    // Populate data into containers
+    if (hasAbilities) {
+        const skillsContainer = document.getElementById('panel-skills');
+        await populateAbilities(abilities, combatant, rightPanel, skillsContainer);
+    }
+
+    if (hasEquipment) {
+        const equipContainer = document.getElementById('panel-equip');
+        populateEquipment(equipment, rightPanel, equipContainer);
+    }
 }
 
-async function createAbilitiesPanel(abilities, characterDiv) {
-    const panel = document.createElement('div');
-    panel.className = 'abilities-panel';
-
-    const abilitiesList = document.createElement('ul');
-    abilitiesList.className = 'abilities-list';
-
-    let characterName = characterDiv.querySelector('input[type="text"]').value;
-
+async function populateAbilities(abilities, combatant, rightPanel, container) {
+    const characterName = combatant.uniqueName;
     const abilitiesStates = await loadServerAbilitiesStates();
     if (!abilitiesStates[characterName]) {
         abilitiesStates[characterName] = {};
@@ -80,58 +99,152 @@ async function createAbilitiesPanel(abilities, characterDiv) {
         }
 
         const abilityState = abilitiesStates[characterName][abilityName];
-
-        const abilityItem = document.createElement('li');
-        abilityItem.className = 'ability-item';
+        const abilityCard = document.createElement('div');
+        abilityCard.className = 'char-extra-card';
 
         // Build ability content
-        let abilityContent = `
-            <div class="ability-name">${abilityName}</div>
-            <div class="ability-description">${parseDescription(ability.description || "", characterDiv, ability.roll, ability.difficulty)}</div>
+        const parsedDesc = parseDescription(ability.description || "", rightPanel, ability.roll, ability.difficulty);
+
+        let cardInner = `
+            <div class="char-extra-card-title">
+                ${abilityName}
+                <div class="btn-container"></div>
+            </div>
+            <div class="char-extra-card-desc">${parsedDesc}</div>
+            <div class="char-extra-card-meta">
         `;
 
         // Optional attributes
-        if (ability.roll) {
-            const rollName = t(ability.roll); 
-            abilityContent += `<div class="ability-stat">${t('roll')} ${rollName}</div>`;
-        }
-        if (ability.difficulty) {
-            abilityContent += `<div class="ability-stat">${t('difficulty')} ${ability.difficulty}</div>`;
-        }
-        if (ability.cooldown !== undefined && ability.cooldown !== null) {
-            // If it's a tag, translate it
-            let displayCooldown = ability.cooldown === "[cooldown_once]" ? t('cooldown_once') : ability.cooldown;
-            abilityContent += `<div class="ability-stat btn-here">${t('cooldown')} ${displayCooldown}</div>`;
-        }
-        if (ability.difficulty && ability.difficulty !== "X") {
-            abilityContent += `<div class="ability-stat">${t('success_chance')} <span class="highlighted-property">${calculateaAbilitySuccessRate(characterDiv, ability.roll, ability.difficulty)}%</span></div>`;
-        }
+        if (ability.roll) cardInner += `<span>${t('roll')} <strong class="stat-bonus">${t(ability.roll)}</strong></span>`;
 
-        abilityItem.innerHTML = abilityContent;
+        if (ability.roll && ability.difficulty) cardInner += `<span>${t('difficulty')} <strong class="stat-bonus">${ability.difficulty}</strong></span>`;
 
-        // Create cooldown button
+        if (ability.roll && ability.difficulty && ability.difficulty !== "X") cardInner += `<span>${t('success_chance')} <strong style="color: #bd93f9;">${calculateAbilitySuccessRate(rightPanel, ability.roll, ability.difficulty)}%</strong></span>`;
+
+        cardInner += `</div>`;
+        abilityCard.innerHTML = cardInner;
+
+        // Create cooldown button        
         if (ability.cooldown !== undefined && ability.cooldown !== null) {
             const cooldownButton = document.createElement('button');
-            cooldownButton.className = abilityState.currentCooldown === 0 ? 'cooldown-button available' : 'cooldown-button unavailable';
-            cooldownButton.textContent = abilityState.currentCooldown === 0 ? t('available') : (abilityState.currentCooldown === 'unavailable' ? t('unavailable') : abilityState.currentCooldown);
-            cooldownButton.disabled = abilityState.currentCooldown !== 0;
-            cooldownButton.onclick = () => useAbility(cooldownButton, characterName, ability);
+            cooldownButton.className = 'action-cd-btn';
 
-            abilityItem.querySelector('.ability-stat.btn-here').appendChild(cooldownButton);
+            // Assign custom attributes to help updateActivePanel later
+            cooldownButton.dataset.abilityName = abilityName;
+
+            // Block ability if character is dead
+            if (combatant.isDead) {
+                cooldownButton.style.background = '#ff5555';
+                cooldownButton.style.color = 'white';
+                cooldownButton.textContent = t('dead');
+                cooldownButton.disabled = true;
+            } 
+            // Normal cooldowns
+            else if (abilityState.currentCooldown !== 0) {
+                cooldownButton.style.background = '#ff5555';
+                cooldownButton.style.color = 'white';
+                let displayCooldown = abilityState.currentCooldown;
+                if (abilityState.currentCooldown === 'unavailable') displayCooldown = t('unavailable');
+                cooldownButton.textContent = displayCooldown;
+                cooldownButton.disabled = true;
+            } 
+            // Available
+            else {
+                cooldownButton.textContent = t('available');
+                cooldownButton.disabled = false;
+            }
+            
+            cooldownButton.onclick = () => useAbility(cooldownButton, characterName, ability);
+            abilityCard.querySelector('.btn-container').appendChild(cooldownButton);
         }
 
-        abilitiesList.appendChild(abilityItem);
+        container.appendChild(abilityCard);
     });
 
     await updateServerAbilitiesStates(abilitiesStates);
-
-    panel.appendChild(abilitiesList);
-    return panel;
 }
 
-function calculateaAbilitySuccessRate(characterDiv, abilityRoll, abilityDifficulty) {
-    const statValue = parseInt(characterDiv.querySelector(`.stat-value.${abilityRoll}`).value) || 0;
-    const modValue = parseInt(characterDiv.querySelector(`.mod-value.${abilityRoll}`).value) || 0;
+function populateEquipment(equipment, rightPanel, container) {
+    // Group items into gear and others
+    const gear = equipment.filter(item => item.type === 'gear');
+    const other = equipment.filter(item => item.type !== 'gear');
+
+    // Add gear section if it exists
+    if (gear.length > 0) {
+        gear.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = 'char-extra-card';
+            
+            let html = `<div class="char-extra-card-title">${item.name}</div>`;
+            if (item.description) {
+                html += `<div class="char-extra-card-desc">${parseDescription(item.description, rightPanel)}</div>`;
+            }
+
+            html += `<div class="char-extra-card-meta">`;
+            
+            if (item.damage !== undefined) {
+                const val = getFormulaValue(item.damage, rightPanel);
+                const breakdown = getFormulaBreakdown(item.damage);
+                html += `<div>${t('damage')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            if (item.physArmor !== undefined) {
+                const val = getFormulaValue(item.physArmor, rightPanel);
+                const breakdown = getFormulaBreakdown(item.physArmor);
+                html += `<div>${t('phys_armor')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            if (item.physArmorPerc !== undefined) {
+                const val = getFormulaValue(item.physArmorPerc, rightPanel);
+                const breakdown = getFormulaBreakdown(item.physArmorPerc);
+                html += `<div>${t('phys_armor')} %: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            if (item.magArmor !== undefined) {
+                const val = getFormulaValue(item.magArmor, rightPanel);
+                const breakdown = getFormulaBreakdown(item.magArmor);
+                html += `<div>${t('mag_armor')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            if (item.magArmorPerc !== undefined) {
+                const val = getFormulaValue(item.magArmorPerc, rightPanel);
+                const breakdown = getFormulaBreakdown(item.magArmorPerc);
+                html += `<div>${t('mag_armor')} %: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            }
+            if (item.value !== undefined) {
+                html += `<div>${t('value')}: ${item.value}S</div>`;
+            }
+            
+            html += `</div>`;
+            itemCard.innerHTML = html;
+            container.appendChild(itemCard);
+        });
+    }
+
+    // Add other items section if they exist
+    if (other.length > 0) {
+        other.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = 'char-extra-card';
+            
+            let html = `<div class="char-extra-card-title">${item.name}</div>`;
+            if (item.description) {
+                html += `<div class="char-extra-card-desc">${parseDescription(item.description, rightPanel)}</div>`;
+            }
+            
+            html += `
+                <div class="char-extra-card-meta">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${t('quantity')} <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0" style="width: 50px; background: #212330; border: 1px solid #44475a; color: white; text-align: center; border-radius: 4px; padding: 2px;">
+                    </div>
+                    ${item.value !== undefined ? `<div>${t('value')}: ${item.value}</div>` : ''}
+                </div>
+            `;
+            itemCard.innerHTML = html;
+            container.appendChild(itemCard);
+        });
+    }
+}
+
+function calculateAbilitySuccessRate(rightPanel, abilityRoll, abilityDifficulty) {
+    const statValue = parseInt(rightPanel.querySelector(`.stat-val-input[data-stat="${abilityRoll}"]`)?.value) || 0;
+    const modValue = parseInt(rightPanel.querySelector(`.stat-mod-input[data-stat="${abilityRoll}Mod"]`)?.value) || 0;
 
     if (statValue <= 0) {
         return 0; // No stat
@@ -155,16 +268,15 @@ async function useAbility(button, characterName, ability) {
     const abilitiesStates = await loadServerAbilitiesStates();
 
     const abilityState = abilitiesStates[characterName][ability.name];
-    const characterDiv = document.querySelector(`.character input[value="${characterName}"]`).closest('.character');
+    const rightPanel = document.getElementById('characterDetailsPanel');
 
     if (abilityState.currentCooldown !== 0) return;
 
     let success = true; // abilities without info on what to roll are treated as always successful
 
     if (ability.roll) { // roll, if the ability has one
-        const diceElement = characterDiv.querySelector('.dice');
-
-        const result = rollDice(diceElement, ability.roll, ability.difficulty);
+        // Pass null for diceElement since we are now rolling from the UI panel directly
+        const result = rollDice(null, ability.roll, ability.difficulty);
         success = ability.difficulty === "X" ? true 
                                              : result >= ability.difficulty ? true 
                                              : false;
@@ -174,16 +286,17 @@ async function useAbility(button, characterName, ability) {
         if (abilityState.singleUse) {
             // Permanent block, if the ability is single-use and succeeds
             button.disabled = true;
-            button.classList.remove('available');
-            button.classList.add('unavailable');
+            button.style.background = '#ff5555';
+            button.style.color = 'white';
             button.textContent = t('unavailable');
             abilityState.currentCooldown = 'unavailable';
             if (ability.condition && ability.conditionDuration) {
-                sendCondition(characterName, ability.condition, ability.conditionDuration, characterDiv);
+                // Warning: sendCondition expects the rightPanel context now
+                sendCondition(characterName, ability.condition, ability.conditionDuration, rightPanel);
             }
         } else { // if it isn't, it gets normal cd
             if (ability.condition && ability.conditionDuration) {
-                sendCondition(characterName, ability.condition, ability.conditionDuration, characterDiv);
+                sendCondition(characterName, ability.condition, ability.conditionDuration, rightPanel);
             }
             setAbilityCooldown(button, abilityState.maxCooldown, abilityState);
         }
@@ -203,10 +316,12 @@ async function useAbility(button, characterName, ability) {
 }
 
 function rollDice(diceElement, diceType, difficulty = null) {
-    const characterDiv = diceElement.closest('.character');
-    const statInput = characterDiv.querySelector(`.stat-value.${diceType}`);
-    const modInput = characterDiv.querySelector(`.mod-value.${diceType}`);
-    const bigDice = characterDiv.querySelector('.big-dice');
+    const rightPanel = document.getElementById('characterDetailsPanel');
+    const statInput = rightPanel.querySelector(`.stat-val-input[data-stat="${diceType}"]`);
+    const modInput = rightPanel.querySelector(`.stat-mod-input[data-stat="${diceType}Mod"]`);
+    
+    const lastRollDisplay = document.getElementById('last-roll-display');
+    const lastRollLabel = document.querySelector('.dice-result-label');
 
     if (!statInput || !modInput) {
         alert(t('no_stats_error'));
@@ -220,23 +335,27 @@ function rollDice(diceElement, diceType, difficulty = null) {
 
     // Intuition bonus for Agility and Accuracy
     if (diceType === 'agility' || diceType === 'accuracy') {
-        const intuitionInput = characterDiv.querySelector('.stat-value.intuition');
-        const intuitionValue = parseInt(intuitionInput.value) || 0;
+        const intuitionInput = rightPanel.querySelector(`.stat-val-input[data-stat="intuition"]`);
+        const intuitionValue = parseInt(intuitionInput?.value) || 0;
         if (intuitionValue >= 10) {
             const intuitionBonus = Math.floor((intuitionValue - 10) / 4);
             result += intuitionBonus;
         }
     }
 
-    // Color the result based on difficulty
-    if (difficulty && difficulty !== "X") {
-        difficulty = parseInt(difficulty);
-        bigDice.style.color = result >= difficulty ? 'green' : 'red';
-    } else {
-        bigDice.style.color = 'gray';
+    // Update UI
+    if (lastRollDisplay && lastRollLabel) {
+        lastRollLabel.textContent = `${t('last_roll')} (${t(diceType)})`;
+        lastRollDisplay.textContent = result;
+        
+        // Color the result based on difficulty
+        if (difficulty && difficulty !== "X") {
+            difficulty = parseInt(difficulty);
+            lastRollDisplay.style.color = result >= difficulty ? '#50fa7b' : '#ff5555';
+        } else {
+            lastRollDisplay.style.color = 'white';
+        }
     }
-
-    bigDice.textContent = `🎲 ${result}`;
 
     playSoundEffect('sound/diceroll.mp3');
 
@@ -246,8 +365,8 @@ function rollDice(diceElement, diceType, difficulty = null) {
 function setAbilityCooldown(button, cooldown, abilityState) {
     abilityState.currentCooldown = cooldown;
     button.disabled = true;
-    button.classList.remove('available');
-    button.classList.add('unavailable');
+    button.style.background = '#ff5555';
+    button.style.color = 'white';
     button.textContent = cooldown;
 }
 
@@ -297,12 +416,12 @@ function parseStatTags(description) {
  * Example Input 1: 15 (Number) -> Returns: 15
  * Example Input 2: "[-10 + 0.5 * vitality]" (String) -> Returns: 5 (Number), assuming vitality is 30
  */
- function getFormulaValue(statValue, characterDiv) {
+ function getFormulaValue(statValue, rightPanel) {
     if (typeof statValue === "number") return statValue;
     
     if (typeof statValue === "string" && statValue.includes('[')) {
         const formula = statValue.replace(/[\[\]]/g, '');
-        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => getStatValue(characterDiv, stat));
+        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => getStatValue(rightPanel, stat));
         
         if (!/^[0-9+\-*/().\s]+$/.test(evaluatedFormula)) {
             console.error("Formula contains invalid characters:", evaluatedFormula);
@@ -347,11 +466,11 @@ function getFormulaBreakdown(statValue) {
  * Example Input (X * roll): "2 * roll" -> Returns: "4 - 24" (String range)
  * Example Input (X * over): "3 * over" -> Returns: "3 - 15" (String range)
  */
-function evaluateDynamicAbilityRoll(formula, characterDiv, rollAbility, rollDifficulty) {
+function evaluateDynamicAbilityRoll(formula, rightPanel, rollAbility, rollDifficulty) {
     if (!rollAbility) return "0";
 
-    const statValue = getStatValue(characterDiv, rollAbility);
-    const modValue = getModValue(characterDiv, rollAbility);
+    const statValue = getStatValue(rightPanel, rollAbility);
+    const modValue = getModValue(rightPanel, rollAbility);
 
     // Multiplier roll (X * roll)
     if (/^\s*(\d+)\s*\*\s*roll\s*$/i.test(formula)) {
@@ -393,17 +512,17 @@ function evaluateDynamicAbilityRoll(formula, characterDiv, rollAbility, rollDiff
  * Example Input: "Deals [2 * roll] damage and [10 + 1 * vitality] frost damage."
  * Example Output: "Deals <strong ...>2-24</strong> damage and <strong ...>20</strong> <span ...>(10 + 1 * żywotności)</span> frost damage."
  */
-function parseFormulaTags(description, characterDiv, rollAbility, rollDifficulty) {
+function parseFormulaTags(description, rightPanel, rollAbility, rollDifficulty) {
     return description.replace(/\[(.*?)\]/g, (match, formula) => {
         try {
             // Forward ability-specific keywords (roll/over) to the dynamic handler
             if (/roll|over/i.test(formula)) {
-                const result = evaluateDynamicAbilityRoll(formula, characterDiv, rollAbility, rollDifficulty);
+                const result = evaluateDynamicAbilityRoll(formula, rightPanel, rollAbility, rollDifficulty);
                 return `<strong class="calculated-value">${result}</strong>`;
             }
 
             // Using 'match' (which includes brackets) to utilize the universal getFormula functions
-            const result = getFormulaValue(match, characterDiv);
+            const result = getFormulaValue(match, rightPanel);
             const breakdown = getFormulaBreakdown(match);
             
             // Only append the formula breakdown if it's not a raw number
@@ -427,204 +546,71 @@ function parseFormulaTags(description, characterDiv, rollAbility, rollDifficulty
  * Master wrapper used strictly for formatting text blocks (e.g., item or ability descriptions).
  * Sequentially applies property highlights, stat highlights, and formula calculations.
  */
-function parseDescription(description, characterDiv, rollAbility = null, rollDifficulty = null) {
+function parseDescription(description, rightPanel, rollAbility = null, rollDifficulty = null) {
     if (typeof description === "number") return description;
 
     let processedDescription = parsePropertyTags(String(description));
     processedDescription = parseStatTags(processedDescription);
-    processedDescription = parseFormulaTags(processedDescription, characterDiv, rollAbility, rollDifficulty);
+    processedDescription = parseFormulaTags(processedDescription, rightPanel, rollAbility, rollDifficulty);
 
     return processedDescription;
 }
 
 // Retrieves only the value of the statistic itself, without counting the additional bonus. Roll bonuses shouldn't affect ability damage in the [number * stat] convention
-function getStatValue(characterDiv, stat) {
-    const statInput = characterDiv.querySelector(`.stat-value.${stat}`);
+function getStatValue(rightPanel, stat) {
+    const statInput = rightPanel.querySelector(`.stat-val-input[data-stat="${stat}"]`);
     return statInput ? parseInt(statInput.value) || 0 : 0; 
 }
 
 // Retrieves the value of the stat bonus. Useful when calculating things dependent on the height of the roll or penetration points
-function getModValue(characterDiv, stat) {
-    const modInput = characterDiv.querySelector(`.mod-value.${stat}`);
+function getModValue(rightPanel, stat) {
+    const modInput = rightPanel.querySelector(`.stat-mod-input[data-stat="${stat}Mod"]`);
     return modInput ? parseInt(modInput.value) || 0 : 0; 
 }
 
-function showEquipmentPanel(button) {
-    const characterDiv = button.closest('.character');
-    let panel = characterDiv.querySelector('.equipment-panel');
-    let overlay = document.querySelector('.overlay');
-    
-    // If the panel is being removed, do nothing
-    if (isRemoving) {
-        return;
-    }
-    
-    // First hide the active panel (if it exists)
-    hideActivePanel();
-    
-    // If the panel doesn't exist for this character, create it
-    if (!panel) {
-        let name = characterDiv.querySelector('input[type="text"]').value;
-        name = removeUniqueNameNumber(name); // thanks to this, if characters repeat, e.g., there are two of the same goblins, each of them has the same equipment
-        const equipment = (players[name]?.equipment || adventurers[name]?.equipment || monsters[name]?.equipment || bosses[name]?.equipment || []);
-        
-        panel = createEquipmentPanel(equipment, characterDiv);
-        characterDiv.appendChild(panel);
-        
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'overlay';
-            document.body.appendChild(overlay);
+async function updateActivePanel() {
+    const extraPanel = document.getElementById('panel-extra');
+    if (!extraPanel || extraPanel.innerHTML === '') return;
+
+    if (!selectedCharacterId) return;
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant) return;
+
+    const abilitiesStates = await loadServerAbilitiesStates();
+    const characterName = combatant.uniqueName;
+    if (!abilitiesStates[characterName]) return;
+
+    const allCooldownButtons = extraPanel.querySelectorAll('.action-cd-btn');
+    allCooldownButtons.forEach(button => {
+        const abilityName = button.dataset.abilityName;
+        if (!abilityName || !abilitiesStates[characterName][abilityName]) return;
+
+        const abilityState = abilitiesStates[characterName][abilityName];
+
+        // Block if dead
+        if (combatant.isDead) {
+            button.disabled = true;
+            button.style.background = '#ff5555';
+            button.style.color = 'white';
+            button.textContent = t('dead');
+        } 
+        else if (abilityState.currentCooldown === 0) {
+            button.disabled = false; 
+            button.style.background = '#50fa7b';
+            button.style.color = '#181922';
+            button.textContent = t('available');
+        } 
+        else if (abilityState.currentCooldown !== 'unavailable') {
+            button.disabled = true;
+            button.style.background = '#ff5555';
+            button.style.color = 'white';
+            button.textContent = abilityState.currentCooldown;
+        } 
+        else {
+            button.disabled = true;
+            button.style.background = '#ff5555';
+            button.style.color = 'white';
+            button.textContent = t('unavailable');
         }
-        
-        overlay.addEventListener('click', hideActivePanel);
-        
-        // Give time to render the panel before adding the active class
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                if (panel && panel.parentNode) {
-                    characterDiv.style.zIndex = '1002';
-                    panel.classList.add('active');
-                    overlay.classList.add('active');
-                    activePanel = panel;
-                    activeOverlay = overlay;
-                }
-            });
-        });
-    }
-}
-
-function createEquipmentPanel(equipment = [], characterDiv) {
-    const panel = document.createElement('div');
-    panel.className = 'equipment-panel';
-    
-    const equipmentList = document.createElement('div');
-    equipmentList.className = 'equipment-list';
-    
-    // Group items into gear and others
-    const gear = equipment.filter(item => item.type === 'gear');
-    const other = equipment.filter(item => item.type !== 'gear');
-    
-    // Add gear section if it exists
-    if (gear.length > 0) {
-        const gearSection = document.createElement('div');
-        gearSection.className = 'equipment-section';
-        gearSection.innerHTML = `<h3>${t('gear')}</h3>`;
-        
-        gear.forEach(item => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'equipment-item gear-item';
-            let html = '';
-            
-            html += `<div class="item-name">${item.name}</div>`;
-            
-            if (item.description) {
-                html += `<div class="item-description">${parseDescription(item.description, characterDiv)}</div>`;
-            }
-
-            html += `<div class="gear-stats">`;
-            
-            if (item.damage !== undefined) {
-                const val = getFormulaValue(item.damage, characterDiv);
-                const breakdown = getFormulaBreakdown(item.damage);
-                html += `<div class="gear-stat">${t('damage')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            
-            if (item.physArmor !== undefined) {
-                const val = getFormulaValue(item.physArmor, characterDiv);
-                const breakdown = getFormulaBreakdown(item.physArmor);
-                html += `<div class="gear-stat">${t('phys_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            
-            if (item.physArmorPerc !== undefined) {
-                const val = getFormulaValue(item.physArmorPerc, characterDiv);
-                const breakdown = getFormulaBreakdown(item.physArmorPerc);
-                html += `<div class="gear-stat">${t('phys_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            
-            if (item.magArmor !== undefined) {
-                const val = getFormulaValue(item.magArmor, characterDiv);
-                const breakdown = getFormulaBreakdown(item.magArmor);
-                html += `<div class="gear-stat">${t('mag_armor')}: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            
-            if (item.magArmorPerc !== undefined) {
-                const val = getFormulaValue(item.magArmorPerc, characterDiv);
-                const breakdown = getFormulaBreakdown(item.magArmorPerc);
-                html += `<div class="gear-stat">${t('mag_armor')} %: <strong class="copyable-value" onclick="copyToClipboard(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            
-            if (item.value !== undefined) {
-                html += `<div class="gear-stat">${t('value')}: ${item.value}S</div>`;
-            }
-
-            html += "</div>";
-
-            itemElement.innerHTML = html;
-            gearSection.appendChild(itemElement);
-        });
-        
-        equipmentList.appendChild(gearSection);
-    }
-    
-    // Add other items section if they exist
-    if (other.length > 0) {
-        const otherSection = document.createElement('div');
-        otherSection.className = 'equipment-section';
-        otherSection.innerHTML = `<h3>${t('other_items')}</h3>`;
-        
-        other.forEach(item => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'equipment-item other-item';
-            itemElement.innerHTML = `
-                <div class="item-name">${item.name}</div>
-                <div class="item-description">${parseDescription(item.description, characterDiv)}</div>
-                <div class="item-quantity">
-                    <span>${t('quantity')}</span>
-                    <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0">
-                </div>
-                <div class="gear-stats">
-                    <div class="gear-stat">${t('value')}: ${item.value}</div>
-                </div>
-            `;
-            otherSection.appendChild(itemElement);
-        });
-        
-        equipmentList.appendChild(otherSection);
-    }
-    
-    panel.appendChild(equipmentList);
-    return panel;
-}
-
-function hideActivePanel() {
-    if (activePanel && !isRemoving) {
-        const characterDiv = activePanel.closest('.character');
-        if (characterDiv) {
-            characterDiv.style.zIndex = '';
-        }
-        
-        isRemoving = true;
-        
-        const panelToRemove = activePanel;
-        const overlayToHandle = activeOverlay;
-        
-        panelToRemove.classList.add('removing');
-        if (overlayToHandle) {
-            overlayToHandle.classList.remove('active');
-        }
-        
-        setTimeout(() => {
-            if (panelToRemove && panelToRemove.parentNode) {
-                panelToRemove.classList.remove('active', 'removing');
-                panelToRemove.remove();
-            }
-            
-            if (activePanel === panelToRemove) {
-                activePanel = null;
-                activeOverlay = null;
-            }
-            isRemoving = false;
-        }, 500);
-    }
+    });
 }

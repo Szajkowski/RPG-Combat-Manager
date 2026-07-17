@@ -1,4 +1,4 @@
-const adventurers = {
+const npcs = {
     "Nadia Cardigan": {
         hasDeathsDoor: true,
         name: "Nadia Cardigan",

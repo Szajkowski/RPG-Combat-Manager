@@ -36,7 +36,7 @@ async function getCharactersInTeam(teamId) {
         const reflex = reflexInput ? parseInt(reflexInput.value) || 0 : 0;
 
         // Check if the character has "Dodatkowa akcja" (Extra Action)
-        const abilities = (bosses[name]?.abilities || monsters[name]?.abilities || adventurers[name]?.abilities || []);
+        const abilities = (bosses[name]?.abilities || mobs[name]?.abilities || npcs[name]?.abilities || []);
         const hasExtraAction = abilities.some(ability => matchesAnyLanguage(ability.name, 'extra_action_ability'));
 
         // If they have "Dodatkowa akcja", add two entries: with full and half reflex
@@ -290,60 +290,6 @@ function markExpiredConditions(activeConditions) {
     });
 }
 
-function showMusicMenu() {
-    const sidebar = document.getElementById('Sidebar');
-    const sidebarTitle = sidebar.querySelector('.sidebar-title');
-    const sidebarContent = sidebar.querySelector('.sidebar-content');
-    const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-
-    sidebarTitle.textContent = t('music_list');
-
-    const musicList = document.createElement('div');
-    musicList.className = 'music-list';
-
-    mp3Files.forEach(file => {
-        const musicItem = document.createElement('div');
-        musicItem.className = 'music-item';
-
-        // Add play button
-        const playButton = document.createElement('button');
-        playButton.textContent = '▶️'; // Play icon
-        playButton.onclick = () => playMusic(file);
-
-        // Add track name
-        const musicName = document.createElement('span');
-        musicName.textContent = file.replace('.mp3', ''); // Display name without extension
-        musicName.className = 'music-name';
-
-        musicItem.appendChild(playButton);
-        musicItem.appendChild(musicName);
-        musicList.appendChild(musicItem);
-    });
-
-    sidebarContent.innerHTML = '';
-    sidebarConditions.style.display = 'none';
-    sidebarContent.appendChild(musicList);
-    sidebar.classList.remove('hidden');
-}
-
-function playMusic(filePath) {
-    // If something is already playing, stop it
-    if (currentMusic) {
-        currentMusic.pause();
-        currentMusic.currentTime = 0; // Reset time
-    }
-
-    // Play new track
-    currentMusic = new Audio(`music/${filePath}`);
-    currentMusic.volume = 0.4;
-    currentMusic.play();
-
-    // Loop track
-    currentMusic.onended = () => {
-        currentMusic.play();
-    };
-}
-
 async function endCombat() {
     const abilitiesStates = await loadServerAbilitiesStates();
     // Remove cooldown from all abilities
@@ -366,17 +312,6 @@ async function endCombat() {
     await markConditionTargets(); // Remove exclamation marks
 
     await requestUpdateActivePanel(); // This must always be at the end, period
-}
-
-function toggleMusic() {
-    if (currentMusic) {
-        if (currentMusic.paused) {
-            currentMusic.play();
-        }
-        else {
-            currentMusic.pause();
-        }
-    }
 }
 
 function toggleLockSidebar() {

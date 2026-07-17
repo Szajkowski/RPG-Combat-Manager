@@ -1,6 +1,11 @@
+// Generates a unique ID for each character instance on the board
+function generateId() {
+    return 'char-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+}
+
 function getUniqueCharacterName(baseName) {
-    const existingNames = Array.from(document.querySelectorAll('.character input[type="text"]'))
-        .map(input => input.value.trim()); // Get all existing character names
+    // Get all existing character names from memory
+    const existingNames = activeCombatants.map(c => c.uniqueName); 
 
     let uniqueName = baseName;
     let counter = 2;
@@ -18,71 +23,272 @@ function removeUniqueNameNumber(charName) {
 }
 
 function addSpecificCharacter(type, name, team) {
-    if (type === 'monster' && monsters[name]) {
-        addCharacter(type, team, monsters[name], name);
-    } else if (type === 'adventurer' && adventurers[name]) {
-        addCharacter(type, team, adventurers[name], name);  
+    if (type === 'mob' && mobs[name]) {
+        addCharacter('mob', team, mobs[name], name);
+    } else if (type === 'npc' && npcs[name]) {
+        addCharacter('npc', team, npcs[name], name);  
     } else if (type === 'boss' && bosses[name]) {
-        addCharacter(type, team, bosses[name], name);
+        addCharacter('boss', team, bosses[name], name);
     } else if (type === 'player' && players[name]) {
-        addPlayerCharacter(name, team); 
-        // Adding the team in attributes might be a bit weird, but I don't like hardcoding things and maybe I'd like to add a player to the enemies someday?
+        addCharacter('player', team, players[name], name); 
+    } else if (type === 'character') {
+        addCharacter('character', team, { name: '' }, '');
     }
 }
 
+// Core character creation: Calculates stats, saves to memory, and renders a Token
 function addCharacter(type, team, stats = {}, image = null) {
     const teamDiv = document.getElementById(team + 'Team');
 
     let uniqueName = '';
     // Determine unique name
-    if (stats.name)
-    {
+    if (stats.name) {
         uniqueName = getUniqueCharacterName(stats.name);
     }
 
     // Update stats based on equipment
     const finalStats = applyGearBonuses(stats);
 
-    const characterDiv = document.createElement('div');
-    characterDiv.classList.add('character');
+    // Set default HP values if missing
+    if (finalStats.hp === undefined) finalStats.hp = 10;
+    if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
 
-    // Add 'hasDeathsDoor' and 'type' attributes to dataset
-    characterDiv.dataset.hasDeathsDoor = finalStats.hasDeathsDoor || "false";
-    characterDiv.dataset.type = type;
-        
-    // Build character content
-    let characterContent = '';
+    // Initialize abilities states directly in memory
+    const initialAbilitiesStates = {};
+    if (stats.abilities && Array.isArray(stats.abilities)) {
+        stats.abilities.forEach(ability => {
+            const isSingleUse = ability.cooldown === "[cooldown_once]";
+            const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
             
+            initialAbilitiesStates[ability.name] = {
+                currentCooldown: 0,
+                maxCooldown: maxCooldown,
+                singleUse: isSingleUse
+            };
+        });
+    }
+
+    // Create the rich character object in memory holding EVERYTHING
+    const combatant = {
+        id: generateId(),
+        uniqueName: uniqueName,
+        baseName: stats.name || '',
+        type: type,
+        team: team,
+        image: image,
+        stats: finalStats,
+        equipment: stats.equipment ? JSON.parse(JSON.stringify(stats.equipment)) : [],
+        abilities: stats.abilities ? JSON.parse(JSON.stringify(stats.abilities)) : [],
+        abilitiesStates: initialAbilitiesStates,
+        isDead: finalStats.isDead === true || finalStats.isDead === "true",
+        hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
+        isStunned: false
+    };
+
+    activeCombatants.push(combatant);
+
+    // Build Token HTML
+    const tokenDiv = document.createElement('div');
+    tokenDiv.className = `character-token ${team}-token`;
+    tokenDiv.dataset.id = combatant.id;
+    tokenDiv.onclick = () => selectCharacter(combatant.id);
+
     // Determine the source for the image. If 'image' is passed, ask the API. 
     // If it's a blank character, point directly to the default placeholder.
     const imgSrc = image ? `/api/image/${type}/${encodeURIComponent(image)}` : '/images/default-img.svg';
     const imgAlt = image ? image : t('unknown_character');
+    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
 
-    // Add the image tag (with an extra onerror fallback just to be absolutely bulletproof)
-    characterContent += `<img src="${imgSrc}" alt="${imgAlt}">`;
-    
-    characterContent += `
-        <span class="remove-button" onclick="removeCharacter(this)">✖</span>
-        <div class="stat"><strong>${t('name')}:</strong> <input type="text" onclick="copyInputValue(this, event)" value="${uniqueName || ''}"></div>
-        ${getCharacterStats(finalStats, type)}
-        <div class="character-buttons">
-            ${getCharacterButtons(finalStats, type)}
+    tokenDiv.innerHTML = `
+        <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
+        <div class="token-hp-bg">
+            <div class="token-hp-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
         </div>
-        <div class="roll-zone">
-            <div class="big-dice" id="bigDice">🎲</div>
+        <div class="token-name">${combatant.uniqueName || t('unknown_character')}</div>
+    `;
+
+    teamDiv.appendChild(tokenDiv);
+
+    // Initial sync to server only for players
+    // if (type === 'player' && typeof updatePlayer === 'function') { 
+    //     updatePlayer(finalStats.name, finalStats);
+    // }
+}
+
+function selectCharacter(id) {
+    selectedCharacterId = id;
+
+    // Remove selection highlight from all tokens
+    document.querySelectorAll('.character-token').forEach(token => {
+        token.classList.remove('selected');
+    });
+
+    // Add highlight to the selected token
+    const selectedToken = document.querySelector(`.character-token[data-id="${id}"]`);
+    if (selectedToken) {
+        selectedToken.classList.add('selected');
+    }
+
+    // Render the right panel with the selected character's data
+    renderRightPanel(id);
+}
+
+function renderRightPanel(id) {
+    const combatant = activeCombatants.find(c => c.id === id);
+    if (!combatant) return;
+
+    const rightPanel = document.getElementById('characterDetailsPanel');
+    rightPanel.style.display = 'flex'; 
+
+    const charSheet = document.getElementById('panel-char-sheet');
+    const charFunctional = document.getElementById('panel-char-functional');
+    
+    const stats = combatant.stats;
+    const hpPercentage = (stats.hp / stats.maxHp) * 100;
+    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
+
+    // Filter and generate only the existing stats for this specific character
+    const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
+    let rollsHtml = '';
+    allStats.forEach(stat => {
+        if (stats[stat] !== undefined) {
+            rollsHtml += generateStatRow(combatant.id, stat, stats[stat], stats[`${stat}Mod`]);
+        }
+    });
+
+    // 1. Render Main Character Sheet (.char-sheet)
+    charSheet.innerHTML = `
+        <img src="${imgSrc}" class="char-portrait-square" onerror="this.src='/images/default-img.svg'">
+        <div class="char-header">
+            <input type="text" class="char-name-input" value="${combatant.uniqueName || ''}">
+        </div>
+        <div class="char-hp-visual ${combatant.isDead ? 'dead' : ''}">
+            <div class="char-hp-visual-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
+        </div>
+        <div class="hp-section">
+            <span class="hp-label" data-i18n="health"></span>
+            <div class="hp-inputs">
+                <input type="number" class="current-hp-input" value="${stats.hp}"> / 
+                <input type="number" class="max-hp-input" value="${stats.maxHp}">
+            </div>
+        </div>
+
+        <div class="char-internal-tabs">
+            <div class="char-internal-tab active" data-target="tab-rolls" data-i18n="tab_rolls"></div>
+            <div class="char-internal-tab" data-target="tab-damage" data-i18n="tab_damage"></div>
+        </div>
+
+        <div class="char-tab-content active" id="tab-rolls">
+            ${rollsHtml}
+        </div>
+
+        <div class="char-tab-content" id="tab-damage">
+            <div class="complex-control dmg-group">
+                <div class="complex-header">
+                    <span class="complex-label" data-i18n="damage"></span>
+                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
+                </div>
+                <div class="complex-body">
+                    <input type="number" class="damage-input" placeholder="" data-i18n="value">
+                    <button title="${t('dmg_type_phys')}" onclick="applyDamage('phys')" data-i18n="dmg_type_phys_short"></button>
+                    <button title="${t('dmg_type_mag')}" onclick="applyDamage('mag')" data-i18n="dmg_type_mag_short"></button>
+                    <button title="${t('dmg_type_pierce')}" onclick="applyDamage('pierce')" data-i18n="dmg_type_pierce_short"></button>
+                </div>
+            </div>
+
+            <div class="complex-control heal-group">
+                <div class="complex-header">
+                    <span class="complex-label" data-i18n="heal"></span>
+                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
+                </div>
+                <div class="complex-body">
+                    <input type="number" class="heal-input" placeholder="" data-i18n="value">
+                    <button title="${t('heal_type_normal')}" onclick="healDamage('single')" data-i18n="heal_type_normal_short"></button>
+                    <button title="${t('heal_type_threshold')}" onclick="healDamage('threshold')" data-i18n="heal_type_threshold_short"></button>
+                    <button title="${t('heal_type_group')}" onclick="healDamage('group')" data-i18n="heal_type_group_short"></button>
+                </div>
+            </div>
+
+            <div class="complex-control armor-group">
+                <div class="complex-header">
+                    <span class="complex-label" data-i18n="add_armor"></span>
+                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
+                </div>
+                <div class="complex-body">
+                    <input type="number" class="armor-input" placeholder="" data-i18n="value">
+                    <button title="${t('armor_type_phys')}" onclick="changeArmor('phys')" data-i18n="armor_type_phys_short"></button>
+                    <button title="${t('armor_type_mag')}" onclick="changeArmor('mag')" data-i18n="armor_type_mag_short"></button>
+                </div>
+            </div>
+
+            <div class="stat-row" style="border-color: #44475a;">
+                <span class="stat-label" data-i18n="base_damage"></span>
+                <input type="number" class="stat-val-input base-damage-input" style="margin:0;" value="${stats.damage || 0}">
+            </div>
+            <div class="stat-row" style="border-color: #44475a;">
+                <span class="stat-label" data-i18n="phys_armor_caps"></span>
+                <input type="number" class="armor-val-input base-phys-armor" title="${t('armor_value_base')}" value="${stats.physArmor || 0}">
+                <span class="armor-plus-sign">+</span>
+                <input type="text" class="armor-perc-input base-phys-armor-mod" title="${t('armor_value_percent')}" value="${stats.physArmorMod || ''}">
+            </div>
+            <div class="stat-row" style="border-color: #44475a;">
+                <span class="stat-label" data-i18n="mag_armor_caps"></span>
+                <input type="number" class="armor-val-input base-mag-armor" title="${t('armor_value_base')}" value="${stats.magArmor || 0}">
+                <span class="armor-plus-sign">+</span>
+                <input type="text" class="armor-perc-input base-mag-armor-mod" title="${t('armor_value_percent')}" value="${stats.magArmorMod || ''}">
+            </div>
+        </div>
+
+        <div class="dice-result-box">
+            <div class="dice-result-label" data-i18n="last_roll"></div>
+            <div class="dice-result-value" id="last-roll-display">-</div>
         </div>
     `;
 
-    characterDiv.innerHTML = characterContent;
-    teamDiv.appendChild(characterDiv);
+    // 2. Render Functional Column (.char-functional-col)
+    charFunctional.innerHTML = `
+        <button class="func-btn delete" title="Usuń postać" onclick="removeCharacter(this)">✖</button>
+        <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="Przełącz ogłuszenie" onclick="toggleStun(this)">🌟</button>
+        ${combatant.type === 'player' ? `<button class="func-btn reload" title="Przeładuj postać" onclick="reloadPlayer(this)">↻</button>` : ''}
+    `;
+
+    // 3. Re-run translation for the newly injected HTML
+    document.querySelectorAll('#characterDetailsPanel [data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+            el.setAttribute('placeholder', t(key));
+        } else {
+            el.textContent = t(key);
+        }
+    });
+
+    // 4. Attach event listeners to tabs
+    document.querySelectorAll('.char-internal-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.char-internal-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.char-sheet .char-tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.target).classList.add('active');
+        });
+    });
 
     // Bind dynamic stat recalculation for all characters, network sync is only for player chars though
-    bindCharacterInputs(characterDiv, type);
+    bindRightPanelInputs(combatant);
 
-    // Initial sync to server only for players
-    if (type === 'player') { 
-        updatePlayer(finalStats.name, finalStats);
-    }
+    // Render the extra panel (skills and equipment)
+    renderExtraPanel(id);
+}
+
+// Helper to generate a single stat row HTML. Now binds the ROLL button directly to combatant ID.
+function generateStatRow(combatantId, statName, value, mod) {
+    return `
+        <div class="stat-row">
+            <span class="stat-label" data-i18n="${statName}"></span>
+            <input type="number" class="stat-val-input" data-stat="${statName}" value="${value || ''}">
+            <input type="text" class="stat-mod-input" data-stat="${statName}Mod" placeholder="mod" value="${mod || ''}">
+            <button class="roll-btn" onclick="rollDice('${combatantId}', '${statName}')">ROLL</button>
+        </div>
+    `;
 }
 
 // Calculates core stats (HP, Strength, Agility, etc.) from item description tags
@@ -273,56 +479,65 @@ function evaluateFormula(formula, stats) {
 }
 
 // Binds event listeners to inputs. Handles both UI recalculation and network syncing seamlessly
-function bindCharacterInputs(characterDiv, type) {
+function bindRightPanelInputs(combatant) {
+    const charSheet = document.getElementById('panel-char-sheet');
+
+    const nameInput = charSheet.querySelector('.char-name-input');
+    nameInput.addEventListener('input', (e) => {
+        combatant.uniqueName = e.target.value;
+        const token = document.querySelector(`.character-token[data-id="${combatant.id}"] .token-name`);
+        if (token) token.textContent = combatant.uniqueName || t('unknown_character');
+    });
+
     // Core inputs trigger recalculation first, then network sync
-    const coreInputs = characterDiv.querySelectorAll('.stat-value:not(.damage):not(.physArmor):not(.magArmor), .mod-value:not(.physArmor):not(.magArmor)');
-    
+    const coreInputs = charSheet.querySelectorAll('.stat-val-input:not(.base-damage-input), .stat-mod-input');
     coreInputs.forEach(input => {
-        input.addEventListener('input', () => {
-            recalculateAdditionalStats(characterDiv);
+        input.addEventListener('input', (e) => {
+            const statKey = e.target.dataset.stat;
+            combatant.stats[statKey] = e.target.value;
+            
+            recalculateAdditionalStats(combatant);
             
             // Network sync is restricted to player characters only
-            if (type === 'player' && typeof sendPlayerStats === 'function') {
-                sendPlayerStats(characterDiv);
+            if (combatant.type === 'player' && typeof sendPlayerStats === 'function') {
+                sendPlayerStats(combatant); 
             }
         });
     });
 
     // ONLY Additional stat inputs trigger network sync (to prevent infinite calculation loops)
-    const additionalInputs = characterDiv.querySelectorAll('.stat-value.damage, .stat-value.physArmor, .stat-value.magArmor, .mod-value.physArmor, .mod-value.magArmor');
-    
+    const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-phys-armor-mod, .base-mag-armor, .base-mag-armor-mod');
     additionalInputs.forEach(input => {
-        input.addEventListener('input', () => {
+        input.addEventListener('input', (e) => {
+            if (e.target.classList.contains('base-damage-input')) combatant.stats.damage = e.target.value;
+            if (e.target.classList.contains('base-phys-armor')) combatant.stats.physArmor = e.target.value;
+            if (e.target.classList.contains('base-phys-armor-mod')) combatant.stats.physArmorMod = e.target.value;
+            if (e.target.classList.contains('base-mag-armor')) combatant.stats.magArmor = e.target.value;
+            if (e.target.classList.contains('base-mag-armor-mod')) combatant.stats.magArmorMod = e.target.value;
+
             // Network sync is restricted to player characters only
-            if (type === 'player' && typeof sendPlayerStats === 'function') {
-                sendPlayerStats(characterDiv);
+            if (combatant.type === 'player' && typeof sendPlayerStats === 'function') {
+                sendPlayerStats(combatant);
             }
         });
     });
 }
 
 // Safely recalculates only Damage and Armor based on the current UI input values
-function recalculateAdditionalStats(characterDiv) {
-    const nameInput = characterDiv.querySelector('input[type="text"]').value;
-    const baseName = removeUniqueNameNumber(nameInput);
+function recalculateAdditionalStats(combatant) {
+    const baseName = combatant.baseName;
     
     // Fetch raw base character data to prevent infinite stacking of item bonuses
-    const baseData = players[baseName] || adventurers[baseName] || monsters[baseName] || bosses[baseName];
+    const baseData = players[baseName] || npcs[baseName] || mobs[baseName] || bosses[baseName];
     if (!baseData || !baseData.equipment || baseData.equipment.length === 0) return;
 
     // Build a hybrid stat object using the current values typed into the UI
     let currentStats = { equipment: baseData.equipment };
-
-    const getVal = (selector) => {
-        const el = characterDiv.querySelector(selector);
-        return el ? (parseFloat(el.value) || 0) : 0;
-    };
-
     const statsList = ['vitality', 'intuition', 'strength', 'agility', 'accuracy', 'reflex', 'resilience', 'attunement', 'perception'];
     
     statsList.forEach(stat => {
-        currentStats[stat] = getVal(`.stat-value.${stat}`);
-        currentStats[`${stat}Mod`] = getVal(`.mod-value.${stat}`);
+        currentStats[stat] = combatant.stats[stat] || 0;
+        currentStats[`${stat}Mod`] = combatant.stats[`${stat}Mod`] || 0;
     });
 
     // Inject the original base Damage and Armor values (to start with a clean slate before items)
@@ -332,204 +547,123 @@ function recalculateAdditionalStats(characterDiv) {
     currentStats.physArmorMod = baseData.physArmorMod || 0;
     currentStats.magArmorMod = baseData.magArmorMod || 0;
 
-    // 4. Run ONLY the additional stats calculation!
+    // Run ONLY the additional stats calculation!
     const finalStats = calculateAdditionalStatsBonuses(currentStats);
 
-    // 5. Safely update the additional fields in the UI
-    const setVal = (selector, val) => {
-        const el = characterDiv.querySelector(selector);
-        if (el) el.value = val;
-    };
+    // Save back to memory
+    combatant.stats.damage = finalStats.damage;
+    combatant.stats.physArmor = finalStats.physArmor;
+    combatant.stats.physArmorMod = finalStats.physArmorMod;
+    combatant.stats.magArmor = finalStats.magArmor;
+    combatant.stats.magArmorMod = finalStats.magArmorMod;
 
-    setVal('.stat-value.damage', finalStats.damage);
-    setVal('.stat-value.physArmor', finalStats.physArmor);
-    setVal('.mod-value.physArmor', finalStats.physArmorMod);
-    setVal('.stat-value.magArmor', finalStats.magArmor);
-    setVal('.mod-value.magArmor', finalStats.magArmorMod);
-}
-
-function getCharacterStats(stats = {}, type) {
-    let characterStats = `
-    <div class="character-content">
-        <div class="bar-container"><div class="bar hp-bar"></div></div>
-        <div class="stat">${t('health')}:
-            <div class="health-container">
-                <input type="number" class="current-hp" oninput="updateHpBar(this)" value="${stats.hp ?? ''}"> / 
-                <input type="number" class="max-hp" oninput="updateHpBar(this)" value="${stats.maxHp ?? ''}">
-            </div>
-        </div>
-        ${getDamageControls()}
-
-        <div class="stat"><span class="stat-label">${t('vitality')}:</span> 
-            <input type="number" class="stat-value vitality" placeholder="${t('value')}" value="${stats.vitality ?? ''}">
-            <input class="mod-value vitality" placeholder="${t('mod')}" value="${stats.vitalityMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'vitality')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('intuition')}:</span> 
-            <input type="number" class="stat-value intuition" placeholder="${t('value')}" value="${stats.intuition ?? ''}">
-            <input class="mod-value intuition" placeholder="${t('mod')}" value="${stats.intuitionMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'intuition')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('strength')}:</span> 
-            <input type="number" class="stat-value strength" placeholder="${t('value')}" value="${stats.strength ?? ''}">
-            <input class="mod-value strength" placeholder="${t('mod')}" value="${stats.strengthMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'strength')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('agility')}:</span> 
-            <input type="number" class="stat-value agility" placeholder="${t('value')}" value="${stats.agility ?? ''}">
-            <input class="mod-value agility" placeholder="${t('mod')}" value="${stats.agilityMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'agility')">🎲</button>
-        </div>`;
-
-    if (stats.attunement || type === "adventurer") {
-        characterStats += `
-        <div class="stat"><span class="stat-label">${t('attunement')}:</span> 
-            <input type="number" class="stat-value attunement" placeholder="${t('value')}" value="${stats.attunement ?? ''}">
-            <input class="mod-value attunement" placeholder="${t('mod')}" value="${stats.attunementMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'attunement')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('perception')}:</span> 
-            <input type="number" class="stat-value perception" placeholder="${t('value')}" value="${stats.perception ?? ''}">
-            <input class="mod-value perception" placeholder="${t('mod')}" value="${stats.perceptionMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'perception')">🎲</button>
-        </div>`;
-    }
-
-    characterStats += `
-        <div class="stat"><span class="stat-label">${t('accuracy')}:</span> 
-            <input type="number" class="stat-value accuracy" placeholder="${t('value')}" value="${stats.accuracy ?? ''}">
-            <input class="mod-value accuracy" placeholder="${t('mod')}" value="${stats.accuracyMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'accuracy')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('reflex')}:</span> 
-            <input type="number" class="stat-value reflex" placeholder="${t('value')}" value="${stats.reflex ?? ''}">
-            <input class="mod-value reflex" placeholder="${t('mod')}" value="${stats.reflexMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'reflex')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('resilience')}:</span> 
-            <input type="number" class="stat-value resilience" placeholder="${t('value')}" value="${stats.resilience ?? ''}">
-            <input class="mod-value resilience" placeholder="${t('mod')}" value="${stats.resilienceMod ?? ''}">
-            <button class="dice" onclick="rollDice(this, 'resilience')">🎲</button>
-        </div>
-        <div class="stat"><span class="stat-label">${t('damage')}:</span>
-            <input class="stat-value damage" onclick="copyInputValue(this, event)" placeholder="${t('value')}" value="${stats.damage ?? ''}">
-        </div>
-        <div class="stat"><span class="stat-label">${t('phys_armor')}:</span>
-            <input type="number" class="stat-value physArmor" placeholder="${t('value')}" value="${stats.physArmor ?? ''}">
-            <input class="mod-value physArmor" placeholder="${t('proc')}" value="${stats.physArmorMod ?? ''}">
-        </div>
-        <div class="stat"><span class="stat-label">${t('mag_armor')}:</span>
-            <input type="number" class="stat-value magArmor" placeholder="${t('value')}" value="${stats.magArmor ?? ''}">
-            <input class="mod-value magArmor" placeholder="${t('proc')}" value="${stats.magArmorMod ?? ''}">
-        </div>
-    </div>`;
-
-    return characterStats;
-}
-
-function getDamageControls() {
-    return `
-        <div class="damage-controls">
-            <input class="damage-input" placeholder="${t('damage')}" >
-            <button class="damage-controls-btn" onclick="applyDamage(this, 'phys')">⚒️</button>
-            <button class="damage-controls-btn" onclick="applyDamage(this, 'mag')">🔮</button>
-            <button class="damage-controls-btn" onclick="applyDamage(this, 'pierce')">🔪</button>
-        </div>
-        <div class="damage-controls">
-            <input class="heal-input" placeholder="${t('heal')}" >
-            <button class="damage-controls-btn" onclick="healDamage(this, 'single')">❤️</button>
-            <button class="damage-controls-btn" onclick="healDamage(this, 'threshold')">💝</button>
-            <button class="damage-controls-btn" onclick="healDamage(this, 'group')">💕</button>
-        </div>
-        <div class="damage-controls">
-            <button class="armor-toggle-btn" onclick="toggleArmorMode(this)">+</button>
-            <input class="armor-input" placeholder="${t('armor')}">
-            <button class="damage-controls-btn" onclick="changeArmor(this, 'phys')">🛡️</button>
-            <button class="damage-controls-btn" onclick="changeArmor(this, 'mag')">✨</button>
-        </div>
-    `;
-}
-
-function getCharacterButtons(stats = {}, type) {
-    let buttons = '';
-    if (stats.name) {
-        realStats = type === "player" ? players[stats.name] 
-                  : type === "adventurer" ? adventurers[stats.name]
-                  : type === "monster" ? monsters[stats.name] 
-                  : type === "boss" ? bosses[stats.name]
-                  : {};
-
-        // If there are stats and they have abilities, add a button
-        if (realStats.abilities && realStats.abilities.length !== 0) {
-            buttons += '<button class="abilities-button" onclick="showAbilitiesPanel(this)">📖</button>';
-        }
-        // If there are stats and they have equipment, add a button
-        if (realStats.equipment && realStats.equipment.length !== 0) {
-            buttons += '<button class="equipment-button" onclick="showEquipmentPanel(this)">💼</button>';
-        }
-    }
-
-    buttons += '<button class="stun-button" onclick="toggleStun(this)">🌟</button>';
-
-    if (type === "player")
-        buttons += '<button class="reload-button" onclick="reloadPlayer(this)">↻</button>';
-    return buttons;
-}
-
-async function removeCharacter(button) {
-    const characterDiv = button.closest('.character');
-    const characterName = characterDiv.querySelector('input[type="text"]').value.trim();
-
-    // Remove conditions related to the character
-    let activeConditions = await loadServerActiveConditions();
-    activeConditions = activeConditions.filter(condition => condition.target !== characterName);
-    await updateServerConditions(activeConditions);
-
-    // Remove character element
-    characterDiv.remove();
-
-    // Update sidebar if it's visible
-    const sidebar = document.getElementById('Sidebar');
-    const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-    if (sidebar && sidebarConditions.style.display === 'flex') {
-        sidebarConditions.innerHTML = `<h3>${t('conditions')}</h3>`;
-        activeConditions.forEach(condition => {
-            addConditionToSidebar(condition);
-        });
+    // Safely update the additional fields in the UI
+    if (selectedCharacterId === combatant.id) {
+        document.querySelector('.base-damage-input').value = finalStats.damage;
+        document.querySelector('.base-phys-armor').value = finalStats.physArmor;
+        document.querySelector('.base-phys-armor-mod').value = finalStats.physArmorMod;
+        document.querySelector('.base-mag-armor').value = finalStats.magArmor;
+        document.querySelector('.base-mag-armor-mod').value = finalStats.magArmorMod;
     }
 }
 
-async function reloadPlayer(button) {
+// Removes the currently selected character from the arena, memory, and cleans up conditions
+async function removeCharacter() {
+    if (!selectedCharacterId) return;
+
+    const combatantIndex = activeCombatants.findIndex(c => c.id === selectedCharacterId);
+    if (combatantIndex === -1) return;
+
+    const combatant = activeCombatants[combatantIndex];
+
+    // 1. Remove conditions tied to this character (Server sync)
+    if (typeof loadServerActiveConditions === 'function') {
+        let activeConditions = await loadServerActiveConditions();
+        activeConditions = activeConditions.filter(condition => condition.target !== combatant.uniqueName);
+        await updateServerConditions(activeConditions);
+    }
+
+    // 2. Remove the small token from the arena board
+    const token = document.querySelector(`.character-token[data-id="${selectedCharacterId}"]`);
+    if (token) token.remove();
+
+    // 3. Remove character from active memory
+    activeCombatants.splice(combatantIndex, 1);
+
+    // 4. Clear dynamic content but KEEP the panel visible (Skeleton view)
+    const charSheet = document.getElementById('panel-char-sheet');
+    if (charSheet) charSheet.innerHTML = '';
+    
+    const charFunctional = document.getElementById('panel-char-functional');
+    if (charFunctional) charFunctional.innerHTML = '';
+
+    const extraPanel = document.getElementById('panel-extra');
+    if (extraPanel) extraPanel.innerHTML = '';
+
+    // 5. Clear global selection
+    selectedCharacterId = null;
+}
+
+// Reloads the players.js file and recalculates the currently selected player's stats
+async function reloadPlayer() {
+    if (!selectedCharacterId) return;
+    
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant || combatant.type !== 'player') return;
+
     try {
-        const characterDiv = button.closest('.character');
-        const playerName = characterDiv.querySelector('input[type="text"]').value;
-        characterDiv.remove(); // Remove old character card
-
+        // Force refresh the players.js script cache
         await reloadPlayersScript();
+        
+        // Fetch fresh stats from the newly loaded file
+        const freshData = players[combatant.baseName];
+        if (!freshData) return;
 
-        addCharacter("player", "hero",  players[playerName], playerName); 
+        // Apply equipment math to get the final stats
+        const finalStats = applyGearBonuses(freshData);
 
-        const newCharacterDiv = Array.from(document.querySelectorAll('.character'))
-        .find(div => div.querySelector('input[type="text"]').value.trim() === playerName);
+        // Keep default HP fallback
+        if (finalStats.hp === undefined) finalStats.hp = 10;
+        if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
 
-        sendPlayerStats(newCharacterDiv); // Update on server
+        // Update memory
+        combatant.stats = finalStats;
+        
+        // Refresh Right Panel UI
+        renderRightPanel(selectedCharacterId);
+
+        // Refresh Token HP Bar UI
+        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+        const token = document.querySelector(`.character-token[data-id="${selectedCharacterId}"]`);
+        if (token) {
+            const hpFill = token.querySelector('.token-hp-fill');
+            if (hpFill) {
+                hpFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
+                hpFill.style.background = combatant.isDead ? 'black' : '#50fa7b';
+            }
+        }
+
+        // Synchronize with players over network (assuming sendPlayerStats expects combatant object in Faza 5)
+        if (typeof sendPlayerStats === 'function') {
+            sendPlayerStats(combatant); 
+        }
+        
     } catch (error) {
         console.error("Error while reloading players.js:", error);
     }
 }
 
+// Reloads the players.js script element in the DOM
 async function reloadPlayersScript() {
-    // Remove old script
     const oldScript = document.querySelector('#players-data');
-    if (oldScript) {
-        oldScript.remove();
-    }
+    if (oldScript) oldScript.remove();
     
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.id = 'players-data';
-        script.src = 'data/players.js';
-        script.onload = resolve; // Script loaded successfully
+        // Adding a timestamp prevents the browser from loading a cached version of the file
+        script.src = `data/players.js?t=${new Date().getTime()}`;
+        script.onload = resolve;
         script.onerror = () => reject(new Error("Error loading players.js"));
         document.body.appendChild(script);
     });

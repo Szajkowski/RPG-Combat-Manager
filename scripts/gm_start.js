@@ -1,27 +1,119 @@
-let currentCombatRound = 0;
-let currentRowIndex = 0; // Tracks the current row in the turn order
-let isSidebarLocked = false;
+let activeCombatants = []; // Holds all active characters data and their current stats
+let selectedCharacterId = null; // Tracks currently selected character token on the arena
 
-let activePanel = null;
-let activeOverlay = null;
-let isRemoving = false;  // Flag to prevent multiple panel removals at once
+// Existing GM state variables
+let currentCombatRound = 0;
+let currentTurnIndex = 0; // Replaced currentRowIndex, tracks the active token in the top-bar
 
 let currentMusic = null;
+let currentMusicName = null; // Tracks the name of the active track
 let mp3Files = [];
 
+// Fetch list of music files from the server and render them
 async function loadMusicFiles() {
     try {
-        const response = await fetch('/api/music-files'); // this basically returns a promise with data, not the data itself
-        mp3Files = await response.json(); // and that's exactly why await is here
+        const response = await fetch('/api/music-files'); 
+        mp3Files = await response.json(); 
         mp3Files = mp3Files.sort();
+        
+        renderMusicList(); // Render immediately after loading
     } catch (error) {
-        console.error('Error loading files:', error);
+        console.error('Error loading music files:', error);
+    }
+}
+
+// Builds the permanent music list in the left panel
+function renderMusicList() {
+    const musicListContainer = document.querySelector('.music-list');
+    if (!musicListContainer) return;
+    
+    musicListContainer.innerHTML = ''; // Clear dummy HTML
+    
+    mp3Files.forEach(file => {
+        const trackName = file.replace('.mp3', '');
+        
+        const musicItem = document.createElement('div');
+        musicItem.className = 'music-item';
+        musicItem.dataset.track = trackName;
+        
+        musicItem.innerHTML = `
+            <span>${trackName}</span> 
+            <button onclick="playMusic('${file}', this)">▶</button>
+        `;
+        
+        musicListContainer.appendChild(musicItem);
+    });
+}
+
+// Handles clicking a track's play/pause button
+function playMusic(filePath, buttonElement) {
+    const trackName = filePath.replace('.mp3', '');
+
+    if (currentMusicName === trackName) {
+        toggleMusic();
+        return;
+    }
+
+    if (currentMusic) {
+        currentMusic.pause();
+        currentMusic.currentTime = 0; 
+        
+        // Reset all buttons to standard play state
+        document.querySelectorAll('.music-item').forEach(item => {
+            item.classList.remove('playing', 'paused');
+            const btn = item.querySelector('button');
+            if(btn) btn.textContent = '▶';
+        });
+    }
+
+    // Load and play the new track
+    currentMusicName = trackName;
+    currentMusic = new Audio(`music/${filePath}`);
+    currentMusic.volume = 0.4;
+    
+    if (window.isAudioMuted) {
+        currentMusic.muted = true;
+    }
+    
+    currentMusic.play();
+    currentMusic.onended = () => currentMusic.play(); 
+
+    // Apply active styles
+    const activeItem = buttonElement.closest('.music-item');
+    if (activeItem) {
+        activeItem.classList.remove('paused');
+        activeItem.classList.add('playing');
+        buttonElement.textContent = '⏸';
+    }
+}
+
+// Toggles playback state of the currently active track
+function toggleMusic() {
+    if (!currentMusic) return;
+
+    const activeItem = document.querySelector(`.music-item[data-track="${currentMusicName}"]`);
+    const buttonElement = activeItem ? activeItem.querySelector('button') : null;
+
+    if (currentMusic.paused) {
+        currentMusic.play();
+        if (buttonElement) buttonElement.textContent = '⏸';
+        if (activeItem) {
+            activeItem.classList.remove('paused');
+            activeItem.classList.add('playing');
+        }
+    } else {
+        currentMusic.pause();
+        if (buttonElement) buttonElement.textContent = '▶';
+        if (activeItem) {
+            activeItem.classList.remove('playing');
+            activeItem.classList.add('paused');
+        }
     }
 }
 
 loadMusicFiles();
 
-// Helper function to parse INI format
+// Helper function to parse INI format for config.ini
 function parseINI(data) {
     const result = {};
     let currentSection = null;
@@ -53,97 +145,64 @@ function parseINI(data) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const monsterSelectorEnemy = document.getElementById('monsterSelectorEnemy');
-    const monsterSelectorHero = document.getElementById('monsterSelectorHero');
-    const adventurerSelectorEnemy = document.getElementById('adventurerSelectorEnemy');
-    const adventurerSelectorHero = document.getElementById('adventurerSelectorHero');
-    const bossSelector = document.getElementById('bossSelector');
+    // Setup UI Toggle buttons
     const gmToggleBtn = document.getElementById('gm-mute-btn');
-
     if (gmToggleBtn) {
         gmToggleBtn.textContent = window.isAudioMuted ? "🔇" : "🔊";
     }
 
-    // Set GM language button flag
     const gmLangBtn = document.getElementById('gm-lang-btn');
     if (gmLangBtn) gmLangBtn.textContent = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
 
-    // Add monster options to both lists
-    for (const monster in monsters) {
-        if (monsters[monster].hidden) continue; // skip hidden ones
-
-        const option = document.createElement('option');
-        option.value = monster;
-        option.textContent = monster;
-        monsterSelectorEnemy.appendChild(option.cloneNode(true));
-        monsterSelectorHero.appendChild(option.cloneNode(true));
-    }
-
-    // Add adventurer options to both adventurer lists
-    for (const adventurer in adventurers) {
-        if (adventurers[adventurer].hidden) continue;
-
-        const option = document.createElement('option');
-        option.value = adventurer;
-        option.textContent = adventurer;
-        adventurerSelectorEnemy.appendChild(option.cloneNode(true));
-        adventurerSelectorHero.appendChild(option.cloneNode(true));
-    }
-
-    // Add boss options to the boss list
-    for (const boss in bosses) {
-        if (bosses[boss].hidden) continue;
-
-        const option = document.createElement('option');
-        option.value = boss;
-        option.textContent = boss;
-        bossSelector.appendChild(option.cloneNode(true));
-    }
-
-    // Handle monster selection for enemies
-    monsterSelectorEnemy.addEventListener('change', (event) => {
-        const selectedMonster = event.target.value;
-        if (selectedMonster && monsters[selectedMonster]) {
-            addSpecificCharacter('monster', selectedMonster, 'enemy');
-            monsterSelectorEnemy.selectedIndex = "0"; // Reset selection
+    // Automated Translation System based on data-i18n attributes
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        
+        if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+            el.setAttribute('placeholder', t(key));
+        } else if (el.tagName === 'OPTION') {
+            el.textContent = t(key);
+        } else {
+            el.textContent = t(key);
         }
     });
 
-    // Handle monster selection for heroes
-    monsterSelectorHero.addEventListener('change', (event) => {
-        const selectedMonster = event.target.value;
-        if (selectedMonster && monsters[selectedMonster]) {
-            addSpecificCharacter('monster', selectedMonster, 'hero');
-            monsterSelectorHero.selectedIndex = "0";
-        }
-    });
+    // Helper function to setup dropdowns AND their change event listeners
+    const setupDropdown = (selectId, dataObject, type, team) => {
+        const selectElement = document.getElementById(selectId);
+        if (!selectElement) return;
 
-    // Handle adventurer selection for enemies
-    adventurerSelectorEnemy.addEventListener('change', (event) => {
-        const selectedAdventurer = event.target.value;
-        if (selectedAdventurer && adventurers[selectedAdventurer]) {
-            addSpecificCharacter('adventurer', selectedAdventurer, 'enemy');
-            adventurerSelectorEnemy.selectedIndex = "0";
+        // Populate options
+        for (const key in dataObject) {
+            if (dataObject[key].hidden) continue; 
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = key;
+            selectElement.appendChild(option);
         }
-    });
 
-    // Handle adventurer selection for heroes
-    adventurerSelectorHero.addEventListener('change', (event) => {
-        const selectedAdventurer = event.target.value;
-        if (selectedAdventurer && adventurers[selectedAdventurer]) {
-            addSpecificCharacter('adventurer', selectedAdventurer, 'hero');
-            adventurerSelectorHero.selectedIndex = "0";
-        }
-    });
+        // Handle instant addition upon selection
+        selectElement.addEventListener('change', (event) => {
+            const selectedName = event.target.value;
+            if (selectedName && dataObject[selectedName]) {
+                addSpecificCharacter(type, selectedName, team);
+                selectElement.selectedIndex = 0; // Reset after adding
+            }
+        });
+    };
 
-    // Handle boss selection
-    bossSelector.addEventListener('change', (event) => {
-        const selectedBoss = event.target.value;
-        if (selectedBoss && bosses[selectedBoss]) {
-            addSpecificCharacter('boss', selectedBoss, 'enemy');
-            bossSelector.selectedIndex = "0";
-        }
-    });
+    // Setup all 8 dropdowns on the arena
+    setupDropdown('hero-mob-select', mobs, 'mob', 'hero');
+    setupDropdown('enemy-mob-select', mobs, 'mob', 'enemy');
+
+    setupDropdown('hero-boss-select', bosses, 'boss', 'hero');
+    setupDropdown('enemy-boss-select', bosses, 'boss', 'enemy');
+
+    setupDropdown('hero-npc-select', npcs, 'npc', 'hero');
+    setupDropdown('enemy-npc-select', npcs, 'npc', 'enemy');
+
+    setupDropdown('hero-player-select', players, 'player', 'hero');
+    setupDropdown('enemy-player-select', players, 'player', 'enemy');
 
     // Fetch config.ini and load initial characters
     fetch('/config.ini')
@@ -169,118 +228,33 @@ document.addEventListener('DOMContentLoaded', () => {
     })
     .catch(error => console.error("Error loading config.ini:", error));
 
-    const gmMenuBar = document.getElementById('GM-menu-bar');
-
-    gmMenuBar.addEventListener('mouseenter', () => {
-        gmMenuBar.style.top = '0'; // Slide out fully
-    });
-
-    gmMenuBar.addEventListener('mouseleave', () => {
-        gmMenuBar.style.top = `-50px`;
-    });
-
-    // Element references
-    const sidebar = document.getElementById('Sidebar');
-
-    // Slide out sidebar on mouse enter
-    sidebar.addEventListener('mouseenter', () => {
-        if (!isSidebarLocked) {
-            sidebar.classList.add('visible');
-        }
-    });
-
-    // Hide sidebar on mouse leave
-    sidebar.addEventListener('mouseleave', () => {
-        if (!isSidebarLocked) {
-            sidebar.classList.remove('visible');
-        }
-    });
-
-    // Just a failsafe in case of disconnection
+    // Failsafe for disconnects
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
             console.log("Returned to the page, reconnecting...");
             socket = connectSocket();
 
-            const playerNames = Array.from(document.querySelectorAll('.character[data-type="player"]'))
-            .map(playerDiv => playerDiv.querySelector('input[type="text"]').value.trim());
-
-            // Wait for the socket to connect using the existing helper function
+            // We will update this sync logic later once activeCombatants is fully implemented
             waitForSocket(() => {
-                updateSpecificPlayersStats(playerNames);
+                const playerNames = Array.from(document.querySelectorAll('.character-token[data-type="player"]'))
+                .map(token => token.dataset.name);
+                if (playerNames.length > 0) updateSpecificPlayersStats(playerNames);
             });
         }
     });
 
+    // Keyboard shortcuts
     document.addEventListener('keydown', function(event) {
-        // Check if a text field is currently active
         const isInputFocused = document.activeElement.tagName.toLowerCase() === 'input' || document.activeElement.tagName.toLowerCase() === 'textarea';
     
-        // If a text field is not active, execute keyboard shortcuts
         if (!isInputFocused) {
             switch (event.key.toUpperCase()) {
-                case 'K':
-                    setTurnOrder();
-                    break;
-                case 'N':
-                    newRound();
-                    break;
-                case 'Z':
-                    endCombat();
-                    break;
-                case 'M':
-                    showMusicMenu();
-                    break;
-                case 'S':
-                    toggleMusic();
-                    break;
-                case 'L':
-                    toggleSidebar();
-                    break;
-                case 'ARROWDOWN':
-                    event.preventDefault();
-                    moveToNextTurn();
-                    break;
-                default:
-                    break;
+                case 'N': newRound(); break;
+                case 'Z': endCombat(); break;
+                case 'S': toggleMusic(); break;
+                case 'ARROWRIGHT': event.preventDefault(); moveToNextTurn(); break;
+                default: break;
             }
         }
     });
-
-    // --- DYNAMIC INDEX.HTML TRANSLATION ---
-    const translateElement = (selector, key) => {
-        const el = document.querySelector(selector);
-        if (el) el.textContent = t(key);
-    };
-
-    // Translate Navbar Buttons
-    translateElement('button[onclick="setTurnOrder()"]', 'btn_turn_order');
-    translateElement('button[onclick="newRound()"]', 'btn_new_round');
-    translateElement('button[onclick="endCombat()"]', 'btn_end_combat');
-    translateElement('button[onclick="showMusicMenu()"]', 'btn_music_list');
-    translateElement('button[onclick="toggleMusic()"]', 'btn_toggle_music');
-    translateElement('button[onclick="toggleSidebar()"]', 'btn_toggle_sidebar');
-
-    // Translate Section Headers (h2)
-    const h2Elements = document.querySelectorAll('.button-group h2');
-    if (h2Elements.length >= 2) {
-        h2Elements[0].textContent = t('enemies');
-        h2Elements[1].textContent = t('heroes');
-    }
-
-    // Translate Select Dropdown Placeholders
-    translateElement('#monsterSelectorEnemy option[disabled]', 'add_specific_monster');
-    translateElement('#monsterSelectorHero option[disabled]', 'add_specific_monster');
-    translateElement('#adventurerSelectorEnemy option[disabled]', 'add_specific_adventurer');
-    translateElement('#adventurerSelectorHero option[disabled]', 'add_specific_adventurer');
-    translateElement('#bossSelector option[disabled]', 'add_boss');
-
-    // Translate "Add" Div Buttons
-    const addButtons = document.querySelectorAll('.add-button');
-    if (addButtons.length >= 4) {
-        addButtons[0].textContent = t('add_monster');
-        addButtons[1].textContent = t('add_adventurer');
-        addButtons[2].textContent = t('add_monster');
-        addButtons[3].textContent = t('add_adventurer');
-    }
 });

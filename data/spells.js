@@ -134,7 +134,7 @@ const spell = {
 
     "Narastający żar zagłady": {
         name: "Narastający żar zagłady",
-        description: "[prop_penetrating] Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
+        description: "[prop_piercing] Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
         roll: "vitality",
         difficulty: 30,
         cooldown: "[cooldown_once]"
@@ -194,7 +194,7 @@ const spell = {
     },
     "Lodowe wiertło": {
         name: "Lodowe wiertło",
-        description: "[prop_penetrating] Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
+        description: "[prop_piercing] Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
         roll: "intuition",
         difficulty: 8,
         cooldown: 1
@@ -428,7 +428,7 @@ const spell = {
     },
     "Skalne włócznie": {
         name: "Skalne włócznie",
-        description: "[prop_penetrating] Wyczarowuje [2] włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
+        description: "[prop_piercing] Wyczarowuje [2] włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
         roll: "strength",
         difficulty: 12,
         cooldown: 3
@@ -664,7 +664,7 @@ const spell = {
 
     "Test1": {
         name: "Test1",
-        description: "[prop_unavoidable] [prop_penetrating] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], trelele, 8 * przebicie = [8 * over]",
+        description: "[prop_unavoidable] [prop_piercing] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], trelele, 8 * przebicie = [8 * over]",
         roll: "vitality",
         difficulty: 6,
         cooldown: 0

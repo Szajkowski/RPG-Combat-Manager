@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Panel Mistrza Gry</title>
-    <link rel="stylesheet" href="styles/style_base.css">
     <link rel="stylesheet" href="styles/style_gm.css">
 
     <script src="scripts/gm_start.js"></script>
     <script src="scripts/gm_menu.js"></script>
-
     <script src="scripts/creating_character_sheet.js"></script>
     <script src="scripts/damage_and_armor.js"></script>
     <script src="scripts/abilities_and_equipment.js"></script>
@@ -18,59 +16,71 @@
 
     <script src="data/spells.js"></script>
     <script id="players-data" src="data/players.js"></script>
-    <script src="data/adventurers.js"></script>
-    <script src="data/monsters.js"></script>
+    <script src="data/mobs.js"></script>
+    <script src="data/npcs.js"></script>
     <script src="data/bosses.js"></script>
 </head>
 <body>
-    <div id="GM-menu-bar" class="navbar">
-        <div class="navbarButtons">
-            <button onclick="setTurnOrder()">Pokaż kolejność ruchów (K)</button>
-            <button onclick="newRound()">Nowa tura (N)</button>
-            <button onclick="endCombat()">Zakończ walkę (Z)</button>
-            <button onclick="showMusicMenu()">Lista utworów (M)</button>
-            <button onclick="toggleMusic()">Zatrzymaj / Wznów utwór (S)</button>
-            <button onclick="toggleSidebar()">Wysuń / Schowaj boczne menu (L)</button>
-            <button id="gm-mute-btn" onclick="toggleGlobalMute()">🔊</button>
-            <button id="gm-lang-btn" onclick="toggleLanguage()"></button>
+
+    <div class="top-bar">
+        <div class="initiative-tracker">
+            </div>
+        <div class="top-controls">
+            <button class="accent-btn" onclick="newRound()" data-i18n="btn_new_round"></button>
+            <button onclick="endCombat()" data-i18n="btn_end_combat"></button>
+            <div class="top-bar-divider"></div>
+            <button id="gm-mute-btn" class="circle-btn" title="Wycisz UI" onclick="toggleGlobalMute()">🔊</button>
+            <button id="gm-lang-btn" class="circle-btn" title="Zmień Język" onclick="toggleLanguage()">🇵🇱</button>
         </div>
     </div>
-    <div id="Sidebar" class="sidebar hidden">
-        <div class="sidebar-header">
-            <span class="sidebar-title"></span>
-            <button id="toggleLockSidebar" onclick="toggleLockSidebar()">🔓</button>
+
+    <div class="main-workspace">
+        
+        <div class="left-panel">
+            <div class="panel-header" data-i18n="active_conditions"></div>
+            <div class="conditions-list">
+                </div>
+            
+            <div class="panel-header" style="border-top: 2px solid #36394d;" data-i18n="music_list"></div>
+            <div class="music-list">
+                </div>
         </div>
-        <div class="sidebar-content"></div>
-        <div class="sidebar-conditions">
-            <h3>Stany</h3>
+
+        <div class="arena">
+            <div class="arena-add-bar hero-bar">
+                <select id="hero-mob-select"><option disabled selected hidden data-i18n="add_mob"></option></select>
+                <select id="hero-npc-select"><option disabled selected hidden data-i18n="add_npc"></option></select>
+                <select id="hero-boss-select"><option disabled selected hidden data-i18n="add_boss"></option></select>
+                <select id="hero-player-select"><option disabled selected hidden data-i18n="add_player"></option></select>
+                <button onclick="addCharacter('character', 'hero')" data-i18n="add_character"></button>
+            </div>
+
+            <div class="arena-board">
+                <div id="heroTeam" class="arena-team">
+                    </div>
+
+                <div class="arena-divider">VS</div>
+
+                <div id="enemyTeam" class="arena-team">
+                    </div>
+            </div>
+
+            <div class="arena-add-bar enemy-bar">
+                <select id="enemy-mob-select"><option disabled selected hidden data-i18n="add_mob"></option></select>
+                <select id="enemy-npc-select"><option disabled selected hidden data-i18n="add_npc"></option></select>
+                <select id="enemy-boss-select"><option disabled selected hidden data-i18n="add_boss"></option></select>
+                <select id="enemy-player-select"><option disabled selected hidden data-i18n="add_player"></option></select>
+                <button onclick="addCharacter('character', 'enemy')" data-i18n="add_character"></button>
+            </div>
         </div>
+
+        <div class="right-panel" id="characterDetailsPanel">
+            <div class="char-sheet" id="panel-char-sheet"></div>
+            <div class="char-functional-col" id="panel-char-functional"></div>
+            <div class="char-extra-panel" id="panel-extra"></div>
+        </div>
+
     </div>
-    <div class="button-group enemies-group">
-        <h2>Przeciwnicy</h2>
-        <select id="monsterSelectorEnemy" class="button-like-select">
-            <option value="" selected disabled hidden>+ Dodaj konkretnego potwora</option>
-        </select>
-        <select id="adventurerSelectorEnemy" class="button-like-select">
-            <option value="" selected disabled hidden>+ Dodaj konkretnego poszukiwacza</option>
-        </select>
-        <select id="bossSelector" class="button-like-select">
-            <option value="" selected disabled hidden>+ Dodaj bossa</option>
-        </select>
-        <div class="add-button" onclick="addCharacter('monster', 'enemy')">+ Dodaj potwora</div>
-        <div class="add-button" onclick="addCharacter('adventurer', 'enemy')">+ Dodaj poszukiwacza</div>
-    </div>
-    <div id="enemyTeam" class="team"></div>
-    <div class="button-group">
-        <h2>Bohaterowie</h2>
-        <select id="monsterSelectorHero" class="button-like-select">
-            <option value="" selected disabled hidden>+ Dodaj konkretnego potwora</option>
-        </select>
-        <select id="adventurerSelectorHero" class="button-like-select">
-            <option value="" selected disabled hidden>+ Dodaj konkretnego poszukiwacza</option>
-        </select>
-        <div class="add-button" onclick="addCharacter('monster', 'hero')">+ Dodaj potwora</div>
-        <div class="add-button" onclick="addCharacter('adventurer', 'hero')">+ Dodaj poszukiwacza</div>
-    </div>
-    <div id="heroTeam" class="team"></div>
+
 </body>
 </html>
