@@ -118,110 +118,97 @@ async function startServer() {
     // Start WebSocket server
     const wss = new WebSocket.Server({ server });
 
-    // Store character data
-    let playerCharacters = {};
-    let abilitiesStates = {};
-    let activeConditions = [];
-    const connectedClients = new Map();
+    // Store global game state
+    let activeCombatants = []; // Single source of truth for all characters
+    let activeConditions = []; // Kept separate for now
+    const connectedClients = new Map(); // Maps socket to client details { clientId, clientName, isGM }
 
     // Handle WebSocket connections
     wss.on('connection', socket => {
-        // Handle incoming messages
+        // Generate a unique ID for this specific socket connection
+        const clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+
         socket.on('message', message => {
             const data = JSON.parse(message);
 
             switch (data.type) {
                 case 'PING': {
-                    // for (let [clientName, client] of connectedClients.entries()) {
-                    //     if (client === socket) {
-                    //         console.log(`PING: ${clientName}`);
-                    //     }
-                    // }
                     break;
                 }
 
-                case 'REQUESTgetPlayer': {
-                    if (playerCharacters[data.playerName]) {
-                        // If player exists, send their data to add from server
-                        socket.send(JSON.stringify({
-                            type: 'RESPONSEplayerFound',
-                            playerName: data.playerName,
-                            playerStats: playerCharacters[data.playerName],
-                            team: data.team
-                        }));
-                    } else {
-                        // If player doesn't exist, add from players.js
-                        socket.send(JSON.stringify({
-                            type: 'RESPONSEplayerNotFound',
-                            playerName: data.playerName,
-                            team: data.team
-                        }));
-                    }
-                    break;
-                }
+                case 'registerConnection': {
+                    const isGM = data.clientName === "GM";
+                    connectedClients.set(socket, {
+                        clientId: clientId,
+                        clientName: data.clientName,
+                        isGM: isGM
+                    });
+                    console.log(`Connected: ${data.clientName} [ID: ${clientId}] [GM: ${isGM}]`);
                     
-                case 'REQUESTupdatePlayer': {
-                    let { playerName, playerStats } = data;
-                    playerCharacters[playerName] = playerStats;  // Save player data
-                    console.log(`Updated: ${playerName}`);
+                    // Send registration confirmation with assigned clientId back to the client
+                    socket.send(JSON.stringify({
+                        type: 'RESPONSEregisterConnection',
+                        clientId: clientId
+                    }));
+                    break;
+                }
 
-                    // Broadcast update to all connected clients
+                case 'REQUESTgetFullState': {
+                    socket.send(JSON.stringify({
+                        type: 'RESPONSEgetFullState',
+                        activeCombatants,
+                        activeConditions,
+                    }));
+                    break;
+                }
+
+                case 'REQUESTaddCombatant': {
+                    activeCombatants.push(data.combatant);
+                    console.log(`Added combatant: ${data.combatant.uniqueName}`);
+
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
-                                type: 'BROADCASTupdatePlayer',
-                                playerName,
-                                playerStats
+                                type: 'BROADCASTaddCombatant',
+                                combatant: data.combatant,
+                                senderId: clientId // Pass the sender identity
                             }));
                         }
                     });
                     break;
                 }
 
-                case "REQUESTupdateSpecificPlayersStats": {
-                    const requestedPlayers = data.playerNames || [];
-                    const foundPlayers = {};
-                
-                    requestedPlayers.forEach(playerName => {
-                        if (playerCharacters[playerName]) {
-                            foundPlayers[playerName] = playerCharacters[playerName];
-                        }
-                    });
-                
-                    socket.send(JSON.stringify({
-                        type: "RESPONSEupdateSpecificPlayersStats",
-                        playersToUpdate: foundPlayers
-                    }));
+                case 'REQUESTupdateCombatant': {
+                    const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                    if (index !== -1) {
+                        activeCombatants[index] = data.combatant;
+                        
+                        wss.clients.forEach(client => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'BROADCASTupdateCombatant',
+                                    combatant: data.combatant,
+                                    senderId: clientId // Pass the sender identity
+                                }));
+                            }
+                        });
+                    }
                     break;
                 }
 
-                case "REQUESTupdateServerAbilitiesStates": {
-                    abilitiesStates = data.localAbilitiesStates;
-                    console.log("Updated abilitiesStates");
-                
-                    // Response to client confirming operation completion
-                    socket.send(JSON.stringify({
-                        type: "RESPONSEupdateServerAbilitiesStates",
-                        requestId: data.requestId
-                    }));
-                    break;
-                }
+                case 'REQUESTremoveCombatant': {
+                    const indexToRemove = activeCombatants.findIndex(c => c.id === data.id);
+                    if (indexToRemove !== -1) {
+                        activeCombatants.splice(indexToRemove, 1);
+                    }
+                    console.log(`Removed combatant ID: ${data.id}`);
 
-                case "REQUESTgetServerAbilitiesStates": {
-                    socket.send(JSON.stringify({
-                        type: "RESPONSEgetServerAbilitiesStates",
-                        requestId: data.requestId,
-                        serverAbilitiesStates: abilitiesStates
-                    }));
-                    console.log("Sent abilitiesStates to client.");
-                    break;
-                }
-                    
-                case "REQUESTupdateActivePanel": {
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
-                                type: "BROADCASTupdateActivePanel"
+                                type: 'BROADCASTremoveCombatant',
+                                id: data.id,
+                                senderId: clientId
                             }));
                         }
                     });
@@ -240,13 +227,13 @@ async function startServer() {
                 case 'REQUESTaddCondition': {
                     const condition = data.condition;
                     activeConditions.push(condition);
-                    console.log("Added condition:", condition);
 
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
                                 type: "BROADCASTaddCondition",
-                                activeConditions
+                                activeConditions,
+                                senderId: clientId
                             }));
                         }
                     });
@@ -254,46 +241,31 @@ async function startServer() {
                 }
 
                 case 'REQUESTupdateConditions': {
-                    activeConditions = data.activeConditions;
+                    if (data.activeConditions) activeConditions = data.activeConditions;
+                    else activeConditions = [];
 
-                    socket.send(JSON.stringify({
-                        type: "RESPONSEupdateConditions",
-                        requestId: data.requestId
-                    }));
-                    break;
-                }
-
-                case "REQUESTupdateCurrentCombatRound": {
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
-                                type: "BROADCASTupdateCurrentCombatRound",
-                                currentCombatRound: data.currentCombatRound
+                                type: "BROADCASTupdateConditions",
+                                activeConditions,
+                                senderId: clientId
                             }));
                         }
                     });
                     break;
-                }   
-
-                case 'registerConnection': {
-                    connectedClients.set(data.clientName, socket);
-                    console.log(`Connected: ${data.clientName}`);
-                    break;
-                }
+                }  
                     
                 default:
                     console.log('Unknown message type:', data.type);
             }
         });
 
-        // Handle connection close
         socket.on('close', () => {
-            // Remove player upon disconnection
-            for (let [clientName, client] of connectedClients.entries()) {
-                if (client === socket) {
-                    connectedClients.delete(clientName);
-                    console.log(`Disconnected: ${clientName}`);
-                }
+            const clientInfo = connectedClients.get(socket);
+            if (clientInfo) {
+                console.log(`Disconnected: ${clientInfo.clientName} [ID: ${clientInfo.clientId}]`);
+                connectedClients.delete(socket);
             }
         });
     });

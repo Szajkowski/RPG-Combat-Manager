@@ -36,10 +36,8 @@ function addSpecificCharacter(type, name, team) {
     }
 }
 
-// Core character creation: Calculates stats, saves to memory, and renders a Token
+// Core character creation: Calculates stats and sends the new combatant to the server
 function addCharacter(type, team, stats = {}, image = null) {
-    const teamDiv = document.getElementById(team + 'Team');
-
     let uniqueName = '';
     // Determine unique name
     if (stats.name) {
@@ -80,23 +78,30 @@ function addCharacter(type, team, stats = {}, image = null) {
         equipment: stats.equipment ? JSON.parse(JSON.stringify(stats.equipment)) : [],
         abilities: stats.abilities ? JSON.parse(JSON.stringify(stats.abilities)) : [],
         abilitiesStates: initialAbilitiesStates,
+        lastRoll: { stat: '', result: '', color: 'white' }, // New dictionary for keeping track of dice rolls
         isDead: finalStats.isDead === true || finalStats.isDead === "true",
         hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
+        hasActedThisRound: false,
         isStunned: false
     };
 
-    activeCombatants.push(combatant);
+    // Push to server -> which will broadcast it back to everyone (including GM) and trigger renderToken()
+    syncAddCombatant(combatant);
+}
+
+// Renders the token visually on the board based on the combatant object
+function renderToken(combatant) {
+    const teamDiv = document.getElementById(combatant.team + 'Team');
+    if (!teamDiv) return;
 
     // Build Token HTML
     const tokenDiv = document.createElement('div');
-    tokenDiv.className = `character-token ${team}-token`;
+    tokenDiv.className = `character-token ${combatant.team}-token ${combatant.isDead ? 'dead' : ''}`;
     tokenDiv.dataset.id = combatant.id;
     tokenDiv.onclick = () => selectCharacter(combatant.id);
 
-    // Determine the source for the image. If 'image' is passed, ask the API. 
-    // If it's a blank character, point directly to the default placeholder.
-    const imgSrc = image ? `/api/image/${type}/${encodeURIComponent(image)}` : '/images/default-img.svg';
-    const imgAlt = image ? image : t('unknown_character');
+    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
+    const imgAlt = combatant.image ? combatant.image : t('unknown_character');
     const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
 
     tokenDiv.innerHTML = `
@@ -108,11 +113,6 @@ function addCharacter(type, team, stats = {}, image = null) {
     `;
 
     teamDiv.appendChild(tokenDiv);
-
-    // Initial sync to server only for players
-    // if (type === 'player' && typeof updatePlayer === 'function') { 
-    //     updatePlayer(finalStats.name, finalStats);
-    // }
 }
 
 function selectCharacter(id) {
@@ -148,13 +148,21 @@ function renderRightPanel(id) {
     const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
 
     // Filter and generate only the existing stats for this specific character
+    // Always show all stats for completely blank custom characters (type === 'character')
     const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
     let rollsHtml = '';
     allStats.forEach(stat => {
-        if (stats[stat] !== undefined) {
+        if (stats[stat] !== undefined || combatant.type === 'character') {
             rollsHtml += generateStatRow(combatant.id, stat, stats[stat], stats[`${stat}Mod`]);
         }
     });
+
+    // Fetch globally saved sheet tab state from localStorage
+    const savedSheetTab = localStorage.getItem('CombatManager-SheetTab') || 'tab-rolls';
+
+    // Dynamically prepare the Last Roll string
+    const rollLabelText = combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
+    const rollResultText = combatant.lastRoll.result || '-';
 
     // 1. Render Main Character Sheet (.char-sheet)
     charSheet.innerHTML = `
@@ -174,15 +182,15 @@ function renderRightPanel(id) {
         </div>
 
         <div class="char-internal-tabs">
-            <div class="char-internal-tab active" data-target="tab-rolls" data-i18n="tab_rolls"></div>
-            <div class="char-internal-tab" data-target="tab-damage" data-i18n="tab_damage"></div>
+            <div class="char-internal-tab ${savedSheetTab === 'tab-rolls' ? 'active' : ''}" data-target="tab-rolls" data-i18n="tab_rolls"></div>
+            <div class="char-internal-tab ${savedSheetTab === 'tab-damage' ? 'active' : ''}" data-target="tab-damage" data-i18n="tab_damage"></div>
         </div>
 
-        <div class="char-tab-content active" id="tab-rolls">
+        <div class="char-tab-content ${savedSheetTab === 'tab-rolls' ? 'active' : ''}" id="tab-rolls">
             ${rollsHtml}
         </div>
 
-        <div class="char-tab-content" id="tab-damage">
+        <div class="char-tab-content ${savedSheetTab === 'tab-damage' ? 'active' : ''}" id="tab-damage">
             <div class="complex-control dmg-group">
                 <div class="complex-header">
                     <span class="complex-label" data-i18n="damage"></span>
@@ -223,7 +231,7 @@ function renderRightPanel(id) {
 
             <div class="stat-row" style="border-color: #44475a;">
                 <span class="stat-label" data-i18n="base_damage"></span>
-                <input type="number" class="stat-val-input base-damage-input" style="margin:0;" value="${stats.damage || 0}">
+                <input type="number" class="base-damage-input" style="margin:0;" value="${stats.damage || 0}">
             </div>
             <div class="stat-row" style="border-color: #44475a;">
                 <span class="stat-label" data-i18n="phys_armor_caps"></span>
@@ -240,17 +248,17 @@ function renderRightPanel(id) {
         </div>
 
         <div class="dice-result-box">
-            <div class="dice-result-label" data-i18n="last_roll"></div>
-            <div class="dice-result-value" id="last-roll-display">-</div>
+            <div class="dice-result-label">${rollLabelText}</div>
+            <div class="dice-result-value" id="last-roll-display" style="color: ${combatant.lastRoll.color};">${rollResultText}</div>
         </div>
     `;
 
     // 2. Render Functional Column (.char-functional-col)
     charFunctional.innerHTML = `
-        <button class="func-btn delete" title="Usuń postać" onclick="removeCharacter(this)">✖</button>
-        <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="Przełącz ogłuszenie" onclick="toggleStun(this)">🌟</button>
-        ${combatant.type === 'player' ? `<button class="func-btn reload" title="Przeładuj postać" onclick="reloadPlayer(this)">↻</button>` : ''}
-    `;
+    <button class="func-btn delete" title="${t('delete_character')}" onclick="removeCharacter()">✖</button>
+    <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="${t('toggle_stun')}" onclick="toggleStun()">🌟</button>
+    ${combatant.type !== 'character' ? `<button class="func-btn reload" title="${t('reload_character')}" onclick="reloadCharacterData()">↻</button>` : ''}
+`;
 
     // 3. Re-run translation for the newly injected HTML
     document.querySelectorAll('#characterDetailsPanel [data-i18n]').forEach(el => {
@@ -265,28 +273,28 @@ function renderRightPanel(id) {
     // 4. Attach event listeners to tabs
     document.querySelectorAll('.char-internal-tab').forEach(tab => {
         tab.addEventListener('click', () => {
+            const target = tab.dataset.target;
+            localStorage.setItem('CombatManager-SheetTab', target);
+            
             document.querySelectorAll('.char-internal-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.char-sheet .char-tab-content').forEach(c => c.classList.remove('active'));
+            
             tab.classList.add('active');
-            document.getElementById(tab.dataset.target).classList.add('active');
+            document.getElementById(target).classList.add('active');
         });
     });
 
-    // Bind dynamic stat recalculation for all characters, network sync is only for player chars though
     bindRightPanelInputs(combatant);
-
-    // Render the extra panel (skills and equipment)
-    renderExtraPanel(id);
+    if (typeof renderExtraPanel === 'function') renderExtraPanel(id);
 }
 
-// Helper to generate a single stat row HTML. Now binds the ROLL button directly to combatant ID.
 function generateStatRow(combatantId, statName, value, mod) {
     return `
         <div class="stat-row">
             <span class="stat-label" data-i18n="${statName}"></span>
             <input type="number" class="stat-val-input" data-stat="${statName}" value="${value || ''}">
             <input type="text" class="stat-mod-input" data-stat="${statName}Mod" placeholder="mod" value="${mod || ''}">
-            <button class="roll-btn" onclick="rollDice('${combatantId}', '${statName}')">ROLL</button>
+            <button class="roll-btn" onclick="rollDice('${combatantId}', '${statName}')">${t('roll')}</button>
         </div>
     `;
 }
@@ -478,47 +486,69 @@ function evaluateFormula(formula, stats) {
     }
 }
 
-// Binds event listeners to inputs. Handles both UI recalculation and network syncing seamlessly
-function bindRightPanelInputs(combatant) {
+// Binds inputs from the Right Panel directly to the activeCombatants state
+function bindRightPanelInputs(combatantData) {
     const charSheet = document.getElementById('panel-char-sheet');
 
+    // Handle Name change
     const nameInput = charSheet.querySelector('.char-name-input');
-    nameInput.addEventListener('input', (e) => {
-        combatant.uniqueName = e.target.value;
-        const token = document.querySelector(`.character-token[data-id="${combatant.id}"] .token-name`);
-        if (token) token.textContent = combatant.uniqueName || t('unknown_character');
-    });
+    if (nameInput) {
+        nameInput.addEventListener('input', (e) => {
+            // ALWAYS fetch the freshest memory object to avoid overwriting network changes (like HP)
+            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            if(!freshCombatant) return;
 
-    // Core inputs trigger recalculation first, then network sync
+            freshCombatant.uniqueName = e.target.value;
+            syncUpdateCombatant(freshCombatant);
+        });
+    }
+
+    // Handle Core Stats (Triggers recalculation)
     const coreInputs = charSheet.querySelectorAll('.stat-val-input:not(.base-damage-input), .stat-mod-input');
     coreInputs.forEach(input => {
         input.addEventListener('input', (e) => {
+            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            if(!freshCombatant) return;
+            
             const statKey = e.target.dataset.stat;
-            combatant.stats[statKey] = e.target.value;
+            freshCombatant.stats[statKey] = e.target.value;
             
-            recalculateAdditionalStats(combatant);
-            
-            // Network sync is restricted to player characters only
-            if (combatant.type === 'player' && typeof sendPlayerStats === 'function') {
-                sendPlayerStats(combatant); 
+            if (typeof recalculateAdditionalStats === 'function') {
+                recalculateAdditionalStats(freshCombatant);
             }
+            
+            syncUpdateCombatant(freshCombatant);
         });
     });
 
-    // ONLY Additional stat inputs trigger network sync (to prevent infinite calculation loops)
+    // Handle Manual Additional Stats changes (Damage/Armor)
     const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-phys-armor-mod, .base-mag-armor, .base-mag-armor-mod');
     additionalInputs.forEach(input => {
         input.addEventListener('input', (e) => {
-            if (e.target.classList.contains('base-damage-input')) combatant.stats.damage = e.target.value;
-            if (e.target.classList.contains('base-phys-armor')) combatant.stats.physArmor = e.target.value;
-            if (e.target.classList.contains('base-phys-armor-mod')) combatant.stats.physArmorMod = e.target.value;
-            if (e.target.classList.contains('base-mag-armor')) combatant.stats.magArmor = e.target.value;
-            if (e.target.classList.contains('base-mag-armor-mod')) combatant.stats.magArmorMod = e.target.value;
+            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            if(!freshCombatant) return;
 
-            // Network sync is restricted to player characters only
-            if (combatant.type === 'player' && typeof sendPlayerStats === 'function') {
-                sendPlayerStats(combatant);
-            }
+            if (e.target.classList.contains('base-damage-input')) freshCombatant.stats.damage = e.target.value;
+            if (e.target.classList.contains('base-phys-armor')) freshCombatant.stats.physArmor = e.target.value;
+            if (e.target.classList.contains('base-phys-armor-mod')) freshCombatant.stats.physArmorMod = e.target.value;
+            if (e.target.classList.contains('base-mag-armor')) freshCombatant.stats.magArmor = e.target.value;
+            if (e.target.classList.contains('base-mag-armor-mod')) freshCombatant.stats.magArmorMod = e.target.value;
+
+            syncUpdateCombatant(freshCombatant);
+        });
+    });
+
+    // Handle manual HP input changes directly
+    const hpInputs = charSheet.querySelectorAll('.current-hp-input, .max-hp-input');
+    hpInputs.forEach(input => {
+        input.addEventListener('input', (e) => {
+            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            if(!freshCombatant) return;
+
+            if (e.target.classList.contains('current-hp-input')) freshCombatant.stats.hp = parseInt(e.target.value) || 0;
+            if (e.target.classList.contains('max-hp-input')) freshCombatant.stats.maxHp = parseInt(e.target.value) || 1;
+
+            syncUpdateCombatant(freshCombatant);
         });
     });
 }
@@ -567,56 +597,102 @@ function recalculateAdditionalStats(combatant) {
     }
 }
 
+function rollDice(combatantId, diceType, difficulty = null) {
+    const combatant = activeCombatants.find(c => c.id === combatantId);
+    if (!combatant) return 0;
+
+    const baseStat = parseInt(combatant.stats[diceType]) || 0;
+    const modValue = parseInt(combatant.stats[`${diceType}Mod`]) || 0;
+    
+    // Safely check if stat exists at all
+    if (combatant.stats[diceType] === undefined && combatant.stats[`${diceType}Mod`] === undefined) {
+        alert(t('no_stats_error'));
+        return 0;
+    }
+
+    const roll = Math.floor(Math.random() * baseStat) + 1;
+    let result = Math.max(1, roll + modValue);
+
+    // Intuition bonus for Agility and Accuracy
+    if (diceType === 'agility' || diceType === 'accuracy') {
+        const intuitionValue = parseInt(combatant.stats.intuition) || 0;
+        if (intuitionValue >= 10) {
+            const intuitionBonus = Math.floor((intuitionValue - 10) / 4);
+            result += intuitionBonus;
+        }
+    }
+
+    // Determine color
+    let resultColor = 'white';
+    if (difficulty && difficulty !== "X") {
+        difficulty = parseInt(difficulty);
+        resultColor = result >= difficulty ? '#50fa7b' : '#ff5555';
+    }
+
+    // Update combatant memory state for Last Roll
+    combatant.lastRoll = {
+        stat: diceType,
+        result: result,
+        color: resultColor
+    };
+
+    playSoundEffect('sound/diceroll.mp3');
+
+    // Instantly sync the roll to all clients (which will refresh the UI)
+    syncUpdateCombatant(combatant);
+    return result; 
+}
+
 // Removes the currently selected character from the arena, memory, and cleans up conditions
 async function removeCharacter() {
     if (!selectedCharacterId) return;
 
-    const combatantIndex = activeCombatants.findIndex(c => c.id === selectedCharacterId);
-    if (combatantIndex === -1) return;
-
-    const combatant = activeCombatants[combatantIndex];
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant) return;
 
     // 1. Remove conditions tied to this character (Server sync)
-    if (typeof loadServerActiveConditions === 'function') {
-        let activeConditions = await loadServerActiveConditions();
-        activeConditions = activeConditions.filter(condition => condition.target !== combatant.uniqueName);
-        await updateServerConditions(activeConditions);
+    // Directly use the globally synced activeConditions array to prevent Promise/undefined errors!
+    if (typeof activeConditions !== 'undefined' && Array.isArray(activeConditions)) {
+        const filteredConditions = activeConditions.filter(condition => condition.target !== combatant.uniqueName);
+        
+        // Only trigger network update if something was actually deleted
+        if (filteredConditions.length !== activeConditions.length && typeof updateServerConditions === 'function') {
+            updateServerConditions(filteredConditions);
+        }
     }
 
-    // 2. Remove the small token from the arena board
-    const token = document.querySelector(`.character-token[data-id="${selectedCharacterId}"]`);
-    if (token) token.remove();
-
-    // 3. Remove character from active memory
-    activeCombatants.splice(combatantIndex, 1);
-
-    // 4. Clear dynamic content but KEEP the panel visible (Skeleton view)
-    const charSheet = document.getElementById('panel-char-sheet');
-    if (charSheet) charSheet.innerHTML = '';
-    
-    const charFunctional = document.getElementById('panel-char-functional');
-    if (charFunctional) charFunctional.innerHTML = '';
-
-    const extraPanel = document.getElementById('panel-extra');
-    if (extraPanel) extraPanel.innerHTML = '';
-
-    // 5. Clear global selection
-    selectedCharacterId = null;
+    // 2. Request removal from server. Server will broadcast removal and clients will automatically delete token and clear panel.
+    if (typeof syncRemoveCombatant === 'function') {
+        syncRemoveCombatant(selectedCharacterId);
+    }
 }
 
-// Reloads the players.js file and recalculates the currently selected player's stats
-async function reloadPlayer() {
+// Reloads the corresponding data file and recalculates the currently selected character's stats
+async function reloadCharacterData() {
     if (!selectedCharacterId) return;
     
     const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    if (!combatant || combatant.type !== 'player') return;
+    // We can only reload named characters that originate from a file
+    if (!combatant || combatant.baseName === '') return;
 
     try {
-        // Force refresh the players.js script cache
-        await reloadPlayersScript();
+        let freshData = null;
         
-        // Fetch fresh stats from the newly loaded file
-        const freshData = players[combatant.baseName];
+        // Dynamically reload the correct script and fetch fresh data based on character type
+        if (combatant.type === 'player') {
+            await reloadScript('players-data', 'data/players.js');
+            freshData = players[combatant.baseName];
+        } else if (combatant.type === 'mob') {
+            await reloadScript('mobs-data', 'data/mobs.js');
+            freshData = mobs[combatant.baseName];
+        } else if (combatant.type === 'npc') {
+            await reloadScript('npcs-data', 'data/npcs.js');
+            freshData = npcs[combatant.baseName];
+        } else if (combatant.type === 'boss') {
+            await reloadScript('bosses-data', 'data/bosses.js');
+            freshData = bosses[combatant.baseName];
+        }
+
         if (!freshData) return;
 
         // Apply equipment math to get the final stats
@@ -626,45 +702,53 @@ async function reloadPlayer() {
         if (finalStats.hp === undefined) finalStats.hp = 10;
         if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
 
-        // Update memory
-        combatant.stats = finalStats;
+        // Preserve current health to prevent unwanted full heals, but clamp to new max HP
+        const currentHp = combatant.stats.hp;
+        const wasDead = combatant.isDead;
+        const acted = combatant.hasActedThisRound;
         
-        // Refresh Right Panel UI
-        renderRightPanel(selectedCharacterId);
+        // Update memory core stats
+        combatant.stats = finalStats;
+        combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
+        combatant.isDead = wasDead;
+        combatant.hasActedThisRound = acted;
+        
+        // Deep copy fresh equipment and abilities
+        combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
+        combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
 
-        // Refresh Token HP Bar UI
-        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
-        const token = document.querySelector(`.character-token[data-id="${selectedCharacterId}"]`);
-        if (token) {
-            const hpFill = token.querySelector('.token-hp-fill');
-            if (hpFill) {
-                hpFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
-                hpFill.style.background = combatant.isDead ? 'black' : '#50fa7b';
+        // Check if any new abilities were added and assign them default memory states
+        combatant.abilities.forEach(ability => {
+            if (!combatant.abilitiesStates[ability.name]) {
+                const isSingleUse = ability.cooldown === "[cooldown_once]";
+                const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
+                combatant.abilitiesStates[ability.name] = {
+                    currentCooldown: 0,
+                    maxCooldown: maxCooldown,
+                    singleUse: isSingleUse
+                };
             }
-        }
-
-        // Synchronize with players over network (assuming sendPlayerStats expects combatant object in Faza 5)
-        if (typeof sendPlayerStats === 'function') {
-            sendPlayerStats(combatant); 
-        }
+        });
+        
+        syncUpdateCombatant(combatant);
         
     } catch (error) {
-        console.error("Error while reloading players.js:", error);
+        console.error("Error while reloading character data:", error);
     }
 }
 
-// Reloads the players.js script element in the DOM
-async function reloadPlayersScript() {
-    const oldScript = document.querySelector('#players-data');
+// Generic helper to reload a script dynamically
+async function reloadScript(scriptId, srcPath) {
+    const oldScript = document.querySelector(`#${scriptId}`);
     if (oldScript) oldScript.remove();
     
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.id = 'players-data';
+        script.id = scriptId;
         // Adding a timestamp prevents the browser from loading a cached version of the file
-        script.src = `data/players.js?t=${new Date().getTime()}`;
+        script.src = `${srcPath}?t=${new Date().getTime()}`;
         script.onload = resolve;
-        script.onerror = () => reject(new Error("Error loading players.js"));
+        script.onerror = () => reject(new Error(`Error loading ${srcPath}`));
         document.body.appendChild(script);
     });
 }

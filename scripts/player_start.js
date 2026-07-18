@@ -1,7 +1,6 @@
 let activePanel = null;
 let activeOverlay = null;
 let isRemoving = false;  // Flag to prevent multiple panel removals at once
-let currentCombatRound = 0;
 
 window.onload = () => {
     // Get the parameter directly from the path

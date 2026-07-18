@@ -2,18 +2,22 @@
 let rawPath = window.location.pathname.substring(1); 
 let clientName = "";
 
-// Check if it's not empty and not attempting to load raw HTML files
 if (rawPath && !rawPath.includes("index.html") && !rawPath.includes("player.html")) {
     clientName = decodeURIComponent(rawPath).replace(/"/g, "");
 } else {
     clientName = "GM";
 }
 
+// --- GLOBAL STATE MOVED TO NETWORK FOR ALL CLIENTS ---
+let activeCombatants = []; // Holds all active characters data and their current stats
+let activeConditions = []; // Holds all active conditions
+let selectedCharacterId = null; // Tracks currently selected character token on the arena
+let myClientId = null; // Stored personal client ID assigned by the server
+
 // Variable to track pending promises
 const pendingPromises = {};
 
 function connectSocket() {
-    // Dynamically assign WebSocket URL based on the current host (IP/domain + port)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
@@ -25,114 +29,94 @@ function connectSocket() {
     };
 
     socket.onerror = (error) => {
-        // UX element left in Polish
-        alert("Błąd połączenia (zapewne serwer nie jest włączony)");
+        alert(t('connection_error'));
     };
 
     socket.onmessage = async (event) => {
         const data = JSON.parse(event.data);
         
         switch (data.type) {
-            // On load, if the player is already on the server, get their data
-            case 'RESPONSEplayerFound': {
-                console.log(`Loaded ${data.playerName} from server.`);
-                addCharacter("player", data.team, data.playerStats, data.playerName);
-                break;
-            }
-            
-            // On load, if the player is not on the server, fetch from players.js
-            case 'RESPONSEplayerNotFound': {
-                console.log(`Loaded ${data.playerName} from players.js.`);
-                addCharacter("player", data.team, players[data.playerName], data.playerName);
-                break;
-            }
-            
-            // Upon a change by any client, players update everywhere simultaneously
-            case 'BROADCASTupdatePlayer': {
-                updatePlayer(data.playerName, data.playerStats);
+            // Receive the unique client ID from the server
+            case 'RESPONSEregisterConnection': {
+                myClientId = data.clientId;
+                socket.send(JSON.stringify({ type: "REQUESTgetFullState" }));
                 break;
             }
 
-            // After reloading a page that was disconnected, characters need to be updated
-            case 'RESPONSEupdateSpecificPlayersStats': {
-                const playersToUpdate = data.playersToUpdate;
+            // Replaces the entire local state with the server's state upon initial connection
+            case 'RESPONSEgetFullState': {
+                activeCombatants = data.activeCombatants;
+                activeConditions = data.activeConditions; // Sync conditions
+                
+                if (typeof renderToken === 'function') {
+                    activeCombatants.forEach(c => renderToken(c));
+                }
 
-                document.querySelectorAll('.character[data-type="player"]').forEach(playerDiv => {
-                    const playerName = playerDiv.querySelector('input[type="text"]').value.trim();
+                // Render dynamic HUDs
+                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                if (typeof renderConditions === 'function') renderConditions();
 
-                    if (playersToUpdate[playerName])
-                        updatePlayer(playerName, playersToUpdate[playerName]);
-                    else
-                        console.warn(`No data found for character: ${playerName}`);
-                });
-                break;
-            }
-    
-            // Give the client abilitiesStates needed to execute the next code
-            case 'RESPONSEgetServerAbilitiesStates': {
-                const resolve = pendingPromises[data.requestId];
-                if (resolve) {
-                    delete pendingPromises[data.requestId];
-                    resolve(data.serverAbilitiesStates);
+                // CRITICAL CHORE: Load initial characters from config.ini ONLY if the server responded with an empty list
+                if (activeCombatants.length === 0 && clientName === "GM" && typeof loadInitialConfigCharacters === 'function') {
+                    loadInitialConfigCharacters();
                 }
                 break;
             }
-            
-            // Resolve await after abilitiesStates are updated
-            case 'RESPONSEupdateServerAbilitiesStates': {
-                const resolve = pendingPromises[data.requestId];
-                if (resolve) {
-                    delete pendingPromises[data.requestId];
-                    resolve();
+
+            case 'BROADCASTaddCombatant': {
+                if (!activeCombatants.find(c => c.id === data.combatant.id)) {
+                    activeCombatants.push(data.combatant);
+                }
+                if (typeof renderToken === 'function') renderToken(data.combatant);
+                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                break;
+            }
+
+            case 'BROADCASTupdateCombatant': {
+                const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                if (index !== -1) {
+                    activeCombatants[index] = data.combatant;
+                    
+                    if (typeof refreshCombatantDisplay === 'function') {
+                        refreshCombatantDisplay(activeCombatants[index], data.senderId);
+                    }
+                    if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 }
                 break;
             }
-    
-            // Broadcast active panel update to everyone, so a player with an open panel can see their CD decreasing
-            case 'BROADCASTupdateActivePanel': {
-                updateActivePanel();
-                break;
-            }
-    
-            case 'RESPONSEgetConditions': {
-                const resolve = pendingPromises[data.requestId];
-                if (resolve) {
-                    delete pendingPromises[data.requestId];
-                    resolve(data.activeConditions);
+
+            case 'BROADCASTremoveCombatant': {
+                const indexToRemove = activeCombatants.findIndex(c => c.id === data.id);
+                if (indexToRemove !== -1) {
+                    activeCombatants.splice(indexToRemove, 1);
                 }
-                break;
-            }
-    
-            case 'RESPONSEupdateConditions': {
-                const resolve = pendingPromises[data.requestId];
-                if (resolve) {
-                    delete pendingPromises[data.requestId];
-                    resolve();
+                
+                const token = document.querySelector(`.character-token[data-id="${data.id}"]`);
+                if (token) token.remove();
+                
+                if (selectedCharacterId === data.id) {
+                    selectedCharacterId = null;
+                    const charSheet = document.getElementById('panel-char-sheet');
+                    if (charSheet) charSheet.innerHTML = '';
+                    const charFunctional = document.getElementById('panel-char-functional');
+                    if (charFunctional) charFunctional.innerHTML = '';
+                    const extraPanel = document.getElementById('panel-extra');
+                    if (extraPanel) extraPanel.innerHTML = '';
                 }
+
+                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
-    
-            // If the GM has the conditions sidebar open, update it
+
             case "BROADCASTaddCondition": {
-                const sidebar = document.getElementById('Sidebar');
-                if (!sidebar) break;
-                await markConditionTargets(); // Mark targets when adding a new condition
-    
-                const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-                if (sidebarConditions.style.display !== 'flex') break;
-    
-                const activeConditions = data.activeConditions;
-    
-                sidebarConditions.innerHTML = `<h3>Stany</h3>`; // UX left in Polish
-                activeConditions.forEach(condition => {
-                    addConditionToSidebar(condition);
-                });
-                markExpiredConditions(activeConditions);
+                activeConditions = data.activeConditions;
+                if (typeof renderConditions === 'function') renderConditions();
                 break;
             }
-    
-            case "BROADCASTupdateCurrentCombatRound": {
-                currentCombatRound = data.currentCombatRound;
+
+            case "BROADCASTupdateConditions": {
+                activeConditions = data.activeConditions;
+                if (typeof renderConditions === 'function') renderConditions();
                 break;
             }
                 
@@ -154,233 +138,137 @@ function waitForSocket(callback) {
     }
 }
 
-function addPlayerCharacter(name, team) {
-    socket.send(JSON.stringify({
-        type: 'REQUESTgetPlayer',
-        playerName: name,
-        team: team
-    }));
-}
+// --- UNIFIED SERVER SYNC FUNCTIONS ---
 
-function sendPlayerStats(characterDiv) {
-    if (characterDiv.dataset.type !== 'player') return;
-
-    let playerStats = {
-        name: characterDiv.querySelector('input[type="text"]').value.trim(),
-        hp: parseInt(characterDiv.querySelector('.current-hp').value) ?? '',
-        maxHp: parseInt(characterDiv.querySelector('.max-hp').value) ?? '',
-
-        vitality: characterDiv.querySelector('.stat-value.vitality').value ?? '',
-        intuition: characterDiv.querySelector('.stat-value.intuition').value ?? '',
-        strength: characterDiv.querySelector('.stat-value.strength').value ?? '',
-        agility: characterDiv.querySelector('.stat-value.agility').value ?? '',
-        accuracy: characterDiv.querySelector('.stat-value.accuracy').value ?? '',
-        reflex: characterDiv.querySelector('.stat-value.reflex').value ?? '',
-        resilience: characterDiv.querySelector('.stat-value.resilience').value ?? '',
-        physArmor: characterDiv.querySelector('.stat-value.physArmor').value ?? '',
-        magArmor: characterDiv.querySelector('.stat-value.magArmor').value ?? '',
-
-        vitalityMod: characterDiv.querySelector('.mod-value.vitality').value ?? '',
-        intuitionMod: characterDiv.querySelector('.mod-value.intuition').value ?? '',
-        strengthMod: characterDiv.querySelector('.mod-value.strength').value ?? '',
-        agilityMod: characterDiv.querySelector('.mod-value.agility').value ?? '',
-        accuracyMod: characterDiv.querySelector('.mod-value.accuracy').value ?? '',
-        reflexMod: characterDiv.querySelector('.mod-value.reflex').value ?? '',
-        resilienceMod: characterDiv.querySelector('.mod-value.resilience').value ?? '',
-        physArmorMod: characterDiv.querySelector('.mod-value.physArmor').value ?? '',
-        magArmorMod: characterDiv.querySelector('.mod-value.magArmor').value ?? '',
-
-        damage: characterDiv.querySelector('.damage').value ?? '',
-
-        hasDeathsDoor: characterDiv.dataset.hasDeathsDoor,
-        isDead: characterDiv.dataset.isDead ?? "false",
-        isStunned: characterDiv.querySelector('.stun-button').classList.contains('stunned'),
-    };
-
-    if (characterDiv.querySelector('.attunement'))
-    {
-        playerStats["attunement"] = characterDiv.querySelector('.stat-value.attunement').value;
-        playerStats["perception"] = characterDiv.querySelector('.stat-value.perception').value;
-
-        playerStats["attunementMod"] = characterDiv.querySelector('.mod-value.attunement').value;
-        playerStats["perceptionMod"] = characterDiv.querySelector('.mod-value.perception').value;
-    }
-
-    const playerName = playerStats.name;
-
-    const playerData = {
-        type: 'REQUESTupdatePlayer',
-        playerName,
-        playerStats
-    };
-    socket.send(JSON.stringify(playerData));
-}
-
-function updatePlayer(playerName, playerStats) {
-    // Find the character element by name
-    const characterDiv = Array.from(document.querySelectorAll('.character'))
-        .find(div => div.querySelector('input[type="text"]').value.trim() === playerName);
-
-    if (!characterDiv) {
-        return;
-    }
-
-    // Update character fields
-    characterDiv.querySelector('.current-hp').value = playerStats.hp ?? '';
-    characterDiv.querySelector('.max-hp').value = playerStats.maxHp ?? '';
-
-    characterDiv.querySelector('.stat-value.vitality').value = playerStats.vitality ?? '';
-    characterDiv.querySelector('.stat-value.intuition').value = playerStats.intuition ?? '';
-    characterDiv.querySelector('.stat-value.strength').value = playerStats.strength ?? '';
-    characterDiv.querySelector('.stat-value.agility').value = playerStats.agility ?? '';
-    characterDiv.querySelector('.stat-value.accuracy').value = playerStats.accuracy ?? '';
-    characterDiv.querySelector('.stat-value.reflex').value = playerStats.reflex ?? '';
-    characterDiv.querySelector('.stat-value.resilience').value = playerStats.resilience ?? '';
-    characterDiv.querySelector('.stat-value.physArmor').value = playerStats.physArmor ?? '';
-    characterDiv.querySelector('.stat-value.magArmor').value = playerStats.magArmor ?? '';
-
-    characterDiv.querySelector('.mod-value.vitality').value = playerStats.vitalityMod ?? '';
-    characterDiv.querySelector('.mod-value.intuition').value = playerStats.intuitionMod ?? '';
-    characterDiv.querySelector('.mod-value.strength').value = playerStats.strengthMod ?? '';
-    characterDiv.querySelector('.mod-value.agility').value = playerStats.agilityMod ?? '';
-    characterDiv.querySelector('.mod-value.accuracy').value = playerStats.accuracyMod ?? '';
-    characterDiv.querySelector('.mod-value.reflex').value = playerStats.reflexMod ?? '';
-    characterDiv.querySelector('.mod-value.resilience').value = playerStats.resilienceMod ?? '';
-    characterDiv.querySelector('.mod-value.physArmor').value = playerStats.physArmorMod ?? '';
-    characterDiv.querySelector('.mod-value.magArmor').value = playerStats.magArmorMod ?? '';
-
-    characterDiv.querySelector('.damage').value = playerStats.damage ?? '';
-
-    if (playerStats.attunement)
-    {
-        characterDiv.querySelector('.stat-value.attunement').value = playerStats.attunement ?? '';
-        characterDiv.querySelector('.stat-value.perception').value = playerStats.perception ?? '';
-
-        characterDiv.querySelector('.mod-value.attunement').value = playerStats.attunementMod ?? '';
-        characterDiv.querySelector('.mod-value.perception').value = playerStats.perceptionMod ?? '';
-    }
-
-    if (playerStats.isDead === "true")
-        characterDiv.dataset.isDead = "true";
-    else
-        characterDiv.dataset.isDead = "false";
-
-    const stunButton = characterDiv.querySelector('.stun-button');
-    const abilitiesButton = characterDiv.querySelector('.abilities-button');
-
-    if (playerStats.isStunned) {
-        stunButton.classList.add('stunned');
-        if (abilitiesButton) {
-            hideActivePanel();
-            abilitiesButton.disabled = true;
-        }
-    } else if (abilitiesButton) {
-        stunButton.classList.remove('stunned');
-        abilitiesButton.disabled = false;
-    } else {
-        stunButton.classList.remove('stunned');
-    }
-
-    // Update HP bar
-    updateHpBar(characterDiv.querySelector('.current-hp'));
-
-    console.log(`Updated player: ${playerName}`);
-}
-
-function updateSpecificPlayersStats(playerNames) {
-    socket.send(JSON.stringify({
-        type: "REQUESTupdateSpecificPlayersStats",
-        playerNames
-    }));
-}
-
-function updateServerAbilitiesStates(abilitiesStates) {
-    return new Promise((resolve, reject) => {
-        const requestId = Date.now();
-        pendingPromises[requestId] = resolve;
-
+// Sends a completely new combatant to the server
+function syncAddCombatant(combatant) {
+    if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
-            type: "REQUESTupdateServerAbilitiesStates",
-            requestId,
-            localAbilitiesStates: abilitiesStates
+            type: 'REQUESTaddCombatant',
+            combatant: combatant
         }));
-
-        // Timeout in case of no response
-        setTimeout(() => {
-            if (pendingPromises[requestId]) {
-                delete pendingPromises[requestId];
-                reject(new Error("Server did not respond in time."));
-            }
-        }, 5000); // 5 seconds timeout
-    });
+    }
 }
 
-function loadServerAbilitiesStates() {
-    return new Promise((resolve, reject) => {
-        const requestId = Date.now();
-        pendingPromises[requestId] = resolve;
-
-        // Send request to the server
+// Updates an existing combatant's state on the server
+function syncUpdateCombatant(combatant) {
+    if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
-            type: "REQUESTgetServerAbilitiesStates",
-            requestId
+            type: 'REQUESTupdateCombatant',
+            combatant: combatant
         }));
-
-        // Timeout in case of no response
-        setTimeout(() => {
-            if (pendingPromises[requestId]) {
-                delete pendingPromises[requestId];
-                reject(new Error("Server did not respond in time."));
-            }
-        }, 5000); // 5 seconds timeout
-    });
+    }
 }
 
-async function updateActivePanel() {
-    if (!activePanel || !activePanel.classList.contains('abilities-panel')) return;
+// Instructs the server to completely remove a combatant
+function syncRemoveCombatant(id) {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'REQUESTremoveCombatant',
+            id: id
+        }));
+    }
+}
 
-    const abilitiesStates = await loadServerAbilitiesStates();
+// Master UI Updater: Updates Token, Right Panel, and Extra Panel in real-time
+// Differentiates between the sender client and external network clients for text field focus updates
+function refreshCombatantDisplay(combatant, senderId = null) {
+    const isSender = senderId !== null && senderId === myClientId;
 
-    const allCooldownButtons = activePanel.querySelectorAll('.cooldown-button');
-    allCooldownButtons.forEach(button => {
-        const characterDiv = activePanel.closest('.character');
-        const characterName = characterDiv.querySelector('input[type="text"]').value;
-        const abilityName = button.closest('.ability-item').querySelector('.ability-name').textContent;
-        const abilityState = abilitiesStates[characterName][abilityName];
-
-        if (abilityState.currentCooldown === 0) {
-            button.disabled = false; 
-            button.classList.remove('unavailable');
-            button.classList.add('available');
-            button.textContent = t('available');
-        } else if (abilityState.currentCooldown !== 'unavailable') {
-            button.classList.add('unavailable');
-            button.textContent = abilityState.currentCooldown;
-        } else {
-            button.classList.add('unavailable');
-            button.textContent = t('unavailable');
+    // 1. Update Token on the Arena
+    const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);
+    if (token) {
+        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+        const hpClass = getHpClass(hpPercentage, combatant.isDead);
+        
+        const tokenFill = token.querySelector('.token-hp-fill');
+        if (tokenFill) {
+            tokenFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
+            tokenFill.className = `token-hp-fill ${hpClass}`;
         }
-    });
+
+        const nameEl = token.querySelector('.token-name');
+        if (nameEl) nameEl.textContent = combatant.uniqueName || t('unknown_character');
+
+        if (combatant.isDead) token.classList.add('dead');
+        else token.classList.remove('dead');
+    }
+
+    // 2. Update Right Panel if this character is currently selected
+    if (selectedCharacterId === combatant.id) {
+        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+        const hpClass = getHpClass(hpPercentage, combatant.isDead);
+        
+        // HP Visuals
+        const sheetVisual = document.querySelector('.char-hp-visual');
+        if (sheetVisual) {
+            if (combatant.isDead) sheetVisual.classList.add('dead');
+            else sheetVisual.classList.remove('dead');
+        }
+
+        const sheetFill = document.querySelector('.char-hp-visual-fill');
+        if (sheetFill) {
+            sheetFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
+            sheetFill.className = `char-hp-visual-fill ${hpClass}`;
+        }
+
+        // Precise update helper based on whether the local client initiated the request or not
+        const safeUpdateInput = (selector, value) => {
+            const input = document.querySelector(selector);
+            if (!input) return;
+            else input.value = value;
+        };
+
+        safeUpdateInput('.char-name-input', combatant.uniqueName);
+        safeUpdateInput('.current-hp-input', combatant.stats.hp);
+        safeUpdateInput('.max-hp-input', combatant.stats.maxHp);
+
+        // Core Stats
+        const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
+        allStats.forEach(stat => {
+            safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || 0);
+            safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.stats[`${stat}Mod`] || '');
+        });
+
+        // Armor & Damage
+        safeUpdateInput('.base-damage-input', combatant.stats.damage || 0);
+        safeUpdateInput('.base-phys-armor', combatant.stats.physArmor || 0);
+        safeUpdateInput('.base-phys-armor-mod', combatant.stats.physArmorMod || '');
+        safeUpdateInput('.base-mag-armor', combatant.stats.magArmor || 0);
+        safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
+
+        // Last Roll (Safe to overwrite since they are standard layout elements)
+        const lastRollDisplay = document.getElementById('last-roll-display');
+        const lastRollLabel = document.querySelector('.dice-result-label');
+        if (lastRollDisplay && lastRollLabel && combatant.lastRoll) {
+            lastRollLabel.textContent = combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
+            lastRollDisplay.textContent = combatant.lastRoll.result || '-';
+            lastRollDisplay.style.color = combatant.lastRoll.color || 'white';
+        }
+
+        // Stun toggle button
+        const stunBtn = document.querySelector('.func-btn.stun');
+        if (stunBtn) {
+            if (combatant.isStunned) stunBtn.classList.add('active');
+            else stunBtn.classList.remove('active');
+        }
+
+        // 3. Completely re-render Extra Panel to recalculate formulas and success rates in real-time
+        renderExtraPanel(combatant.id);
+    }
 }
 
-async function requestUpdateActivePanel() {
-    socket.send(JSON.stringify({
-        type: "REQUESTupdateActivePanel"
-    }));
-}
-
+// --- CONDITION PROMISES (Kept for compatibility) ---
 function loadServerActiveConditions() {
     return new Promise((resolve, reject) => {
         const requestId = Date.now();
         pendingPromises[requestId] = resolve;
 
-        // Send request to the server
         socket.send(JSON.stringify({
             type: "REQUESTgetConditions",
             requestId
         }));
 
-        // Timeout in case of no response
         setTimeout(() => {
             if (pendingPromises[requestId]) {
                 delete pendingPromises[requestId];
@@ -390,15 +278,15 @@ function loadServerActiveConditions() {
     });
 }
 
-function sendCondition(target, description, duration, characterDiv) {
-    // Parsing the condition description should be done by the sending client, just in case
-    let descriptionParsed = parseDescription(description, characterDiv);
-
+function sendCondition(target, name, description, duration) {
+    let descriptionParsed = typeof parseDescription === 'function' ? parseDescription(description, activeCombatants.find(c => c.uniqueName === target)) : description;
+    
     const condition = {
         id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        target,
+        name: name,
+        target: target,
         description: descriptionParsed,
-        duration
+        duration: duration
     };
 
     socket.send(JSON.stringify({
@@ -407,32 +295,13 @@ function sendCondition(target, description, duration, characterDiv) {
     }));
 }
 
-async function updateServerConditions(activeConditions = []) {
-    return new Promise((resolve, reject) => {
-        const requestId = Date.now();
-        pendingPromises[requestId] = resolve;
-
+function updateServerConditions(newConditions) {
+    if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
             type: "REQUESTupdateConditions",
-            requestId,
-            activeConditions
+            activeConditions: newConditions
         }));
-
-        // Timeout in case of no response
-        setTimeout(() => {
-            if (pendingPromises[requestId]) {
-                delete pendingPromises[requestId];
-                reject(new Error("Server did not respond in time."));
-            }
-        }, 5000); // 5 seconds timeout
-    });
-}
-
-async function requestUpdateCurrentCombatRound() {
-    socket.send(JSON.stringify({
-        type: "REQUESTupdateCurrentCombatRound",
-        currentCombatRound
-    }));
+    }
 }
 
 // Ping every 30 seconds

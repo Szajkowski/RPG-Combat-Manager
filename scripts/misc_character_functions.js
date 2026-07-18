@@ -1,41 +1,14 @@
-function toggleStun(button) {
-    const characterDiv = button.closest('.character');
-    const abilitiesButton = characterDiv.querySelector('.abilities-button');
-
-    // Toggle stun state
-    const isStunned = button.classList.toggle('stunned');
-
-    if (isStunned) {
-        playSoundEffect('sound/stun.mp3');
-        if (abilitiesButton)
-        {
-            hideActivePanel(); // Hide open panel (if any)
-            abilitiesButton.disabled = true;
-        } 
-    } else if (abilitiesButton) {
-        abilitiesButton.disabled = false;
-    }
-
-    // Send stun update to server
-    if (characterDiv.dataset.type === "player") {
-        sendPlayerStats(characterDiv);
-    }
-}
-
-function translateStatName(statName) {
-    const translations = {
-        intuicji: "intuition",
-        nieustępliwości: "resilience",
-        siły: "strength",
-        żywotności: "vitality",
-        dostrojenia: "attunement",
-        percepcji: "perception",
-        celności: "accuracy",
-        zwinności: "agility",
-        refleksu: "reflex",
-        obrażeń: "damage",
-    };
-    return translations[statName] || statName;
+// Toggles stun state via the functional column button
+function toggleStun() {
+    if (!selectedCharacterId) return;
+    
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant || combatant.isDead) return;
+    
+    combatant.isStunned = !combatant.isStunned;
+    
+    // Broadcast change to server
+    syncUpdateCombatant(combatant);
 }
 
 async function copyInputValue(input, event) {

@@ -1,10 +1,3 @@
-let activeCombatants = []; // Holds all active characters data and their current stats
-let selectedCharacterId = null; // Tracks currently selected character token on the arena
-
-// Existing GM state variables
-let currentCombatRound = 0;
-let currentTurnIndex = 0; // Replaced currentRowIndex, tracks the active token in the top-bar
-
 let currentMusic = null;
 let currentMusicName = null; // Tracks the name of the active track
 let mp3Files = [];
@@ -144,6 +137,30 @@ function parseINI(data) {
     return result;
 }
 
+// Global function triggered by network.js when the server state is confirmed to be 100% empty
+function loadInitialConfigCharacters() {
+    fetch('/config.ini')
+    .then(response => response.text())
+    .then(text => {
+        const config = parseINI(text);
+        
+        // Load heroes safely from configuration file
+        if (config.InitialHeroes) {
+            for (const [name, type] of Object.entries(config.InitialHeroes)) {
+                addSpecificCharacter(type, name, 'hero');
+            }
+        }
+        
+        // Load enemies safely from configuration file
+        if (config.InitialEnemies) {
+            for (const [name, type] of Object.entries(config.InitialEnemies)) {
+                addSpecificCharacter(type, name, 'enemy');
+            }
+        }
+    })
+    .catch(error => console.error("Error loading config.ini:", error));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Setup UI Toggle buttons
     const gmToggleBtn = document.getElementById('gm-mute-btn');
@@ -204,30 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDropdown('hero-player-select', players, 'player', 'hero');
     setupDropdown('enemy-player-select', players, 'player', 'enemy');
 
-    // Fetch config.ini and load initial characters
-    fetch('/config.ini')
-    .then(response => response.text())
-    .then(text => {
-        const config = parseINI(text);
-        
-        waitForSocket(() => {
-            // Load heroes
-            if (config.InitialHeroes) {
-                for (const [name, type] of Object.entries(config.InitialHeroes)) {
-                    addSpecificCharacter(type, name, 'hero');
-                }
-            }
-            
-            // Load enemies
-            if (config.InitialEnemies) {
-                for (const [name, type] of Object.entries(config.InitialEnemies)) {
-                    addSpecificCharacter(type, name, 'enemy');
-                }
-            }
-        });
-    })
-    .catch(error => console.error("Error loading config.ini:", error));
-
     // Failsafe for disconnects
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
@@ -252,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'N': newRound(); break;
                 case 'Z': endCombat(); break;
                 case 'S': toggleMusic(); break;
-                case 'ARROWRIGHT': event.preventDefault(); moveToNextTurn(); break;
+                case 'T': nextTurn(); break;
                 default: break;
             }
         }

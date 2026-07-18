@@ -13,16 +13,68 @@ body {
     padding: 0 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 100;
 }
 
-.initiative-tracker { display: flex; align-items: center; overflow-x: auto; gap: 10px; padding-right: 20px; flex: 1; scrollbar-width: none; }
-.initiative-slot { background: #1e1e2e; border: 1px solid #44475a; padding: 5px 12px; border-radius: 20px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;}
+/* Added min-width: 0 to prevent the flex-item from overflowing the screen */
+/* Added scroll-behavior for smooth automatic tracking */
+.initiative-tracker { 
+    display: flex; align-items: center; overflow-x: auto; 
+    gap: 10px; padding-right: 20px; 
+    margin-right: 20px; /* Creates spacing from buttons */
+    border-right: 2px solid #36394d; /* Adds a visual separator */
+    flex: 1; 
+    min-width: 0; /* CRITICAL: Prevents flexbox from endlessly expanding out of bounds */
+    scroll-behavior: smooth; 
+    
+    /* Firefox transparent scrollbar turning visible on hover */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+
+.initiative-tracker:hover {
+    scrollbar-color: #44475a transparent;
+}
+
+/* Chrome/Edge/Safari transparent scrollbar turning visible on hover */
+.initiative-tracker::-webkit-scrollbar {
+    height: 8px;
+    background: transparent;
+}
+.initiative-tracker::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+}
+.initiative-tracker:hover::-webkit-scrollbar-thumb {
+    background: #44475a;
+}
+.initiative-tracker:hover::-webkit-scrollbar-thumb:hover {
+    background: #6272a4;
+}
+
+.initiative-slot { 
+    background: #1e1e2e; border: 1px solid #44475a; padding: 5px 12px; 
+    border-radius: 20px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+    transition: all 0.3s ease;
+}
 
 /* Pink active turn */
-.initiative-slot.active { border-color: #ff79c6; background: rgba(255, 121, 198, 0.15); box-shadow: 0 0 12px rgba(255, 121, 198, 0.3); }
+.initiative-slot.active { 
+    border-color: #ff79c6; background: rgba(255, 121, 198, 0.15); 
+    box-shadow: 0 0 12px rgba(255, 121, 198, 0.3); 
+}
 .initiative-slot.active .init-reflex { color: #ff79c6; }
+
+/* Dimmed, subtle purple glow for passed turns */
+.initiative-slot.done { 
+    opacity: 0.6; 
+    border-color: #bd93f9; 
+    background: rgba(189, 147, 249, 0.1); 
+    box-shadow: 0 0 8px rgba(189, 147, 249, 0.2); 
+}
+.initiative-slot.done .init-reflex { color: #bd93f9; }
 
 .init-reflex { color: #8be9fd; font-weight: bold; transition: 0.2s; }
 .init-names { font-size: 0.85rem; color: #f8f8f2; }
-.init-arrow { color: #6272a4; font-weight: bold; }
+.init-arrow { color: #6272a4; font-weight: bold; flex-shrink: 0; }
 
 .top-controls { display: flex; gap: 8px; align-items: center; }
 .top-controls button {
@@ -109,9 +161,10 @@ body {
     transition: all 0.2s ease; border: 2px solid transparent; display: flex; flex-direction: column;
 }
 .character-token:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
-.character-token.selected { border-color: #8be9fd; box-shadow: 0 0 15px rgba(139, 233, 253, 0.3); }
-.character-token.enemy-token { border-bottom-color: #ff5555; }
 .character-token.hero-token { border-bottom-color: #8be9fd; }
+.character-token.hero-token.selected { border-color: #8be9fd; box-shadow: 0 0 15px rgba(139, 233, 253, 0.3); }
+.character-token.enemy-token { border-bottom-color: #ff5555; }
+.character-token.enemy-token.selected { border-color: #ff5555; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3); }
 
 /* Darkens the token and turns it grayscale when the character is dead */
 .character-token.dead .token-img { filter: brightness(0.3) grayscale(0.8); }
@@ -300,4 +353,9 @@ input[type=number] { -moz-appearance: textfield; }
     font-size: 1rem; 
     border-bottom: 1px solid #44475a; 
     margin-right: 8px;
+}
+
+/* Prevent clicking visualization on disabled action buttons */
+.action-cd-btn:disabled {
+    cursor: not-allowed;
 }

@@ -1,384 +1,250 @@
-async function newRound() {
-    currentCombatRound += 1;
-    currentRowIndex = 0;
-    await setTurnOrder();
-    await requestUpdateCurrentCombatRound();
-    await reduceAbilityCDs();
-}
+// Render the Initiative Tracker based on reflex and hasActedThisRound status
+function renderInitiativeTracker() {
+    const tracker = document.querySelector('.initiative-tracker');
+    if (!tracker) return;
 
-async function reduceAbilityCDs() {
-    const abilitiesStates = await loadServerAbilitiesStates();
+    if (activeCombatants.length === 0) {
+        tracker.innerHTML = '';
+        return;
+    }
 
-    Object.keys(abilitiesStates).forEach(characterName => {
-        Object.keys(abilitiesStates[characterName]).forEach(abilityName => {
-            const abilityState = abilitiesStates[characterName][abilityName];
-
-            if (abilityState.currentCooldown === 0 || abilityState.currentCooldown === 'unavailable') {
-                return; // Skip ready or locked abilities
-            }
-
-            abilityState.currentCooldown -= 1; // Reduce cooldown
-        });
-    });
-    await updateServerAbilitiesStates(abilitiesStates);
-    await requestUpdateActivePanel(); // This must be at the end
-}
-
-async function getCharactersInTeam(teamId) {
-    const teamDiv = document.getElementById(teamId);
-    // Filter only alive characters
-    const aliveCharacters = Array.from(teamDiv.getElementsByClassName('character'))
-        .filter(characterDiv => characterDiv.dataset.isDead !== "true");
-
-    return aliveCharacters.flatMap(characterDiv => {
-        const name = characterDiv.querySelector('input[type="text"]').value || t('unknown_character');
-        const reflexInput = characterDiv.querySelector('.stat-value.reflex');
-        const reflex = reflexInput ? parseInt(reflexInput.value) || 0 : 0;
-
-        // Check if the character has "Dodatkowa akcja" (Extra Action)
-        const abilities = (bosses[name]?.abilities || mobs[name]?.abilities || npcs[name]?.abilities || []);
-        const hasExtraAction = abilities.some(ability => matchesAnyLanguage(ability.name, 'extra_action_ability'));
-
-        // If they have "Dodatkowa akcja", add two entries: with full and half reflex
-        if (hasExtraAction) {
-            return [
-                { name, reflex, team: teamId },
-                { name, reflex: Math.floor(reflex / 2), team: teamId }
-            ];
-        }
-
-        // Otherwise, add only one entry
-        return { name, reflex, team: teamId };
-    });
-}
-
-async function setTurnOrder() {
-    const enemies = await getCharactersInTeam('enemyTeam');
-    const heroes = await getCharactersInTeam('heroTeam');
-    const allCharacters = [...enemies, ...heroes];
-
-    allCharacters.sort((a, b) => {
-        if (a.reflex !== b.reflex) {
-            return b.reflex - a.reflex;
-        }
-        if (a.team === 'heroTeam' && b.team === 'enemyTeam') {
-            return -1;
-        }
-        if (a.team === 'enemyTeam' && b.team === 'heroTeam') {
-            return 1;
-        }
-        return 0;
+    // Group by reflex
+    const groups = {};
+    activeCombatants.forEach(c => {
+        if (c.isDead) return; // Skip dead characters from turn order
+        const ref = parseInt(c.stats.reflex) || 0;
+        if (!groups[ref]) groups[ref] = [];
+        groups[ref].push(c);
     });
 
-    const groupedCharacters = [];
-    allCharacters.forEach(char => {
-        const lastGroup = groupedCharacters[groupedCharacters.length - 1];
-        if (lastGroup && lastGroup.reflex === char.reflex && lastGroup.team === char.team) {
-            lastGroup.characters.push(char.name);
-        } else {
-            groupedCharacters.push({
-                reflex: char.reflex,
-                team: char.team,
-                characters: [char.name]
+    const sortedReflexes = Object.keys(groups).map(Number).sort((a, b) => b - a);
+
+    // Find active reflex (The highest reflex where at least one combatant hasn't acted yet)
+    let activeReflex = null;
+    for (const ref of sortedReflexes) {
+        if (groups[ref].some(c => !c.hasActedThisRound)) {
+            activeReflex = ref;
+            break;
+        }
+    }
+
+    let html = '';
+    sortedReflexes.forEach((ref, index) => {
+        const combatants = groups[ref];
+        const names = combatants.map(c => c.uniqueName).join(', ');
+        const isActive = ref === activeReflex;
+        // Group is done if it's not active and EVERYONE in it has acted
+        const isDone = !isActive && combatants.every(c => c.hasActedThisRound);
+
+        // Determine class based on state dynamically
+        let slotClass = 'initiative-slot';
+        if (isActive) slotClass += ' active';
+        else if (isDone) slotClass += ' done';
+
+        html += `
+            <div class="${slotClass}">
+                <span class="init-reflex">${ref}</span>
+                <span class="init-names">${names}</span>
+            </div>
+        `;
+
+        if (index < sortedReflexes.length - 1) {
+            html += `<span class="init-arrow">▶</span>`;
+        }
+    });
+
+    tracker.innerHTML = html;
+
+    // Automatically scroll to the active element, ensuring it sits exactly in the middle of the container
+    setTimeout(() => {
+        const activeSlot = tracker.querySelector('.initiative-slot.active');
+        if (activeSlot) {
+            // inline: 'center' makes sure the specific div sits in the middle of the horizontal scroll
+            // block: 'nearest' prevents the entire browser window from jumping down
+            activeSlot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }, 50); // slight delay to allow the DOM to update its widths before calculating the scroll position
+}
+
+// Next Turn logic: marks current active group as acted, REDUCES COOLDOWNS, and checks for round end
+function nextTurn() {
+    if (activeCombatants.length === 0) return;
+
+    // Group by reflex to find the currently active ones
+    const groups = {};
+    activeCombatants.forEach(c => {
+        if (c.isDead) return;
+        const ref = parseInt(c.stats.reflex) || 0;
+        if (!groups[ref]) groups[ref] = [];
+        groups[ref].push(c);
+    });
+
+    const sortedReflexes = Object.keys(groups).map(Number).sort((a, b) => b - a);
+
+    let activeReflex = null;
+    for (const ref of sortedReflexes) {
+        if (groups[ref].some(c => !c.hasActedThisRound)) {
+            activeReflex = ref;
+            break;
+        }
+    }
+
+    // Check if this is the LAST active reflex group in the round
+    const remainingGroups = sortedReflexes.filter(ref => groups[ref].some(c => !c.hasActedThisRound));
+    
+    if (remainingGroups.length <= 1) {
+        // This is the last active group! Just reduce their CDs and run newRound() directly.
+        if (activeReflex !== null) {
+            groups[activeReflex].forEach(c => {
+                if (c.abilitiesStates) {
+                    Object.keys(c.abilitiesStates).forEach(abilityName => {
+                        const state = c.abilitiesStates[abilityName];
+                        if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
+                            state.currentCooldown--;
+                        }
+                    });
+                }
             });
         }
-    });
+        newRound(); // Automatically triggers new round and syncs everything
+        return;
+    }
 
-    // Display on the sidebar
-    const sidebar = document.getElementById('Sidebar');
-    const sidebarTitle = sidebar.querySelector('.sidebar-title');
-    const sidebarContent = sidebar.querySelector('.sidebar-content');
-    const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-    sidebarConditions.style.display = 'flex';
-
-    sidebarTitle.textContent = `${t('turn_order_title')} ${currentCombatRound}]`;
-
-    sidebarContent.innerHTML = `
-        <ol id="turnOrder">
-            ${groupedCharacters.map((group, index) => `
-                <li class="${index === currentRowIndex ? 'active-row' : ''}">
-                    ${group.characters.join(', ')} (${group.reflex})
-                </li>
-            `).join('')}
-        </ol>
-    `;
-
-    const activeConditions = await loadServerActiveConditions();
-    // Ensure the sidebar is visible
-    sidebar.classList.remove('hidden');
-    await renderConditionsSidebar(activeConditions);
-    markExpiredConditions(activeConditions); // This also needs to be done here, otherwise exclamation marks will disappear in a new round
-}
-
-async function renderConditionsSidebar(activeConditions) {
-    const sidebarConditions = document.querySelector('.sidebar-conditions');
-    
-    sidebarConditions.innerHTML = `<h3>${t('conditions')}</h3>`;
-    activeConditions.forEach(condition => addConditionToSidebar(condition));
-    await markConditionTargets();
-}
-
-function addConditionToSidebar(condition) {
-    const conditionsDiv = document.querySelector('.sidebar-conditions');
-
-    const conditionItem = document.createElement('div');
-    conditionItem.className = 'condition-item';
-    conditionItem.dataset.id = condition.id;
-
-    conditionItem.innerHTML = `
-        <div class="condition-top-row">
-            <input type="text" class="condition-target" onclick="pasteClipboardToInput(this, event)" oninput="updateConditionTarget(this)" value="${condition.target}" />
-            <span class="condition-duration">${condition.duration}</span>
-            <button class="copy-condition">${t('copy')}</button>
-            <button class="remove-condition">X</button>
-        </div>
-        <div class="condition-bottom-row">
-            <span class="condition-description">${condition.description}</span>
-        </div>
-    `;
-
-    conditionsDiv.appendChild(conditionItem);
-
-    const removeButton = conditionItem.querySelector('.remove-condition');
-    // Handle "Remove" button
-    removeButton.onclick = () => {
-        conditionsDiv.removeChild(conditionItem); // Remove from UI (out of sight)
-        removeCondition(condition.id); // Remove from data (out of mind)
-    };
-
-    // Handle "Copy" button
-    const copyButton = conditionItem.querySelector('.copy-condition');
-    copyButton.onclick = () => {
-        copyCondition(condition);
-    };
-}
-
-async function markConditionTargets() {
-    const activeConditions = await loadServerActiveConditions();
-
-    // Search all characterDivs
-    const characterInputs = document.querySelectorAll('.character input[type="text"]');
-
-    characterInputs.forEach(charInput => {
-        const characterName = charInput.value.trim();
-
-        // Find or create an exclamation mark
-        let exclamationMark = charInput.parentElement.querySelector('.exclamation-mark');
-
-        // Check if there is a condition associated with this character
-        const hasConditions = activeConditions.some(condition => condition.target === characterName);
-
-        if (hasConditions) {
-            if (!exclamationMark) {
-                exclamationMark = document.createElement('span');
-                exclamationMark.className = 'exclamation-mark';
-                exclamationMark.textContent = '❗';
-                charInput.parentElement.appendChild(exclamationMark);
+    // Normal next turn logic for mid-round updates
+    if (activeReflex !== null) {
+        groups[activeReflex].forEach(c => {
+            c.hasActedThisRound = true;
+            
+            // Cooldown reduction directly at the end of the character's turn
+            if (c.abilitiesStates) {
+                Object.keys(c.abilitiesStates).forEach(abilityName => {
+                    const state = c.abilitiesStates[abilityName];
+                    if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
+                        state.currentCooldown--;
+                    }
+                });
             }
-        } else if (exclamationMark) {
-            exclamationMark.remove(); // Remove the exclamation mark if there are no conditions
-        }
-    });
-}
 
-async function updateConditionTarget(input) {
-    const newTarget = input.value.trim();
-    const conditionId = input.closest('.condition-item').dataset.id;
-
-    // Fetch current conditions from the server
-    let activeConditions = await loadServerActiveConditions();
-
-    // Find the condition to update
-    const conditionIndex = activeConditions.findIndex(condition => condition.id === conditionId);
-
-    if (conditionIndex !== -1) {
-        // Update the condition's target
-        activeConditions[conditionIndex].target = newTarget;
-        await updateServerConditions(activeConditions); // Update on the server
-    }
-    await markConditionTargets(); // Mark targets when changing a target
-}
-
-async function removeCondition(conditionID) {
-    let activeConditions = await loadServerActiveConditions();
-    activeConditions = activeConditions.filter(condition => condition.id !== conditionID);
-    await updateServerConditions(activeConditions);
-    await markConditionTargets(); // Mark targets when removing a condition
-}
-
-function copyCondition(condition) {
-    // Create a new condition object with a new ID
-    const copiedCondition = {
-        ...condition,
-        id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    };
-
-    // Send the new condition to the server
-    socket.send(JSON.stringify({
-        type: "REQUESTaddCondition",
-        condition: copiedCondition
-    }));
-
-    // Manually add the new condition to the sidebar (quick update)
-    addConditionToSidebar(copiedCondition);
-}
-
-async function moveToNextTurn() {
-    const turnOrder = document.getElementById('turnOrder');
-    if (!turnOrder) return;
-
-    const rows = Array.from(turnOrder.querySelectorAll('li'));
-
-    // Get characters from the current row
-    const currentRow = rows[currentRowIndex];
-    const turnEndingCharacters = currentRow.textContent
-    .replace(/\(\d+\)\s*$/, '')  // Remove the number in parentheses at the end
-    .split(',')
-    .map(name => name.trim());
-
-    // Move to the next row
-    if (currentRowIndex < rows.length) {
-        currentRow.classList.remove('active-row');
-    }
-
-    currentRowIndex += 1;
-
-    // Reduce duration for the appropriate conditions
-    await reduceConditionDurations(turnEndingCharacters);
-
-    // If end of list, return to start + new round
-    if (currentRowIndex >= rows.length) {
-        currentRowIndex = 0;
-        await newRound();
-    }
-
-    // Set new class to the current row
-    const nextRow = rows[currentRowIndex];
-    nextRow.classList.add('active-row');
-}
-
-async function reduceConditionDurations(turnEndingCharacters) {
-    let activeConditions = await loadServerActiveConditions();
-
-    // Process only those conditions that have a numerical duration
-    activeConditions = activeConditions.map(condition => {
-        if (turnEndingCharacters.includes(condition.target) && condition.duration !== "-") {
-            condition.duration = Math.max(condition.duration - 1, 0);
-        }
-        return condition;
-    });
-
-    await updateServerConditions(activeConditions);
-    await renderConditionsSidebar(activeConditions);
-
-    markExpiredConditions(activeConditions);
-}
-
-// Add exclamation marks to conditions with duration === 0
-function markExpiredConditions(activeConditions) {
-    const conditionsDiv = document.querySelector('.sidebar-conditions');
-    activeConditions.forEach(condition => {
-        if (condition.duration === 0) {
-            const conditionItem = conditionsDiv.querySelector(`.condition-item[data-id="${condition.id}"]`);
-            if (conditionItem && !conditionItem.querySelector('.exclamation-mark')) {
-                const exclamationMark = document.createElement('span');
-                exclamationMark.className = 'exclamation-mark-condition';
-                exclamationMark.textContent = '❗';
-                conditionItem.querySelector('.condition-duration').after(exclamationMark);
-            }
-        }
-    });
-}
-
-async function endCombat() {
-    const abilitiesStates = await loadServerAbilitiesStates();
-    // Remove cooldown from all abilities
-    Object.keys(abilitiesStates).forEach(characterName => {
-        Object.keys(abilitiesStates[characterName]).forEach(abilityName => {
-            const abilityState = abilitiesStates[characterName][abilityName];
-            abilityState.currentCooldown = 0;
+            syncUpdateCombatant(c);
         });
+    }
+
+    // Note: Re-rendering of the initiative tracker is automatically triggered by network sync callbacks
+}
+
+// New Round logic: Advances round counter, decrements condition timers, and resets turn states
+function newRound() {
+    // Reset acted flags and handle edge-case cooldowns
+    activeCombatants.forEach(c => {
+        if (!c.isDead) {
+            // If character hasn't acted this round (e.g. skipped, or added mid-round), 
+            // reduce their cooldowns now to ensure fairness across round boundaries.
+            if (!c.hasActedThisRound && c.abilitiesStates) {
+                Object.keys(c.abilitiesStates).forEach(abilityName => {
+                    const state = c.abilitiesStates[abilityName];
+                    if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
+                        state.currentCooldown--;
+                    }
+                });
+            }
+            
+            c.hasActedThisRound = false;
+            syncUpdateCombatant(c);
+        }
     });
-    await updateServerAbilitiesStates(abilitiesStates);
 
-    const sidebar = document.getElementById('Sidebar');
-    const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
-    sidebarConditions.innerHTML = ''; // Remove conditions from HTML
-
-    removeSidebar();
-    currentCombatRound = 0;
-    await requestUpdateCurrentCombatRound(); // So that it's possible to heal from death
-    await updateServerConditions(); // Not providing activeConditions simply removes them on the server
-    await markConditionTargets(); // Remove exclamation marks
-
-    await requestUpdateActivePanel(); // This must always be at the end, period
+    decrementConditions();
 }
 
-function toggleLockSidebar() {
-    const toggleLockButton = document.getElementById('toggleLockSidebar');
+function decrementConditions() {
+    if (!activeConditions || activeConditions.length === 0) return;
+    
+    let changed = false;
+    
+    activeConditions.forEach(cond => {
+        // If duration is defined, > 0, and importantly NOT the infinite string "-", decrement it
+        if (cond.duration !== undefined && cond.duration !== null && cond.duration !== "-") {
+            let dur = parseInt(cond.duration);
+            if (!isNaN(dur) && dur > 0) {
+                cond.duration = dur - 1;
+                changed = true;
+            }
+        }
+    });
 
-    isSidebarLocked = !isSidebarLocked;
-    toggleLockButton.classList.toggle('locked', isSidebarLocked);
-    if (isSidebarLocked)
-        toggleLockButton.textContent = "🔒";
-    else if (!isSidebarLocked)
-        toggleLockButton.textContent = "🔓";
-}
+    // Remove conditions that reached 0. (Undefined/null or "-" implies infinite duration)
+    const filteredConditions = activeConditions.filter(cond => {
+        if (cond.duration === "-") return true;
+        if (cond.duration === undefined || cond.duration === null) return true;
+        let dur = parseInt(cond.duration);
+        return isNaN(dur) || dur > 0;
+    });
+    
+    if (filteredConditions.length !== activeConditions.length) {
+        changed = true;
+    }
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('Sidebar');
-    const toggleLockButton = document.getElementById('toggleLockSidebar');
-
-    if (sidebar.classList.contains('hidden') || !sidebar.classList.contains('visible')) {
-        sidebar.classList.remove('hidden');
-
-        setTimeout(function(){
-            sidebar.classList.add('visible');
-        }, 1); // To make the animation look nice
-
-        isSidebarLocked = true;
-        toggleLockButton.classList.add('locked');
-        toggleLockButton.textContent = "🔒";
-    } else {
-        removeSidebar();
+    if (changed) {
+        if (typeof updateServerConditions === 'function') updateServerConditions(filteredConditions);
     }
 }
 
-function removeSidebar() {
-    const sidebar = document.getElementById('Sidebar');
-    const toggleLockButton = document.getElementById('toggleLockSidebar');
-    const sidebarTitle = sidebar.querySelector('.sidebar-title');
-    const sidebarContent = sidebar.querySelector('.sidebar-content');
-    const sidebarConditions = sidebar.querySelector('.sidebar-conditions');
+// Render the Active Conditions Panel dynamically matching the dummy UI layout perfectly
+function renderConditions() {
+    const container = document.getElementById('conditions-list-container');
+    if (!container) return;
 
-    sidebar.classList.remove('visible');
-    setTimeout(function(){
-        sidebar.classList.add('hidden');
-    }, 300); // To make the animation look nice
-    
-    // Unlock the sidebar
-    isSidebarLocked = false; 
-    toggleLockButton.classList.remove('locked');
-    toggleLockButton.textContent = "🔓";
+    if (!activeConditions || activeConditions.length === 0) {
+        container.innerHTML = `<div style="padding: 10px; color: #6272a4; text-align: center; font-size: 0.8rem;">${t('no_conditions')}</div>`;
+        return;
+    }
 
-    // Clear title and content
-    sidebarTitle.innerHTML = '';
-    sidebarContent.innerHTML = '';
-    sidebarConditions.style.display = 'none';
+    let html = '';
+    activeConditions.forEach(cond => {
+        // Safely escape the target name in case it has quotes, for the clipboard function
+        const safeTarget = (cond.target || '').replace(/'/g, "\\'");
+
+        html += `
+            <div class="condition-block">
+                <div class="condition-header">
+                    <span class="condition-name">${cond.name || t('condition')}</span>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        ${cond.duration !== undefined && cond.duration !== null ? `<span class="condition-duration" title="${t('condition_duration')}">${cond.duration}</span>` : ''}
+                        <div class="condition-actions">
+                            <button class="condition-btn copy" title="${t('condition_copy')}" onclick="copyToClipboard('${safeTarget}', event)">©</button>
+                            <button class="condition-btn remove" title="${t('condition_remove')}" onclick="removeCondition('${cond.id}')">✖</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="condition-target-wrapper">
+                    <span>${t('target')}</span>
+                    <input type="text" class="condition-target" value="${cond.target}" readonly>
+                </div>
+                <div class="condition-desc">${cond.description}</div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
-function toggleGlobalMute() {
-    window.isAudioMuted = !window.isAudioMuted;
+// Safely removes a specific condition and syncs it back through the server
+function removeCondition(id) {
+    const filteredConditions = activeConditions.filter(cond => cond.id !== id);
+    if (typeof updateServerConditions === 'function') updateServerConditions(filteredConditions);
+}
+
+// End Combat: Automatically clear enemies and conditions, preserving heroes
+function endCombat() {
+    // End combat removes all enemies automatically
+    activeCombatants.forEach(c => {
+        if (c.team === 'enemy' && typeof syncRemoveCombatant === 'function') {
+            syncRemoveCombatant(c.id);
+        }
+    });
     
-    localStorage.setItem('CombatManager-Muted', window.isAudioMuted);
-    
-    const toggleBtn = document.getElementById('gm-mute-btn');
-    
-    if (window.isAudioMuted) {
-        if (toggleBtn) toggleBtn.textContent = "🔇";
-        if (typeof currentMusic !== 'undefined' && currentMusic) currentMusic.muted = true;
-    } else {
-        if (toggleBtn) toggleBtn.textContent = "🔊";
-        if (typeof currentMusic !== 'undefined' && currentMusic) currentMusic.muted = false;
+    // Clear all conditions from the board
+    if (typeof updateServerConditions === 'function') {
+        updateServerConditions([]);
     }
 }

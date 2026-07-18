@@ -6,48 +6,6 @@ function getHpClass(hpPercentage, isDead) {
     return 'hp-fill-high'; 
 }
 
-// Updates both the Character Sheet UI and the Token UI visually
-function updateHpBarUI(combatant) {
-    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
-    const hpClass = getHpClass(hpPercentage, combatant.isDead);
-
-    // 1. Update Token on the Arena
-    const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);
-    if (token) {
-        const tokenFill = token.querySelector('.token-hp-fill');
-        if (tokenFill) {
-            tokenFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
-            // Remove previous color classes and apply new
-            tokenFill.className = `token-hp-fill ${hpClass}`;
-        }
-
-        if (combatant.isDead) token.classList.add('dead');
-        else token.classList.remove('dead');
-    }
-
-    // 2. Update Right Panel if this character is currently selected
-    if (selectedCharacterId === combatant.id) {
-        const sheetFill = document.querySelector('.char-hp-visual-fill');
-        const sheetVisual = document.querySelector('.char-hp-visual');
-        
-        if (sheetVisual) {
-            if (combatant.isDead) sheetVisual.classList.add('dead');
-            else sheetVisual.classList.remove('dead');
-        }
-
-        if (sheetFill) {
-            sheetFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
-            sheetFill.className = `char-hp-visual-fill ${hpClass}`;
-        }
-
-        const currentHpInput = document.querySelector('.current-hp-input');
-        if (currentHpInput) currentHpInput.value = combatant.stats.hp;
-    }
-
-    // Refresh abilities panel (grey out the button if the character is dead)
-    updateActivePanel();
-}
-
 // Toggles the specific input group between Flat and Percentage mode visually
 function toggleMode(btn) {
     const isPerc = btn.classList.toggle('perc-mode');
@@ -66,16 +24,16 @@ function applyDamage(type) {
     if (!selectedCharacterId) return;
 
     const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-
     const damageInput = document.querySelector('.damage-input');
-    const damageStr = damageInput.value.trim();
-    if (!damageStr) return;
 
     // Ignore damage requests if the character is already dead, but clear the input field first
     if (!combatant || combatant.isDead) {
         if (damageInput) damageInput.value = '';
         return;
     }
+
+    const damageStr = damageInput.value.trim();
+    if (!damageStr) return;
 
     const isPercMode = damageInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
     let damage = 0;
@@ -89,37 +47,31 @@ function applyDamage(type) {
         damage = parseInt(damageStr) || 0;
     }
 
-    if (damage <= 0) return;
-
     let damageAfterArmor = damage;
 
     if (type === 'phys' || type === 'mag') {
         const armorFlat = parseInt(type === 'phys' ? combatant.stats.physArmor : combatant.stats.magArmor) || 0;
         const armorPercent = parseInt(type === 'phys' ? combatant.stats.physArmorMod : combatant.stats.magArmorMod) || 0;
 
+        damageAfterArmor = Math.ceil(damageAfterArmor - armorFlat); // substracting flat value first, then calculating percent after. Otherwise flat armor would be way too op
         damageAfterArmor *= (100 - armorPercent) / 100;
-        damageAfterArmor = Math.ceil(damageAfterArmor - armorFlat);
     }
 
     damageAfterArmor = Math.max(damageAfterArmor, 0);
 
     playSoundEffect(damageAfterArmor > 0 ? `sound/${type}_hit.mp3` : 'sound/no_dmg_hit.mp3');
 
-    // Safe boolean check for DD mechanic mapping directly from JS states
-    const hasDD = combatant.hasDeathsDoor === true || combatant.hasDeathsDoor === "true";
+    if (damage <= 0) return;
 
     // Check Death's Door before subtracting HP
-    if (hasDD && combatant.stats.hp <= 0 && damageAfterArmor > 0) {
+    if (combatant.hasDeathsDoor && combatant.stats.hp <= 0 && damageAfterArmor > 0) {
         const survived = handleDeathsDoor(combatant);
         if (!survived) {
             combatant.stats.hp = 0; // Set HP to 0 after death
             damageInput.value = ''; // Clear field after dealing damage
             
             combatant.isDead = true;
-            // running updateHpBar for players 2 times (here and in sendPlayerStats) seems a bit silly, but I can't remove it from this function. Because it must also run for non-player characters
-            updateHpBarUI(combatant); 
-
-            // if (combatant.type === "player" && typeof sendPlayerStats === 'function') sendPlayerStats(combatant);
+            syncUpdateCombatant(combatant); // Single network update broadcasts to all clients
             return; // Interrupt function, character died
         }
     }
@@ -127,21 +79,17 @@ function applyDamage(type) {
     combatant.stats.hp -= damageAfterArmor;
 
     // if the character doesn't have Death's Door, they die immediately
-    if (!hasDD && combatant.stats.hp <= 0 && damageAfterArmor > 0) {
+    if (!combatant.hasDeathsDoor && combatant.stats.hp <= 0 && damageAfterArmor > 0) {
         combatant.stats.hp = 0; // Set HP to 0 after death
         damageInput.value = ''; // Clear field after dealing damage
         
         combatant.isDead = true;
-        updateHpBarUI(combatant); 
-        
-        // if (combatant.type === "player" && typeof sendPlayerStats === 'function') sendPlayerStats(combatant);
+        syncUpdateCombatant(combatant); // Single network update broadcasts to all clients
         return;
     }
 
     damageInput.value = ''; // Clear field after dealing damage
-    updateHpBarUI(combatant); // Update health bar
-
-    // if (combatant.type === "player" && typeof sendPlayerStats === 'function') sendPlayerStats(combatant);
+    syncUpdateCombatant(combatant); // Single network update broadcasts to all clients
 }
 
 // Rolls Death's Door chance for the combatant
@@ -156,20 +104,14 @@ function handleDeathsDoor(combatant) {
     // Roll 1-100
     const rollResult = Math.floor(Math.random() * 100) + 1;
 
-    // Display roll result
-    if (selectedCharacterId === combatant.id) {
-        const lastRollDisplay = document.getElementById('last-roll-display');
-        const lastRollLabel = document.querySelector('.dice-result-label');
-        
-        if (lastRollDisplay && lastRollLabel) {
-            lastRollLabel.textContent = t("deaths_door");
-            lastRollDisplay.textContent = rollResult;
-            lastRollDisplay.style.color = rollResult >= survivalThreshold ? '#50fa7b' : '#ff5555';
-        }
-    }
+    // Save roll result directly to the combatant memory, which will be synced globally!
+    combatant.lastRoll = {
+        stat: "deaths_door",
+        result: rollResult,
+        color: rollResult >= survivalThreshold ? '#50fa7b' : '#ff5555'
+    };
 
     if (rollResult < survivalThreshold) {
-        // Character dies, health bar turns black
         return false; // Character died
     }
 
@@ -181,27 +123,33 @@ function healDamage(type) {
     if (!selectedCharacterId && type !== 'group') return;
 
     const healInput = document.querySelector('.heal-input');
-    const healValueStr = healInput.value.trim();
-    if (!healValueStr) return;
-
-    // Check if single target is already dead during combat, clear input and prevent action
-    const selectedCombatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    if (!selectedCombatant || selectedCombatant.isDead) {
-        healInput.value = '';
+    
+    // Check if caster is already dead during combat, clear input and prevent action
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant || combatant.isDead) {
+        if (healInput) healInput.value = '';
         return;
     }
+
+    const healValueStr = healInput.value.trim();
+    if (!healValueStr) return;
 
     const isPercMode = healInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
     const finalHealStr = (!healValueStr.endsWith('%') && isPercMode) ? `${healValueStr}%` : healValueStr;
 
     if (type === 'group') {
+        const referenceCombatant = activeCombatants.find(c => c.id === selectedCharacterId);
+        if (!referenceCombatant) return;
+
         // Check if the character is a hero (we rely on the JS object team parameter)
-        const team = selectedCombatant.team;
+        const team = referenceCombatant.team;
         activeCombatants.filter(c => c.team === team).forEach(member => {
+            // Internal safety check prevents dead members from healing during combat
             healOneCharacter(member, type, finalHealStr);
         });
     } else {
-        healOneCharacter(selectedCombatant, type, finalHealStr);
+        const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+        if (combatant) healOneCharacter(combatant, type, finalHealStr);
     }
 
     playSoundEffect(`sound/heal_${type}.mp3`);
@@ -210,6 +158,7 @@ function healDamage(type) {
 
 // Core function restoring HP to a single memory object
 function healOneCharacter(combatant, type, healValueStr) {
+    // Absolute prohibition of healing dead characters until a specific resurrect mechanic is added
     if (combatant.isDead) return;
 
     let healAmount = 0;
@@ -249,30 +198,24 @@ function healOneCharacter(combatant, type, healValueStr) {
     // Do not exceed maximum HP
     if (currentHp > combatant.stats.maxHp) currentHp = combatant.stats.maxHp;
 
-    // rising from the dead is only possible after combat
-    if (combatant.isDead && typeof currentCombatRound !== 'undefined' && currentCombatRound !== 0) return; 
-
     combatant.stats.hp = currentHp;
-    combatant.isDead = false;
-
-    updateHpBarUI(combatant); // Update health bar
-
-    // if (combatant.type === "player" && typeof sendPlayerStats === 'function') sendPlayerStats(combatant);
+    syncUpdateCombatant(combatant); // Single network update broadcasts to all clients
 }
 
 // Applies flat or percentage modifiers to Physical or Magical armor in real-time
 function changeArmor(type) {
     if (!selectedCharacterId) return;
 
-    const armorInput = document.querySelector('.armor-input');
-    const valueStr = armorInput.value.trim();
-    if (!valueStr) return;
-
     const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const armorInput = document.querySelector('.armor-input');
+
     if (!combatant || combatant.isDead) {
-        armorInput.value = '';
+        if (armorInput) armorInput.value = '';
         return;
     }
+
+    const valueStr = armorInput.value.trim();
+    if (!valueStr) return;
 
     const isPercMode = armorInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
     const isPercentage = valueStr.endsWith('%') || isPercMode;
@@ -309,16 +252,5 @@ function changeArmor(type) {
     playSoundEffect(isAdding ? `sound/${type}_armor_up.mp3` : `sound/${type}_armor_down.mp3`, 0.5);
 
     armorInput.value = ''; // Clear field after armor change
-
-    if (selectedCharacterId === combatant.id) {
-        if (type === 'phys') {
-            document.querySelector('.base-phys-armor').value = combatant.stats.physArmor;
-            document.querySelector('.base-phys-armor-mod').value = combatant.stats.physArmorMod;
-        } else {
-            document.querySelector('.base-mag-armor').value = combatant.stats.magArmor;
-            document.querySelector('.base-mag-armor-mod').value = combatant.stats.magArmorMod;
-        }
-    }
-
-    // if (combatant.type === "player" && typeof sendPlayerStats === 'function') sendPlayerStats(combatant);
+    syncUpdateCombatant(combatant); // Single network update broadcasts to all clients
 }

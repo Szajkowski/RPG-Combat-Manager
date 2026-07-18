@@ -26,7 +26,8 @@
         <div class="initiative-tracker">
             </div>
         <div class="top-controls">
-            <button class="accent-btn" onclick="newRound()" data-i18n="btn_new_round"></button>
+            <button class="accent-btn" onclick="nextTurn()" data-i18n="btn_next_turn"></button>
+            <button onclick="newRound()" data-i18n="btn_next_round"></button>
             <button onclick="endCombat()" data-i18n="btn_end_combat"></button>
             <div class="top-bar-divider"></div>
             <button id="gm-mute-btn" class="circle-btn" title="Wycisz UI" onclick="toggleGlobalMute()">🔊</button>
@@ -37,13 +38,15 @@
     <div class="main-workspace">
         
         <div class="left-panel">
-            <div class="panel-header" data-i18n="active_conditions"></div>
-            <div class="conditions-list">
-                </div>
+            <div class="panel-header">
+                <span data-i18n="active_conditions"></span>
+            </div>
+            <div class="conditions-list" id="conditions-list-container">
+            </div>
             
             <div class="panel-header" style="border-top: 2px solid #36394d;" data-i18n="music_list"></div>
             <div class="music-list">
-                </div>
+            </div>
         </div>
 
         <div class="arena">

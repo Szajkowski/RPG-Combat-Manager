@@ -14,10 +14,18 @@ const i18n = {
         'value': 'wartość',
         'value_flat': 'Wartość: stała',
         'value_perc': 'Wartość: procentowa',
+        'condition_copy': 'Kopiuj cel',
+        'condition_remove': 'Usuń stan',
+        'condition_duration': 'Pozostały czas trwania',
 
         // --- TOP BAR ---
-        'btn_new_round': 'Nowa tura (N)',
+        'btn_next_turn': 'Następna tura (T)',
+        'btn_next_round': 'Następna runda (R)',
         'btn_end_combat': 'Zakończ walkę (Z)',
+        'condition': 'Stan',
+        'round_short': 't',
+        'no_conditions': 'Brak aktywnych stanów',
+        'confirm_end_combat': 'Zakończyć walkę i usunąć wszystkie postacie oraz stany?',
         
         // --- DODAWANIE POSTACI ---
         'add_mob': '+ Dodaj moba',
@@ -81,6 +89,7 @@ const i18n = {
         'phys_armor_caps': 'Panc. FIZYCZNY',
         'mag_armor_caps': 'Panc. MAGICZNY',
         'deaths_door': "Wrota śmierci",
+        'roll': "RZUT",
 
         'dmg_type_phys': 'Fizyczne',
         'dmg_type_phys_short': 'FIZ',
@@ -104,15 +113,20 @@ const i18n = {
         'armor_value_base': 'Wartość podstawowa',
         'armor_value_percent': 'Wartość procentowa',
 
+        // Pasek funkcyjny
+        'remove_character': 'Usuń postać',
+        'reload_character': 'Przeładuj postać',
+        'toggle_stun': 'Przełącz ogłuszenie',
+
         // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
         'tab_skills': 'Umiejętności',
         'tab_equip': 'Ekwipunek',
         'unavailable': 'Niedostępne',
         'available': 'Dostępne',
-        'roll': 'Rzut:',
-        'difficulty': 'Trudność:',
-        'cooldown': 'Czas oczekiwania:',
-        'success_chance': 'Szansa na powodzenie:',
+        'ability_roll': 'Rzut:',
+        'ability_difficulty': 'Trudność:',
+        'ability_cooldown': 'Czas oczekiwania:',
+        'ability_success_chance': 'Szansa na powodzenie:',
         'gear': 'Oporządzenie',
         'other_items': 'Inne przedmioty',
         'quantity': 'Ilość:',
@@ -128,13 +142,13 @@ const i18n = {
         'copy_error': 'Błąd kopiowania!',
         'paste_error': 'Błąd wklejania z domyślnego schowka!',
         'no_stats_error': 'Brak wymaganych pól statystyki!',
-        'invalid_url': 'Brak poprawnych graczy w URL!'
+        'invalid_url': 'Brak poprawnych graczy w URL!',
+        'connection_error': 'Błąd połączenia (zapewne serwer nie jest włączony)',
     },
     'EN': {
         // --- INTERFEJS / UI ---
         'active_conditions': 'Active Conditions',
         'music_list': 'Music List',
-        'turn_order_title': 'Turn order: [round',
         'round': 'round',
         'conditions': 'Conditions',
         'unknown_character': 'Unknown character',
@@ -143,10 +157,19 @@ const i18n = {
         'value': 'value',
         'value_flat': 'Value: flat',
         'value_perc': 'Value: percentage',
+        'condition_copy': 'Copy target',
+        'condition_remove': 'Remove condition',
+        'condition_duration': 'Remaining duration',
+
 
         // --- TOP BAR ---
-        'btn_new_round': 'New round (N)',
+        'btn_next_turn': 'Next turn (T)',
+        'btn_next_round': 'Next round (R)',
         'btn_end_combat': 'End combat (Z)',
+        'condition': 'Condition',
+        'round_short': 't',
+        'no_conditions': 'No active conditions',
+        'confirm_end_combat': 'End combat and remove all characters and conditions?',
         
         // --- DODAWANIE POSTACI ---
         'add_mob': '+ Add mob',
@@ -210,6 +233,7 @@ const i18n = {
         'phys_armor_caps': 'PHYS Armor',
         'mag_armor_caps': 'MAG Armor',
         'deaths_door': "Death's door",
+        'roll': "ROLL",
 
         'dmg_type_phys': 'Physical',
         'dmg_type_phys_short': 'PHYS',
@@ -233,15 +257,20 @@ const i18n = {
         'armor_value_base': 'Base value',
         'armor_value_percent': 'Percent value',
 
+        // Pasek funkcyjny
+        'remove_character': 'Delete character',
+        'reload_character': 'Reload character',
+        'toggle_stun': 'Toggle stun',
+
         // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
         'tab_skills': 'Skills',
         'tab_equip': 'Equipment',
         'unavailable': 'Unavailable',
         'available': 'Available',
-        'roll': 'Roll:',
-        'difficulty': 'Difficulty:',
-        'cooldown': 'Cooldown:',
-        'success_chance': 'Success chance:',
+        'ability_roll': 'Roll:',
+        'ability_difficulty': 'Difficulty:',
+        'ability_cooldown': 'Cooldown:',
+        'ability_success_chance': 'Success chance:',
         'gear': 'Gear',
         'other_items': 'Other items',
         'quantity': 'Quantity:',
@@ -257,7 +286,8 @@ const i18n = {
         'copy_error': 'Copy error!',
         'paste_error': 'Paste error from clipboard!',
         'no_stats_error': 'Required stat fields missing!',
-        'invalid_url': 'No valid players in URL!'
+        'invalid_url': 'No valid players in URL!',
+        'connection_error': 'Connection error (it probably means server is down)',  
     }
 };
 
