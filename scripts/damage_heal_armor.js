@@ -55,7 +55,8 @@ function applyDamage(type) {
         damageAfterArmor *= (100 - armorPercent) / 100;
     }
 
-    damageAfterArmor = Math.max(damageAfterArmor, 0);
+    // Ensure final damage calculation results in a clean integer to prevent fractions in HP
+    damageAfterArmor = Math.max(Math.round(damageAfterArmor), 0);
 
     playSoundEffect(damageAfterArmor > 0 ? `sound/${type}_hit.mp3` : 'sound/no_dmg_hit.mp3');
 
@@ -74,7 +75,7 @@ function applyDamage(type) {
         }
     }
 
-    combatant.stats.hp -= damageAfterArmor;
+    combatant.stats.hp = Math.round(combatant.stats.hp - damageAfterArmor);
 
     // if the character doesn't have Death's Door, they die immediately
     if (!combatant.hasDeathsDoor && combatant.stats.hp <= 0 && damageAfterArmor > 0) {

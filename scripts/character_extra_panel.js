@@ -492,16 +492,17 @@ function parseFormulaTags(description, combatant, rollDifficulty) {
                     const { min, max, formulaData } = resultData;
                     
                     let formulaText = '';
-                    const translatedStat = t(formulaData.stat).toLowerCase();
+                    // Fetch appropriate grammatical cases for placeholders
+                    const translatedRollStat = t('roll_' + formulaData.stat); 
                     const translatedDescStat = t('desc_' + formulaData.stat);
                     
                     const prefix = formulaData.hasBase ? `${formulaData.baseConst} ${formulaData.baseOp} ` : '';
                     
-                    // Format output syntax template linearly using localized translations
+                    // Format output syntax template linearly using localized translations and placeholders
                     if (formulaData.type === 'roll') {
-                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ${t('result_for')} ${translatedStat}`;
+                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ` + t('result_for').replace('{stat}', translatedRollStat);
                     } else {
-                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ${t('margin_of')} ${translatedDescStat}`;
+                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ` + t('margin_of').replace('{stat}', translatedDescStat);
                     }
 
                     return `<strong class="copyable-value" onclick="copyValue(${min}, event)">${min}</strong> - <strong class="copyable-value" onclick="copyValue(${max}, event)">${max}</strong> <span class="formula-display">(${formulaText})</span>`;

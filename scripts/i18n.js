@@ -52,15 +52,15 @@ const i18n = {
         'last_roll': 'Ostatni Rzut',
         
         // --- STATYSTYKI (RZUTY) ---
-        'vitality': 'Żywotność',
-        'intuition': 'Intuicja',
-        'strength': 'Siła',
-        'agility': 'Zwinność',
-        'attunement': 'Dostrojenie',
-        'perception': 'Percepcja',
-        'accuracy': 'Celność',
-        'reflex': 'Refleks',
-        'resilience': 'Nieustępliwość',
+        'vitality': 'żywotność',
+        'intuition': 'intuicja',
+        'strength': 'siła',
+        'agility': 'zwinność',
+        'attunement': 'dostrojenie',
+        'perception': 'percepcja',
+        'accuracy': 'celność',
+        'reflex': 'refleks',
+        'resilience': 'nieustępliwość',
         'mod': 'mod',
 
         // Zmiany gramatyczne do opisów umiejętności
@@ -78,8 +78,21 @@ const i18n = {
         'desc_phys_armor': 'pancerza fizycznego',
         'desc_mag_armor': 'pancerza magicznego',
         'desc_mod': 'mod',
-        'result_for': 'wynik na',
-        'margin_of': 'margines',
+
+        // Zmiany gramatyczne dla modyfikatora "rzut na..." (biernik)
+        'roll_hp': 'zdrowie',
+        'roll_vitality': 'żywotność',
+        'roll_intuition': 'intuicję',
+        'roll_strength': 'siłę',
+        'roll_agility': 'zwinność',
+        'roll_attunement': 'dostrojenie',
+        'roll_perception': 'percepcję',
+        'roll_accuracy': 'celność',
+        'roll_reflex': 'refleks',
+        'roll_resilience': 'nieustępliwość',
+
+        'result_for': 'rzut na {stat}',
+        'margin_of': 'przewaga {stat}',
         'to_result': 'do wyniku {stat}',
 
         // --- WALKA I OBRAŻENIA ---
@@ -207,18 +220,16 @@ const i18n = {
         'last_roll': 'Last Roll',
         
         // --- STATYSTYKI (RZUTY) ---
-        'vitality': 'Vitality',
-        'intuition': 'Intuition',
-        'strength': 'Strength',
-        'agility': 'Agility',
-        'attunement': 'Attunement',
-        'perception': 'Perception',
-        'accuracy': 'Accuracy',
-        'reflex': 'Reflex',
-        'resilience': 'Resilience',
+        'vitality': 'vitality',
+        'intuition': 'intuition',
+        'strength': 'strength',
+        'agility': 'agility',
+        'attunement': 'attunement',
+        'perception': 'perception',
+        'accuracy': 'accuracy',
+        'reflex': 'reflex',
+        'resilience': 'resilience',
         'mod': 'mod',
-        'result_for': 'result for',
-        'margin_of': 'margin of',
 
         // Zmiany gramatyczne (w j.ang. w zasadzie podstawowe słowa)
         'desc_hp': 'HP',
@@ -235,6 +246,21 @@ const i18n = {
         'desc_phys_armor': 'physical armor',
         'desc_mag_armor': 'magical armor',
         'desc_mod': 'mod',
+
+        // Fallbacks for "roll_..." keys in English (identical to base stats)
+        'roll_hp': 'HP',
+        'roll_vitality': 'vitality',
+        'roll_intuition': 'intuition',
+        'roll_strength': 'strength',
+        'roll_agility': 'agility',
+        'roll_attunement': 'attunement',
+        'roll_perception': 'perception',
+        'roll_accuracy': 'accuracy',
+        'roll_reflex': 'reflex',
+        'roll_resilience': 'resilience',
+
+        'result_for': '{stat} roll',
+        'margin_of': '{stat} success margin',
         'to_result': 'to {stat} result',
 
         // --- WALKA I OBRAŻENIA ---
