@@ -1,4 +1,4 @@
-const mobs = {
+var mobs = {
     "Ziemisty": {
         name: "Ziemisty",
         hp: 40,
@@ -132,8 +132,8 @@ const mobs = {
         physArmor: 5,
         magArmor: 0,
         abilities: [
-            spell["Regeneracja"],
-            spell["Lodowe wiertło"],
+            ability["Regeneracja"],
+            ability["Lodowe wiertło"],
         ],
         equipment: [
             {
@@ -249,10 +249,10 @@ const mobs = {
         physArmor: 0,
         magArmor: 0,
         abilities: [
-            spell["Mniejsze rozpalenie"],
-            spell["Płomień ochronny"],
-            spell["Mniejsze podpalenie"],
-            spell["Mały smok"],
+            ability["Mniejsze rozpalenie"],
+            ability["Płomień ochronny"],
+            ability["Mniejsze podpalenie"],
+            ability["Mały smok"],
         ],
         equipment: [
             {
@@ -278,7 +278,7 @@ const mobs = {
         physArmor: 5,
         magArmor: 5,
         abilities: [
-            spell["Ściana ognia"],
+            ability["Ściana ognia"],
             {
                 name: "Podpalenie młota",
                 description: "Rozpala trzymany młot aktywując jego mechanizm. Obrażenia młota stają się magiczne oraz zwiększają się o 50%",

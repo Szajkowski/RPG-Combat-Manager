@@ -6,3 +6,5 @@ server.cert
 server.key
 /sound
 /music
+zrób monolit.ps1
+monolit.js

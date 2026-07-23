@@ -1,11 +1,3 @@
-// Helper function to return dynamic HP class based on percentage
-function getHpClass(hpPercentage, isDead) {
-    if (isDead) return 'hp-fill-dead'; 
-    if (hpPercentage <= 25) return 'hp-fill-low'; 
-    if (hpPercentage <= 50) return 'hp-fill-medium'; 
-    return 'hp-fill-high'; 
-}
-
 // Toggles the specific input group between Flat and Percentage mode visually
 function toggleMode(btn) {
     const isPerc = btn.classList.toggle('perc-mode');
@@ -34,6 +26,12 @@ function applyDamage(type) {
 
     const damageStr = damageInput.value.trim();
     if (!damageStr) return;
+
+    // Reject negative or zero damage directly to prevent healing via damage
+    if (parseInt(damageStr) <= 0) {
+        damageInput.value = '';
+        return;
+    }
 
     const isPercMode = damageInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
     let damage = 0;
@@ -134,6 +132,12 @@ function healDamage(type) {
     const healValueStr = healInput.value.trim();
     if (!healValueStr) return;
 
+    // Reject negative or zero heals directly to prevent dealing damage via healing
+    if (parseInt(healValueStr) <= 0) {
+        healInput.value = '';
+        return;
+    }
+
     const isPercMode = healInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
     const finalHealStr = (!healValueStr.endsWith('%') && isPercMode) ? `${healValueStr}%` : healValueStr;
 
@@ -224,26 +228,33 @@ function changeArmor(type) {
     if (isNaN(parsedValue)) return;
     
     const isAdding = parsedValue > 0;
-    const absValue = Math.abs(parsedValue);
 
+    // Apply changes linearly for flat, and exponentially/multiplicatively for percentage states
     if (isPercentage) { 
-        // Handle percentage value
+        // Handle percentage value using the exact damage multiplier logic from applyGearBonuses
         let currentPercent = parseInt(type === 'phys' ? combatant.stats.physArmorMod : combatant.stats.magArmorMod) || 0;
         
-        if (isAdding) {
-            currentPercent = currentPercent + Math.floor((100 - currentPercent) * (absValue / 100));
-        } else {
-            currentPercent = currentPercent - absValue;
-        }
+        // Convert the current UI percentage string back into a structural damage multiplier
+        let damageMult = 1 - (currentPercent / 100);
 
-        if (type === 'phys') combatant.stats.physArmorMod = currentPercent ? `${currentPercent}%` : '';
-        else combatant.stats.magArmorMod = currentPercent ? `${currentPercent}%` : '';
+        // Apply dynamic shift matching the compound logic from calculateAdditionalStatsBonuses
+        const factor = parsedValue > 0 ? (1 - parsedValue / 100) : (1 + Math.abs(parsedValue) / 100);
+        damageMult *= factor;
 
-    } else { 
-        // Handle flat value
+        // Translate the newly compiled damage multiplier back into an aggregate final armor percentage
+        let finalPercent = Math.round((1 - damageMult) * 100);
+
+        // Apply an upper boundary boundary cap of 100% to percentage armor mitigation values
+        if (finalPercent > 100) finalPercent = 100;
+
+        if (type === 'phys') combatant.stats.physArmorMod = finalPercent ? `${finalPercent}%` : '';
+        else combatant.stats.magArmorMod = finalPercent ? `${finalPercent}%` : '';
+
+    } else {
+        // Handle flat value (remains fully linear and unconstrained)
         let currentFlat = parseInt(type === 'phys' ? combatant.stats.physArmor : combatant.stats.magArmor) || 0;
         
-        currentFlat = isAdding ? currentFlat + absValue : Math.max(currentFlat - absValue, 0);
+        currentFlat += parsedValue;
 
         if (type === 'phys') combatant.stats.physArmor = currentFlat;
         else combatant.stats.magArmor = currentFlat;

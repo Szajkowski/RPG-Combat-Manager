@@ -1,10 +1,10 @@
-const npcs = {
+var npcs = {
     "Nadia Cardigan": {
         hasDeathsDoor: true,
         name: "Nadia Cardigan",
         lvl: 4,
-        hp: 150,
-        maxHp: 150,
+        hp: 160,
+        maxHp: 160,
         vitality: 15,
         intuition: 10,
         strength: 10,
@@ -15,15 +15,15 @@ const npcs = {
         reflex: 11,
         resilience: 10,
         damage: 10,
-        physArmor: 0,
+        physArmor: 421,
         magArmor: 0,
         abilities: [
-            spell["Tnące łuki"],
-            spell["Leczniczy podmuch"],
-            spell["Odepchnięcie"],
-            spell["Trąba"],
-            spell["Wir pięści"],
-            spell["Hen w górę"],
+            ability["Tnące łuki"],
+            ability["Leczniczy podmuch"],
+            ability["Odepchnięcie"],
+            ability["Trąba"],
+            ability["Wir pięści"],
+            ability["Hen w górę"],
         ],
         equipment: [
             {
@@ -76,11 +76,11 @@ const npcs = {
                 name: "Lodowi towarzysze",
                 description: "Pasywne. Raza zawsze ma przy sobie dwa latające lodowe miecze.",
             },
-            spell["Lodowy miecz"],
-            spell["Lodowy arsenał"],
-            spell["Lodowe przytłoczenie"],
-            spell["Miecze: Atak!"],
-            spell["Miecze: Naostrzenie!"],
+            ability["Lodowy miecz"],
+            ability["Lodowy arsenał"],
+            ability["Lodowe przytłoczenie"],
+            ability["Miecze: Atak!"],
+            ability["Miecze: Naostrzenie!"],
         ],
         equipment: [
             {

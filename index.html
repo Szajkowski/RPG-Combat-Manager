@@ -2,50 +2,78 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Mistrza Gry</title>
+    <title>Widok Mistrza Gry</title>
     <link rel="stylesheet" href="styles/style_gm.css">
 
-    <script src="scripts/gm_start.js"></script>
-    <script src="scripts/gm_menu.js"></script>
-    <script src="scripts/creating_character_sheet.js"></script>
-    <script src="scripts/damage_and_armor.js"></script>
-    <script src="scripts/abilities_and_equipment.js"></script>
-    <script src="scripts/misc_character_functions.js"></script>
-    <script src="scripts/internationalization.js"></script>
-    <script src="scripts/network.js"></script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-    <script src="data/spells.js"></script>
+    <script id="abilities-data" src="data/abilities.js"></script>
     <script id="players-data" src="data/players.js"></script>
-    <script src="data/mobs.js"></script>
-    <script src="data/npcs.js"></script>
-    <script src="data/bosses.js"></script>
+    <script id="mobs-data" src="data/mobs.js"></script>
+    <script id="npcs-data" src="data/npcs.js"></script>
+    <script id="bosses-data" src="data/bosses.js"></script>
+    
+    <script src="scripts/i18n.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/audio.js"></script>
+    <script src="scripts/network.js"></script>
+    
+    <script src="scripts/arena.js"></script>
+    <script src="scripts/character_main_panel.js"></script>
+    <script src="scripts/character_extra_panel.js"></script>
+    <script src="scripts/conditions.js"></script>
+    <script src="scripts/damage_heal_armor.js"></script>
+    <script src="scripts/functional_column.js"></script>
+    <script src="scripts/initiative_tracker.js"></script>
+    
+    <script src="scripts/gm_start.js"></script>
 </head>
 <body>
 
     <div class="top-bar">
-        <div class="initiative-tracker">
+        <div class="initiative-tracker"></div>
+        <div class="top-controls-wrapper">
+            <div class="top-controls">
+                <button class="icon-btn" onclick="nextTurn()" data-i18n-title="btn_next_turn">››</button>
+                <button class="icon-btn" onclick="newRound()" data-i18n-title="btn_next_round">›››</button>
+                <button class="icon-btn accent-btn" onclick="endCombat()" data-i18n="btn_end_combat" data-i18n-title="btn_end_combat"></button>
+
+                <div class="top-bar-divider"></div>
+                
+                <button id="mute-btn" class="circle-btn" data-i18n-title="title_mute_ui" onclick="toggleGlobalMute()">🔊</button>
+                <button id="lang-btn" class="circle-btn" data-i18n-title="title_change_language" onclick="toggleLanguage()">🇵🇱</button>
             </div>
-        <div class="top-controls">
-            <button class="accent-btn" onclick="nextTurn()" data-i18n="btn_next_turn"></button>
-            <button onclick="newRound()" data-i18n="btn_next_round"></button>
-            <button onclick="endCombat()" data-i18n="btn_end_combat"></button>
-            <div class="top-bar-divider"></div>
-            <button id="gm-mute-btn" class="circle-btn" title="Wycisz UI" onclick="toggleGlobalMute()">🔊</button>
-            <button id="gm-lang-btn" class="circle-btn" title="Zmień Język" onclick="toggleLanguage()">🇵🇱</button>
         </div>
     </div>
 
     <div class="main-workspace">
         
         <div class="left-panel">
+            <div class="panel-header" data-i18n="gm_dice"></div>
+            <div class="gm-dice-widget">
+                <div class="dice-input-box">
+                    <span class="dice-prefix" data-i18n="dice_short"></span>
+                    <input type="number" id="gm-dice-input" value="20" min="2" max="1000" data-i18n-title="title_dice_size">
+                    <button class="dice-roll-btn" onclick="rollGmDice()" data-i18n="roll"></button>
+                </div>
+                <div class="dice-result-shield">
+                    <span id="gm-dice-result">-</span>
+                </div>
+            </div>
+
             <div class="panel-header">
                 <span data-i18n="active_conditions"></span>
             </div>
             <div class="conditions-list" id="conditions-list-container">
             </div>
             
-            <div class="panel-header" style="border-top: 2px solid #36394d;" data-i18n="music_list"></div>
-            <div class="music-list">
+            <div class="music-section">
+                <div class="panel-header">
+                    <span data-i18n="music_list"></span>
+                    <span class="header-hint" data-i18n="hover_to_expand"></span>
+                </div>
+                <div class="music-list">
+                </div>
             </div>
         </div>
 

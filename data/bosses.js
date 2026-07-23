@@ -1,4 +1,4 @@
-const bosses = {
+var bosses = {
     "Najświętszy Edeus": {
         name: "Najświętszy Edeus",
         hp: 2000,
@@ -23,8 +23,8 @@ const bosses = {
                 difficulty: 1,
                 cooldown: "[cooldown_once]"
             },
-            spell["Feniks"],
-            spell["Narastający żar zagłady"],
+            ability["Feniks"],
+            ability["Narastający żar zagłady"],
         ]
     },
     "Astronytowy Niszczyciel": {

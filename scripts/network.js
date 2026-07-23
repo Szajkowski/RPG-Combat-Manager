@@ -56,7 +56,11 @@ function connectSocket() {
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 if (typeof renderConditions === 'function') renderConditions();
 
-                // CRITICAL CHORE: Load initial characters from config.ini ONLY if the server responded with an empty list
+                // Initialize empty states properly
+                if (typeof checkArenaEmptyStates === 'function') checkArenaEmptyStates();
+                if (!selectedCharacterId && typeof checkCharMainPanelEmptyState === 'function') checkCharMainPanelEmptyState();
+
+                // Load initial characters from config.ini ONLY if the server responded with an empty list
                 if (activeCombatants.length === 0 && clientName === "GM" && typeof loadInitialConfigCharacters === 'function') {
                     loadInitialConfigCharacters();
                 }
@@ -76,10 +80,7 @@ function connectSocket() {
                 const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
                 if (index !== -1) {
                     activeCombatants[index] = data.combatant;
-                    
-                    if (typeof refreshCombatantDisplay === 'function') {
-                        refreshCombatantDisplay(activeCombatants[index], data.senderId);
-                    }
+                    refreshCombatantDisplay(activeCombatants[index]);
                     if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 }
                 break;
@@ -94,17 +95,15 @@ function connectSocket() {
                 const token = document.querySelector(`.character-token[data-id="${data.id}"]`);
                 if (token) token.remove();
                 
+                // Reset selection if the deleted character was the one currently viewed
                 if (selectedCharacterId === data.id) {
                     selectedCharacterId = null;
-                    const charSheet = document.getElementById('panel-char-sheet');
-                    if (charSheet) charSheet.innerHTML = '';
-                    const charFunctional = document.getElementById('panel-char-functional');
-                    if (charFunctional) charFunctional.innerHTML = '';
-                    const extraPanel = document.getElementById('panel-extra');
-                    if (extraPanel) extraPanel.innerHTML = '';
                 }
 
+                // Trigger reactive checks for empty states across the layout
+                if (typeof checkCharMainPanelEmptyState === 'function') checkCharMainPanelEmptyState();
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                if (typeof checkArenaEmptyStates === 'function') checkArenaEmptyStates();
                 break;
             }
 
@@ -172,9 +171,7 @@ function syncRemoveCombatant(id) {
 
 // Master UI Updater: Updates Token, Right Panel, and Extra Panel in real-time
 // Differentiates between the sender client and external network clients for text field focus updates
-function refreshCombatantDisplay(combatant, senderId = null) {
-    const isSender = senderId !== null && senderId === myClientId;
-
+function refreshCombatantDisplay(combatant) {
     // 1. Update Token on the Arena
     const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);
     if (token) {
@@ -212,7 +209,7 @@ function refreshCombatantDisplay(combatant, senderId = null) {
             sheetFill.className = `char-hp-visual-fill ${hpClass}`;
         }
 
-        // Precise update helper based on whether the local client initiated the request or not
+        // A little update helper
         const safeUpdateInput = (selector, value) => {
             const input = document.querySelector(selector);
             if (!input) return;
@@ -226,7 +223,7 @@ function refreshCombatantDisplay(combatant, senderId = null) {
         // Core Stats
         const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
         allStats.forEach(stat => {
-            safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || 0);
+            safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || '');
             safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.stats[`${stat}Mod`] || '');
         });
 
@@ -255,27 +252,13 @@ function refreshCombatantDisplay(combatant, senderId = null) {
 
         // 3. Completely re-render Extra Panel to recalculate formulas and success rates in real-time
         renderExtraPanel(combatant.id);
+
+        // 4. Dynamic rebuild of the functional column (ensures Resurrect button appears instantly)
+        const charFunctional = document.getElementById('panel-char-functional');
+        if (charFunctional) {
+            charFunctional.innerHTML = generateFunctionalColumn(combatant);
+        }
     }
-}
-
-// --- CONDITION PROMISES (Kept for compatibility) ---
-function loadServerActiveConditions() {
-    return new Promise((resolve, reject) => {
-        const requestId = Date.now();
-        pendingPromises[requestId] = resolve;
-
-        socket.send(JSON.stringify({
-            type: "REQUESTgetConditions",
-            requestId
-        }));
-
-        setTimeout(() => {
-            if (pendingPromises[requestId]) {
-                delete pendingPromises[requestId];
-                reject(new Error("Server did not respond in time."));
-            }
-        }, 5000); // 5 seconds timeout
-    });
 }
 
 function sendCondition(target, name, description, duration) {

@@ -1,4 +1,4 @@
-players = {
+var players = {
     "Elias Shlongue": {
         hasDeathsDoor: true,
         lvl: 4,
@@ -18,11 +18,11 @@ players = {
         physArmor: 0,
         magArmor: 0,
         abilities: [
-            spell["Kula ognia"],
-            spell["Ognisty sabotaż"],
-            spell["Płomień ochronny"],
-            spell["Oślepiający rozbłysk"],
-            spell["Pętla ognia"],
+            ability["Kula ognia"],
+            ability["Ognisty sabotaż"],
+            ability["Płomień ochronny"],
+            ability["Oślepiający rozbłysk"],
+            ability["Pętla ognia"],
         ],
         equipment: [
             {
@@ -80,10 +80,10 @@ players = {
         physArmor: 0,
         magArmor: 0,
         abilities: [
-            spell["Regeneracja"],
-            spell["Wodny bicz"],
-            spell["Oczyszczenie"],
-            spell["Pazur oceanu"],
+            ability["Regeneracja"],
+            ability["Wodny bicz"],
+            ability["Oczyszczenie"],
+            ability["Pazur oceanu"],
         ],
         equipment: [
             {
@@ -141,13 +141,13 @@ players = {
         physArmor: 0,
         magArmor: 0,
         abilities: [
-            spell["Kamienny chwyt"],
-            spell["Pomoc ziemi"],
-            spell["Kamienna pięść"],
-            spell["Ziemiolokacja"],
-            spell["Sztuka rozłupywania"],
-            spell["Skalne włócznie"],
-            spell["Bagnista powierzchnia"]
+            ability["Kamienny chwyt"],
+            ability["Pomoc ziemi"],
+            ability["Kamienna pięść"],
+            ability["Ziemiolokacja"],
+            ability["Sztuka rozłupywania"],
+            ability["Skalne włócznie"],
+            ability["Bagnista powierzchnia"]
         ],
         equipment: [
             {
@@ -199,11 +199,16 @@ players = {
         damage: 30,
         physArmor: 4,
         magArmor: 4,
+        abilities: [
+            ability["Test1"],
+            ability["Test2"],
+            ability["Test3"],
+        ],
         equipment: [
             {
                 type: "gear",
                 name: "Ostateczny Item Testowy",
-                description: "[prop_unavoidable] Zmienia statystyki tak: [+2 strength], [-2 reflex], [+3 intuition mod], [-1 agility mod] oraz [+50 hp].",
+                description: "[prop_unavoidable] Zmienia statystyki tak: [+2 strength], [-2 reflex], [-3 intuition mod], [+1 agility mod] oraz [+50 hp].",
                 damage: "[2 * strength]",
                 physArmor: "[0.5 * vitality]",
                 physArmorPerc: 20,

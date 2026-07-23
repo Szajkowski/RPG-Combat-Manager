@@ -3,15 +3,23 @@ function renderInitiativeTracker() {
     const tracker = document.querySelector('.initiative-tracker');
     if (!tracker) return;
 
-    if (activeCombatants.length === 0) {
-        tracker.innerHTML = '';
+    // Filter alive combatants who have an explicitly defined, non-empty reflex stat
+    const validCombatants = activeCombatants.filter(c => 
+        !c.isDead && 
+        c.stats.reflex !== undefined && 
+        c.stats.reflex !== null && 
+        c.stats.reflex !== ''
+    );
+
+    // Render placeholder if there are no combatants with valid initiative stats
+    if (validCombatants.length === 0) {
+        tracker.innerHTML = `<div style="color: #6272a4; margin: auto;" data-i18n="placeholder_no_initiative">${t('placeholder_no_initiative')}</div>`;
         return;
     }
 
     // Group by reflex
     const groups = {};
-    activeCombatants.forEach(c => {
-        if (c.isDead) return; // Skip dead characters from turn order
+    validCombatants.forEach(c => {
         const ref = parseInt(c.stats.reflex) || 0;
         if (!groups[ref]) groups[ref] = [];
         groups[ref].push(c);
@@ -67,13 +75,14 @@ function renderInitiativeTracker() {
 }
 
 // Next Turn logic: marks current active group as acted, REDUCES COOLDOWNS, and checks for round end
-function nextTurn() {
+function nextTurn(isSilent = false) {
     if (activeCombatants.length === 0) return;
 
-    // Group by reflex to find the currently active ones
+    // Group by reflex to find the currently active ones (skipping characters without a defined reflex stat)
     const groups = {};
     activeCombatants.forEach(c => {
         if (c.isDead) return;
+        if (c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
         const ref = parseInt(c.stats.reflex) || 0;
         if (!groups[ref]) groups[ref] = [];
         groups[ref].push(c);
@@ -104,9 +113,21 @@ function nextTurn() {
                         }
                     });
                 }
+                
+                // Decrement explicitly targeted conditions for this combatant
+                if (typeof decrementConditions === 'function') {
+                    decrementConditions(cond => cond.target === c.uniqueName);
+                }
+
+                // Explicitly mark as acted so the round transition tracker evaluates remaining turns accurately
+                c.hasActedThisRound = true;
             });
         }
-        newRound(); // Automatically triggers new round and syncs everything
+
+        // Only call newRound if we are not already processing a round transition fast-forward
+        if (!isProcessingRoundTransition) {
+            newRound();
+        }
         return;
     }
 
@@ -125,121 +146,80 @@ function nextTurn() {
                 });
             }
 
-            syncUpdateCombatant(c);
+            // Decrement explicitly targeted conditions for this combatant
+            if (typeof decrementConditions === 'function') {
+                decrementConditions(cond => cond.target === c.uniqueName);
+            }
+
+            // Suppress individual network api updates during rapid programmatic fast-forwards
+            if (!isSilent) {
+                syncUpdateCombatant(c);
+            }
         });
     }
-
-    // Note: Re-rendering of the initiative tracker is automatically triggered by network sync callbacks
 }
 
 // New Round logic: Advances round counter, decrements condition timers, and resets turn states
 function newRound() {
+    // Set the transition lock flag to prevent nextTurn from recursively triggering newRound
+    isProcessingRoundTransition = true;
+
+    // Check if there are any alive combatants with a valid reflex stat who haven't acted yet this round
+    let hasNotActed = activeCombatants.some(c => 
+        !c.isDead && 
+        c.stats.reflex !== undefined && 
+        c.stats.reflex !== null && 
+        c.stats.reflex !== '' && 
+        !c.hasActedThisRound
+    );
+    
+    // Programmatically fast-forward outstanding turns silently without spamming network endpoints
+    while (hasNotActed) {
+        nextTurn(true);
+        hasNotActed = activeCombatants.some(c => 
+            !c.isDead && 
+            c.stats.reflex !== undefined && 
+            c.stats.reflex !== null && 
+            c.stats.reflex !== '' && 
+            !c.hasActedThisRound
+        );
+    }
+
+    // --- CLEANUP AND ROUND RESET (Executed only when everyone on the board has completed their turn) ---
     // Reset acted flags and handle edge-case cooldowns
     activeCombatants.forEach(c => {
         if (!c.isDead) {
-            // If character hasn't acted this round (e.g. skipped, or added mid-round), 
-            // reduce their cooldowns now to ensure fairness across round boundaries.
-            if (!c.hasActedThisRound && c.abilitiesStates) {
-                Object.keys(c.abilitiesStates).forEach(abilityName => {
-                    const state = c.abilitiesStates[abilityName];
-                    if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
-                        state.currentCooldown--;
-                    }
-                });
-            }
-            
             c.hasActedThisRound = false;
+            // Execute a single synchronized batch update for each combatant at the very end of calculation
             syncUpdateCombatant(c);
         }
     });
 
-    decrementConditions();
-}
-
-function decrementConditions() {
-    if (!activeConditions || activeConditions.length === 0) return;
-    
-    let changed = false;
-    
-    activeConditions.forEach(cond => {
-        // If duration is defined, > 0, and importantly NOT the infinite string "-", decrement it
-        if (cond.duration !== undefined && cond.duration !== null && cond.duration !== "-") {
-            let dur = parseInt(cond.duration);
-            if (!isNaN(dur) && dur > 0) {
-                cond.duration = dur - 1;
-                changed = true;
-            }
-        }
-    });
-
-    // Remove conditions that reached 0. (Undefined/null or "-" implies infinite duration)
-    const filteredConditions = activeConditions.filter(cond => {
-        if (cond.duration === "-") return true;
-        if (cond.duration === undefined || cond.duration === null) return true;
-        let dur = parseInt(cond.duration);
-        return isNaN(dur) || dur > 0;
-    });
-    
-    if (filteredConditions.length !== activeConditions.length) {
-        changed = true;
+    // Decrement conditions without a live specific target on the board
+    const activeNames = activeCombatants.map(c => c.uniqueName);
+    if (typeof decrementConditions === 'function') {
+        decrementConditions(cond => !activeNames.includes(cond.target));
     }
 
-    if (changed) {
-        if (typeof updateServerConditions === 'function') updateServerConditions(filteredConditions);
-    }
+    // Release the transition lock flag now that the round cleanup sequence is fully complete
+    isProcessingRoundTransition = false;
 }
 
-// Render the Active Conditions Panel dynamically matching the dummy UI layout perfectly
-function renderConditions() {
-    const container = document.getElementById('conditions-list-container');
-    if (!container) return;
-
-    if (!activeConditions || activeConditions.length === 0) {
-        container.innerHTML = `<div style="padding: 10px; color: #6272a4; text-align: center; font-size: 0.8rem;">${t('no_conditions')}</div>`;
-        return;
-    }
-
-    let html = '';
-    activeConditions.forEach(cond => {
-        // Safely escape the target name in case it has quotes, for the clipboard function
-        const safeTarget = (cond.target || '').replace(/'/g, "\\'");
-
-        html += `
-            <div class="condition-block">
-                <div class="condition-header">
-                    <span class="condition-name">${cond.name || t('condition')}</span>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        ${cond.duration !== undefined && cond.duration !== null ? `<span class="condition-duration" title="${t('condition_duration')}">${cond.duration}</span>` : ''}
-                        <div class="condition-actions">
-                            <button class="condition-btn copy" title="${t('condition_copy')}" onclick="copyToClipboard('${safeTarget}', event)">©</button>
-                            <button class="condition-btn remove" title="${t('condition_remove')}" onclick="removeCondition('${cond.id}')">✖</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="condition-target-wrapper">
-                    <span>${t('target')}</span>
-                    <input type="text" class="condition-target" value="${cond.target}" readonly>
-                </div>
-                <div class="condition-desc">${cond.description}</div>
-            </div>
-        `;
-    });
-
-    container.innerHTML = html;
-}
-
-// Safely removes a specific condition and syncs it back through the server
-function removeCondition(id) {
-    const filteredConditions = activeConditions.filter(cond => cond.id !== id);
-    if (typeof updateServerConditions === 'function') updateServerConditions(filteredConditions);
-}
-
-// End Combat: Automatically clear enemies and conditions, preserving heroes
+// End Combat: Automatically clear enemies and conditions, preserving heroes and resetting their cooldowns
 function endCombat() {
-    // End combat removes all enemies automatically
     activeCombatants.forEach(c => {
         if (c.team === 'enemy' && typeof syncRemoveCombatant === 'function') {
             syncRemoveCombatant(c.id);
+        } else if (!c.isDead) {
+            // Reset all cooldowns for surviving characters, including single-use abilities
+            if (c.abilitiesStates) {
+                Object.keys(c.abilitiesStates).forEach(abilityName => {
+                    const state = c.abilitiesStates[abilityName];
+                    state.currentCooldown = 0; 
+                });
+            }
+            c.hasActedThisRound = false;
+            if (typeof syncUpdateCombatant === 'function') syncUpdateCombatant(c);
         }
     });
     

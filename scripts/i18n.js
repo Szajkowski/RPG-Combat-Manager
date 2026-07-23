@@ -4,9 +4,8 @@ const i18n = {
     'PL': {
         // --- INTERFEJS / UI ---
         'active_conditions': 'Aktywne Stany',
-        'music_list': 'Lista Muzyki',
-        'turn_order_title': 'Kolejność ruchów: [tura',
-        'round': 'tura',
+        'music_list': 'Muzyka',
+        'hover_to_expand': '(Najedź, aby rozwinąć)',
         'conditions': 'Stany',
         'unknown_character': 'Nieznana postać',
         'target': 'Cel:',
@@ -17,14 +16,26 @@ const i18n = {
         'condition_copy': 'Kopiuj cel',
         'condition_remove': 'Usuń stan',
         'condition_duration': 'Pozostały czas trwania',
+        'gm_dice': 'Kostka Mistrza Gry',
+        'dice_short': 'K',
+        'title_mute_ui': 'Wycisz aplikację',
+        'title_change_language': 'Zmień język',
+        'title_dice_size': 'Wielkość kości',
+
+        // --- PLACEHOLDERS ---
+        'placeholder_no_conditions': 'Brak aktywnych stanów',
+        'placeholder_no_heroes': 'Brak dodanych bohaterów',
+        'placeholder_no_enemies': 'Brak dodanych przeciwników',
+        'placeholder_no_character_selected': 'Nie wybrano żadnej postaci',
+        'placeholder_no_initiative': 'Brak postaci z refleksem. Nie można pokazać kolejki tur',
+        'placeholder_no_music': 'Brak utworów do otworzenia',
+        'placeholder_no_extra_content': 'Postać nie posiada umiejętności ani ekwipunku',
 
         // --- TOP BAR ---
         'btn_next_turn': 'Następna tura (T)',
         'btn_next_round': 'Następna runda (R)',
-        'btn_end_combat': 'Zakończ walkę (Z)',
+        'btn_end_combat': 'Koniec walki',
         'condition': 'Stan',
-        'round_short': 't',
-        'no_conditions': 'Brak aktywnych stanów',
         'confirm_end_combat': 'Zakończyć walkę i usunąć wszystkie postacie oraz stany?',
         
         // --- DODAWANIE POSTACI ---
@@ -67,17 +78,9 @@ const i18n = {
         'desc_phys_armor': 'pancerza fizycznego',
         'desc_mag_armor': 'pancerza magicznego',
         'desc_mod': 'mod',
-
-        // Zmiany gramatyczne do rzutów umiejętności
-        'mod_vitality': 'do rzutu na żywotność',
-        'mod_intuition': 'do rzutu na intuicję',
-        'mod_strength': 'do rzutu na siłę',
-        'mod_agility': 'do rzutu na zwinność',
-        'mod_attunement': 'do rzutu na dostrojenie',
-        'mod_perception': 'do rzutu na percepcję',
-        'mod_accuracy': 'do rzutu na celność',
-        'mod_reflex': 'do rzutu na refleks',
-        'mod_resilience': 'do rzutu na nieustępliwość',
+        'result_for': 'wynik na',
+        'margin_of': 'margines',
+        'to_result': 'do wyniku {stat}',
 
         // --- WALKA I OBRAŻENIA ---
         'damage': 'Obrażenia',
@@ -115,8 +118,13 @@ const i18n = {
 
         // Pasek funkcyjny
         'remove_character': 'Usuń postać',
-        'reload_character': 'Przeładuj postać',
         'toggle_stun': 'Przełącz ogłuszenie',
+        'reload_character': 'Przeładuj postać',
+        'save_character_stats': 'Zapisz statystyki do bazy danych postaci',
+        'no_changes_detected': 'Nie wykryto żadnych zmian',
+        'confirm_save_stats_alert': 'Czy na pewno chcesz wprowadzić zmiany w statystykach postaci do pliku? Zmiany są trwałe.',
+        'save_success': 'Statystyki zostały pomyślnie zapisane do pliku źródłowego na serwerze!',
+        'save_error': 'Błąd serwera! Nie udało się zapisać zmian w pliku źródłowym.',
 
         // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
         'tab_skills': 'Umiejętności',
@@ -130,11 +138,13 @@ const i18n = {
         'gear': 'Oporządzenie',
         'other_items': 'Inne przedmioty',
         'quantity': 'Ilość:',
-        'extra_action_ability': 'dodatkowa akcja',
-        'cooldown_once': 'raz',
+        'cooldown_once': 'raz na walkę',
+        'dead': 'Nie żyje',
         'prop_unavoidable': 'Nieunikalne.',
         'prop_piercing': 'Przebijające.',
-        'dead': 'Nie żyje',
+        'prop_extra_turn': 'Daje dodatkową turę.',
+        'prop_reaction': 'Reakcja.',
+        'prop_non_combat': 'Nie do walki.',
         
         // --- POWIADOMIENIA I BŁĘDY ---
         'copied': 'Skopiowano:',
@@ -149,6 +159,7 @@ const i18n = {
         // --- INTERFEJS / UI ---
         'active_conditions': 'Active Conditions',
         'music_list': 'Music List',
+        'hover_to_expand': '(Hover to expand)',
         'round': 'round',
         'conditions': 'Conditions',
         'unknown_character': 'Unknown character',
@@ -160,15 +171,26 @@ const i18n = {
         'condition_copy': 'Copy target',
         'condition_remove': 'Remove condition',
         'condition_duration': 'Remaining duration',
+        'gm_dice': 'Game Master dice',
+        'dice_short': 'D',
+        'title_mute_ui': 'Mute UI',
+        'title_change_language': 'Change language',
+        'title_dice_size': 'Dice size',
 
+       // --- PLACEHOLDERS ---
+       'placeholder_no_conditions': 'No active conditions',
+       'placeholder_no_heroes': 'No heroes added',
+       'placeholder_no_enemies': 'No enemies added',
+       'placeholder_no_character_selected': 'No character selected',
+       'placeholder_no_initiative': "No characters with reflex. Can't show the initiative bar",
+       'placeholder_no_music': 'No music available',
+       'placeholder_no_extra_content': 'Character has no skills or equipment',
 
         // --- TOP BAR ---
         'btn_next_turn': 'Next turn (T)',
         'btn_next_round': 'Next round (R)',
-        'btn_end_combat': 'End combat (Z)',
+        'btn_end_combat': 'End combat',
         'condition': 'Condition',
-        'round_short': 't',
-        'no_conditions': 'No active conditions',
         'confirm_end_combat': 'End combat and remove all characters and conditions?',
         
         // --- DODAWANIE POSTACI ---
@@ -195,6 +217,8 @@ const i18n = {
         'reflex': 'Reflex',
         'resilience': 'Resilience',
         'mod': 'mod',
+        'result_for': 'result for',
+        'margin_of': 'margin of',
 
         // Zmiany gramatyczne (w j.ang. w zasadzie podstawowe słowa)
         'desc_hp': 'HP',
@@ -211,17 +235,7 @@ const i18n = {
         'desc_phys_armor': 'physical armor',
         'desc_mag_armor': 'magical armor',
         'desc_mod': 'mod',
-
-        // Zmiany gramatyczne do rzutów umiejętności
-        'mod_vitality': 'to vitality roll',
-        'mod_intuition': 'to intuition roll',
-        'mod_strength': 'to strength roll',
-        'mod_agility': 'to agility roll',
-        'mod_attunement': 'to attunement roll',
-        'mod_perception': 'to perception roll',
-        'mod_accuracy': 'to accuracy roll',
-        'mod_reflex': 'to reflex roll',
-        'mod_resilience': 'to resilience roll',
+        'to_result': 'to {stat} result',
 
         // --- WALKA I OBRAŻENIA ---
         'damage': 'Damage',
@@ -258,9 +272,15 @@ const i18n = {
         'armor_value_percent': 'Percent value',
 
         // Pasek funkcyjny
-        'remove_character': 'Delete character',
-        'reload_character': 'Reload character',
+        'remove_character': 'Remove character',
         'toggle_stun': 'Toggle stun',
+        'resurrect_character': 'Ressurect character',
+        'reload_character': 'Reload character',
+        'save_character_stats': 'Save stats to base character template',
+        'no_changes_detected': 'No stat changes detected',
+        'confirm_save_stats_alert': "Are you sure you want to apply changes to character data file? It's permanent.",
+        'save_success': 'Stats successfully written and saved to the backend source file!',
+        'save_error': 'Server error! Failed to permanently write adjustments to the source file.',
 
         // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
         'tab_skills': 'Skills',
@@ -275,10 +295,13 @@ const i18n = {
         'other_items': 'Other items',
         'quantity': 'Quantity:',
         'extra_action_ability': 'extra action',
-        'cooldown_once': 'once',
+        'cooldown_once': 'once per combat',
+        'dead': 'Dead',
         'prop_unavoidable': 'Unavoidable.',
         'prop_piercing': 'Piercing.',
-        'dead': 'Dead',
+        'prop_extra_turn': 'Grants extra turn.',
+        'prop_reaction': 'Reaction.',
+        'prop_non_combat': 'Non combat.',
         
         // --- POWIADOMIENIA I BŁĘDY ---
         'copied': 'Copied:',
@@ -294,14 +317,6 @@ const i18n = {
 // Returns a translated word, or the key itself if the translation is missing
 function t(key) {
     return (i18n[window.currentLanguage] && i18n[window.currentLanguage][key]) || key;
-}
-
-// Checks if a given text matches any translation of a specific key across all languages
-function matchesAnyLanguage(text, dictionaryKey) {
-    const lowerText = text.toLowerCase().trim();
-    return Object.keys(i18n).some(lang => {
-        return i18n[lang][dictionaryKey] && i18n[lang][dictionaryKey].toLowerCase() === lowerText;
-    });
 }
 
 // Function triggered by the Player and GM language buttons

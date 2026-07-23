@@ -1,109 +1,3 @@
-let currentMusic = null;
-let currentMusicName = null; // Tracks the name of the active track
-let mp3Files = [];
-
-// Fetch list of music files from the server and render them
-async function loadMusicFiles() {
-    try {
-        const response = await fetch('/api/music-files'); 
-        mp3Files = await response.json(); 
-        mp3Files = mp3Files.sort();
-        
-        renderMusicList(); // Render immediately after loading
-    } catch (error) {
-        console.error('Error loading music files:', error);
-    }
-}
-
-// Builds the permanent music list in the left panel
-function renderMusicList() {
-    const musicListContainer = document.querySelector('.music-list');
-    if (!musicListContainer) return;
-    
-    musicListContainer.innerHTML = ''; // Clear dummy HTML
-    
-    mp3Files.forEach(file => {
-        const trackName = file.replace('.mp3', '');
-        
-        const musicItem = document.createElement('div');
-        musicItem.className = 'music-item';
-        musicItem.dataset.track = trackName;
-        
-        musicItem.innerHTML = `
-            <span>${trackName}</span> 
-            <button onclick="playMusic('${file}', this)">▶</button>
-        `;
-        
-        musicListContainer.appendChild(musicItem);
-    });
-}
-
-// Handles clicking a track's play/pause button
-function playMusic(filePath, buttonElement) {
-    const trackName = filePath.replace('.mp3', '');
-
-    if (currentMusicName === trackName) {
-        toggleMusic();
-        return;
-    }
-
-    if (currentMusic) {
-        currentMusic.pause();
-        currentMusic.currentTime = 0; 
-        
-        // Reset all buttons to standard play state
-        document.querySelectorAll('.music-item').forEach(item => {
-            item.classList.remove('playing', 'paused');
-            const btn = item.querySelector('button');
-            if(btn) btn.textContent = '▶';
-        });
-    }
-
-    // Load and play the new track
-    currentMusicName = trackName;
-    currentMusic = new Audio(`music/${filePath}`);
-    currentMusic.volume = 0.4;
-    
-    if (window.isAudioMuted) {
-        currentMusic.muted = true;
-    }
-    
-    currentMusic.play();
-    currentMusic.onended = () => currentMusic.play(); 
-
-    // Apply active styles
-    const activeItem = buttonElement.closest('.music-item');
-    if (activeItem) {
-        activeItem.classList.remove('paused');
-        activeItem.classList.add('playing');
-        buttonElement.textContent = '⏸';
-    }
-}
-
-// Toggles playback state of the currently active track
-function toggleMusic() {
-    if (!currentMusic) return;
-
-    const activeItem = document.querySelector(`.music-item[data-track="${currentMusicName}"]`);
-    const buttonElement = activeItem ? activeItem.querySelector('button') : null;
-
-    if (currentMusic.paused) {
-        currentMusic.play();
-        if (buttonElement) buttonElement.textContent = '⏸';
-        if (activeItem) {
-            activeItem.classList.remove('paused');
-            activeItem.classList.add('playing');
-        }
-    } else {
-        currentMusic.pause();
-        if (buttonElement) buttonElement.textContent = '▶';
-        if (activeItem) {
-            activeItem.classList.remove('playing');
-            activeItem.classList.add('paused');
-        }
-    }
-}
-
 loadMusicFiles();
 
 // Helper function to parse INI format for config.ini
@@ -161,14 +55,36 @@ function loadInitialConfigCharacters() {
     .catch(error => console.error("Error loading config.ini:", error));
 }
 
+// Rolls a local, GM-only custom dice that doesn't broadcast to players
+function rollGmDice() {
+    const input = document.getElementById('gm-dice-input');
+    const resultSpan = document.getElementById('gm-dice-result');
+    
+    let max = parseInt(input.value);
+    // Fallback to basic d20 if input is invalid or negative
+    if (isNaN(max) || max < 2) {
+        max = 20; 
+        input.value = max;
+    }
+    
+    const roll = Math.floor(Math.random() * max) + 1;
+    
+    resultSpan.textContent = roll;
+    
+    // Highlight crit success (max) and crit fail (1)
+    resultSpan.style.color = roll === max ? '#50fa7b' : (roll === 1 ? '#ff5555' : '#f8f8f2');
+    
+    playSoundEffect('sound/diceroll.mp3');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Setup UI Toggle buttons
-    const gmToggleBtn = document.getElementById('gm-mute-btn');
+    const gmToggleBtn = document.getElementById('mute-btn');
     if (gmToggleBtn) {
         gmToggleBtn.textContent = window.isAudioMuted ? "🔇" : "🔊";
     }
 
-    const gmLangBtn = document.getElementById('gm-lang-btn');
+    const gmLangBtn = document.getElementById('lang-btn');
     if (gmLangBtn) gmLangBtn.textContent = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
 
     // Automated Translation System based on data-i18n attributes
@@ -183,6 +99,24 @@ document.addEventListener('DOMContentLoaded', () => {
             el.textContent = t(key);
         }
     });
+
+    // Automatically translate tooltips for icon buttons
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.setAttribute('title', t(key));
+    });
+
+    // Enable horizontal scrolling with mouse wheel for the initiative tracker
+    const tracker = document.querySelector('.initiative-tracker');
+    if (tracker) {
+        tracker.addEventListener('wheel', (evt) => {
+            // Prevent vertical page scroll if interacting with the horizontal tracker
+            if (evt.deltaY !== 0) {
+                evt.preventDefault();
+                tracker.scrollLeft += evt.deltaY;
+            }
+        }, { passive: false });
+    }
 
     // Helper function to setup dropdowns AND their change event listeners
     const setupDropdown = (selectId, dataObject, type, team) => {
@@ -233,6 +167,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 .map(token => token.dataset.name);
                 if (playerNames.length > 0) updateSpecificPlayersStats(playerNames);
             });
+        }
+    });
+
+    // --- INPUT VALIDATION AND CUT-PASTE MECHANICS FOR DMG/HEAL/ARMOR ---
+    document.addEventListener('keydown', (e) => {
+        if (e.target.matches('.damage-input, .heal-input, .armor-input')) {
+            // Allow control keys and system shortcuts
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            // Allow multi-character layout keys (Backspace, Delete, Arrows, etc.)
+            if (e.key.length > 1) return;
+            
+            // HTML5 type="number" inputs return null/throw errors for selectionStart in most browsers!
+            // Check if it's armor-input and if it doesn't already have a minus.
+            if (e.key === '-') {
+                // Prevent if it's not armor-input, OR if it already has valid numbers, OR if it has invalid state (e.g. existing minus)
+                if (!e.target.matches('.armor-input') || e.target.value !== '' || e.target.validity.badInput) {
+                    e.preventDefault();
+                }
+                return;
+            }
+            
+            // Strictly block any character that is not a numeric digit
+            if (!/^[0-9]$/.test(e.key)) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        const val = window.lastCopiedRPGValue;
+        if (!val) return;
+
+        // Paste value to dmg/heal/armor inputs (only numbers and a minus)
+        if (e.target.matches('.damage-input, .heal-input, .armor-input')) {
+            if (/^-?\d+$/.test(val.trim())) {
+                if (typeof pasteValueToInput === 'function') {
+                    pasteValueToInput(e.target, e);
+                }
+            }
+        } 
+        // Cut-Paste for condition targets (accepts anything except purely numerical strings)
+        else if (e.target.matches('.condition-target')) {
+            if (!/^-?\d+$/.test(val.trim())) {
+                if (typeof pasteValueToInput === 'function') {
+                    pasteValueToInput(e.target, e);
+                }
+            }
         }
     });
 

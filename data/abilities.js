@@ -1,4 +1,4 @@
-const spell = {
+var ability = {
     
     // ogień, pierwszego stopnia
     
@@ -96,14 +96,14 @@ const spell = {
     },
     "Roztapiacz pancerza": {
         name: "Roztapiacz pancerza",
-        description: "[prop_unavoidable] Zmniejsza pancerz magiczny celu o [2 * roll].",
+        description: "[prop_unavoidable] Zmniejsza pancerz magiczny celu o [2 * roll vitality].",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
     },
     "Pętla ognia": {
         name: "Pętla ognia",
-        description: "[prop_unavoidable] Rysuje pod celem runę, która wybucha za [5 * roll] obrażeń.",
+        description: "[prop_unavoidable] Rysuje pod celem runę, która wybucha za [5 * roll vitality] obrażeń.",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
@@ -134,7 +134,7 @@ const spell = {
 
     "Narastający żar zagłady": {
         name: "Narastający żar zagłady",
-        description: "[prop_piercing] Wyczarowuje niszczycielski płomień, który zada [2 ^ over] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
+        description: "[prop_piercing] Wyczarowuje niszczycielski płomień, który zada [2 ^ over vitality] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
         roll: "vitality",
         difficulty: 30,
         cooldown: "[cooldown_once]"
@@ -444,7 +444,7 @@ const spell = {
     },
     "Niszczyciel zbroi": {
         name: "Niszczyciel zbroi",
-        description: "Uderza cel skupiając się na jego obronie. Pozbawia cel [2 * roll] pancerza fizycznego.",
+        description: "Uderza cel skupiając się na jego obronie. Pozbawia cel [2 * roll strength] pancerza fizycznego.",
         roll: "strength",
         difficulty: "X",
         cooldown: 4
@@ -477,7 +477,7 @@ const spell = {
     },
     "Tunel": {
         name: "Tunel",
-        description: "Uderza w ziemię i tworzy tunel od maga do wyznaczonego przez niego miejsca. Tunel może mieć maksymalnie [1 * roll] metrów, lub mniej, jeśli mag będzie miał taką potrzebę.",
+        description: "Uderza w ziemię i tworzy tunel od maga do wyznaczonego przez niego miejsca. Tunel może mieć maksymalnie [1 * roll strength] metrów, lub mniej, jeśli mag będzie miał taką potrzebę.",
         roll: "strength",
         difficulty: "X",
         cooldown: 0
@@ -551,12 +551,12 @@ const spell = {
     },
     "Małe przyspieszenie": {
         name: "Małe przyspieszenie",
-        description: "Wybrany cel zyskuje [1] dodatkową akcję w swojej następnej turze.",
+        description: "Wybrany cel zyskuje [1] dodatkową akcję. Nie stackuje się z innymi umiejętnościami przyspieszającymi cel na chwilę.",
         roll: "agility",
         difficulty: 9,
         cooldown: 2,
-        condition: "Przyśpieszony. [1] dodatkowa akcja w następnej turze",
-        conditionDuration: 1,
+        condition: "[prop_extra_turn] Działa przez [1] turę.",
+        conditionDuration: 2,
     },
     "Wir pięści": {
         name: "Wir pięści",
@@ -579,7 +579,7 @@ const spell = {
 
     "Wyrzut": {
         name: "Wyrzut",
-        description: "Wyrzuć cel w powietrze. Cel leci na [1 * over] metrów w górę. Im wyżej poleci, tym bardziej się potłucze spadając.",
+        description: "Wyrzuć cel w powietrze. Cel leci na [1 * over agility] metrów w górę. Im wyżej poleci, tym bardziej się potłucze spadając.",
         roll: "agility",
         difficulty: 15,
         cooldown: 3
@@ -598,7 +598,7 @@ const spell = {
 
     "Hen w górę": {
         name: "Hen w górę",
-        description: "Pozwala skoczyć w górę na [1 * roll] metrów. Nie łagodzi w żaden sposób upadku.",
+        description: "Pozwala skoczyć w górę na [1 * roll agility] metrów. Nie łagodzi w żaden sposób upadku.",
         roll: "agility",
         difficulty: "X",
         cooldown: 0
@@ -664,16 +664,25 @@ const spell = {
 
     "Test1": {
         name: "Test1",
-        description: "[prop_unavoidable] [prop_piercing] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], trelele, 8 * przebicie = [8 * over]",
+        description: "[prop_unavoidable] [prop_piercing] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 2 * rzut = [2 * roll vitality], trelele, 8 * przebicie = [8 * over vitality]",
         roll: "vitality",
-        difficulty: 6,
+        difficulty: 2,
         cooldown: 0
     },
     "Test2": {
         name: "Test2",
-        description: "5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 10 * rzut = [10 * roll], 8 * przebicie = [8 * over]",
+        description: "[prop_reaction] [prop_extra_turn] 0.5 * Żywotność = [0.5 * vitality], 6 * Intuicja = [6 * intuition], 100 - 4 * rzut zwinności = [100 - 4 * roll agility], 8 * przebicie = [1.5 ^ over resilience], ",
         roll: "vitality",
-        difficulty: "X",
+        difficulty: 10,
         cooldown: 0
+    },
+    "Test3": {
+        name: "Test3",
+        description: "Usuwa [-5 * vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę. Nie stackuje się z innymi efektami dającymi chwilowo dodatkową turę.",
+        roll: "agility",
+        difficulty: 1,
+        cooldown: 2,
+        condition: "[prop_extra_turn] Aktywne przez [2] tury celu.",
+        conditionDuration: 2,
     },
 }

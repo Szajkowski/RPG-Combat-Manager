@@ -1,120 +1,3 @@
-// Generates a unique ID for each character instance on the board
-function generateId() {
-    return 'char-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
-}
-
-function getUniqueCharacterName(baseName) {
-    // Get all existing character names from memory
-    const existingNames = activeCombatants.map(c => c.uniqueName); 
-
-    let uniqueName = baseName;
-    let counter = 2;
-
-    while (existingNames.includes(uniqueName)) {
-        uniqueName = `${baseName} ${counter}`;
-        counter++;
-    }
-
-    return uniqueName;
-}
-
-function removeUniqueNameNumber(charName) {
-    return charName.replace(/\s\d{1,2}$/, ''); // Match a space and a number (1-2 digits) at the end and remove
-}
-
-function addSpecificCharacter(type, name, team) {
-    if (type === 'mob' && mobs[name]) {
-        addCharacter('mob', team, mobs[name], name);
-    } else if (type === 'npc' && npcs[name]) {
-        addCharacter('npc', team, npcs[name], name);  
-    } else if (type === 'boss' && bosses[name]) {
-        addCharacter('boss', team, bosses[name], name);
-    } else if (type === 'player' && players[name]) {
-        addCharacter('player', team, players[name], name); 
-    } else if (type === 'character') {
-        addCharacter('character', team, { name: '' }, '');
-    }
-}
-
-// Core character creation: Calculates stats and sends the new combatant to the server
-function addCharacter(type, team, stats = {}, image = null) {
-    let uniqueName = '';
-    // Determine unique name
-    if (stats.name) {
-        uniqueName = getUniqueCharacterName(stats.name);
-    }
-
-    // Update stats based on equipment
-    const finalStats = applyGearBonuses(stats);
-
-    // Set default HP values if missing
-    if (finalStats.hp === undefined) finalStats.hp = 10;
-    if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
-
-    // Initialize abilities states directly in memory
-    const initialAbilitiesStates = {};
-    if (stats.abilities && Array.isArray(stats.abilities)) {
-        stats.abilities.forEach(ability => {
-            const isSingleUse = ability.cooldown === "[cooldown_once]";
-            const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
-            
-            initialAbilitiesStates[ability.name] = {
-                currentCooldown: 0,
-                maxCooldown: maxCooldown,
-                singleUse: isSingleUse
-            };
-        });
-    }
-
-    // Create the rich character object in memory holding EVERYTHING
-    const combatant = {
-        id: generateId(),
-        uniqueName: uniqueName,
-        baseName: stats.name || '',
-        type: type,
-        team: team,
-        image: image,
-        stats: finalStats,
-        equipment: stats.equipment ? JSON.parse(JSON.stringify(stats.equipment)) : [],
-        abilities: stats.abilities ? JSON.parse(JSON.stringify(stats.abilities)) : [],
-        abilitiesStates: initialAbilitiesStates,
-        lastRoll: { stat: '', result: '', color: 'white' }, // New dictionary for keeping track of dice rolls
-        isDead: finalStats.isDead === true || finalStats.isDead === "true",
-        hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
-        hasActedThisRound: false,
-        isStunned: false
-    };
-
-    // Push to server -> which will broadcast it back to everyone (including GM) and trigger renderToken()
-    syncAddCombatant(combatant);
-}
-
-// Renders the token visually on the board based on the combatant object
-function renderToken(combatant) {
-    const teamDiv = document.getElementById(combatant.team + 'Team');
-    if (!teamDiv) return;
-
-    // Build Token HTML
-    const tokenDiv = document.createElement('div');
-    tokenDiv.className = `character-token ${combatant.team}-token ${combatant.isDead ? 'dead' : ''}`;
-    tokenDiv.dataset.id = combatant.id;
-    tokenDiv.onclick = () => selectCharacter(combatant.id);
-
-    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
-    const imgAlt = combatant.image ? combatant.image : t('unknown_character');
-    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
-
-    tokenDiv.innerHTML = `
-        <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
-        <div class="token-hp-bg">
-            <div class="token-hp-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
-        </div>
-        <div class="token-name">${combatant.uniqueName || t('unknown_character')}</div>
-    `;
-
-    teamDiv.appendChild(tokenDiv);
-}
-
 function selectCharacter(id) {
     selectedCharacterId = id;
 
@@ -130,15 +13,18 @@ function selectCharacter(id) {
     }
 
     // Render the right panel with the selected character's data
-    renderRightPanel(id);
+    renderCharMainPanel(id);
 }
 
-function renderRightPanel(id) {
+function renderCharMainPanel(id) {
     const combatant = activeCombatants.find(c => c.id === id);
     if (!combatant) return;
 
-    const rightPanel = document.getElementById('characterDetailsPanel');
-    rightPanel.style.display = 'flex'; 
+    const mainPanel = document.getElementById('characterDetailsPanel');
+    mainPanel.style.display = 'flex'; 
+
+    // Dynamically manage placeholder and columns visibility based on selection state
+    checkCharMainPanelEmptyState();
 
     const charSheet = document.getElementById('panel-char-sheet');
     const charFunctional = document.getElementById('panel-char-functional');
@@ -168,7 +54,7 @@ function renderRightPanel(id) {
     charSheet.innerHTML = `
         <img src="${imgSrc}" class="char-portrait-square" onerror="this.src='/images/default-img.svg'">
         <div class="char-header">
-            <input type="text" class="char-name-input" value="${combatant.uniqueName || ''}">
+            <input type="text" class="char-name-input" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">
         </div>
         <div class="char-hp-visual ${combatant.isDead ? 'dead' : ''}">
             <div class="char-hp-visual-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
@@ -254,11 +140,7 @@ function renderRightPanel(id) {
     `;
 
     // 2. Render Functional Column (.char-functional-col)
-    charFunctional.innerHTML = `
-    <button class="func-btn delete" title="${t('delete_character')}" onclick="removeCharacter()">✖</button>
-    <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="${t('toggle_stun')}" onclick="toggleStun()">🌟</button>
-    ${combatant.type !== 'character' ? `<button class="func-btn reload" title="${t('reload_character')}" onclick="reloadCharacterData()">↻</button>` : ''}
-`;
+    charFunctional.innerHTML = generateFunctionalColumn(combatant);
 
     // 3. Re-run translation for the newly injected HTML
     document.querySelectorAll('#characterDetailsPanel [data-i18n]').forEach(el => {
@@ -284,7 +166,7 @@ function renderRightPanel(id) {
         });
     });
 
-    bindRightPanelInputs(combatant);
+    bindMainPanelInputs(combatant);
     if (typeof renderExtraPanel === 'function') renderExtraPanel(id);
 }
 
@@ -487,7 +369,7 @@ function evaluateFormula(formula, stats) {
 }
 
 // Binds inputs from the Right Panel directly to the activeCombatants state
-function bindRightPanelInputs(combatantData) {
+function bindMainPanelInputs(combatantData) {
     const charSheet = document.getElementById('panel-char-sheet');
 
     // Handle Name change
@@ -511,7 +393,21 @@ function bindRightPanelInputs(combatantData) {
             if(!freshCombatant) return;
             
             const statKey = e.target.dataset.stat;
-            freshCombatant.stats[statKey] = e.target.value;
+            let val = e.target.value;
+
+            // Enforce minimum value of 1 for core stat fields if they are not blank
+            if (!statKey.endsWith('Mod')) {
+                if (val !== '') {
+                    let parsed = parseInt(val);
+                    if (isNaN(parsed) || parsed < 1) {
+                        parsed = 1;
+                    }
+                    val = parsed;
+                    e.target.value = val; // Sync back to input immediately to clear 0 or negatives
+                }
+            }
+
+            freshCombatant.stats[statKey] = val;
             
             if (typeof recalculateAdditionalStats === 'function') {
                 recalculateAdditionalStats(freshCombatant);
@@ -597,158 +493,45 @@ function recalculateAdditionalStats(combatant) {
     }
 }
 
-function rollDice(combatantId, diceType, difficulty = null) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
-    if (!combatant) return 0;
+// Checks right panel state and manages the placeholder or component visibility based on character selection
+function checkCharMainPanelEmptyState() {
+    const mainPanel = document.getElementById('characterDetailsPanel');
+    if (!mainPanel) return;
 
-    const baseStat = parseInt(combatant.stats[diceType]) || 0;
-    const modValue = parseInt(combatant.stats[`${diceType}Mod`]) || 0;
-    
-    // Safely check if stat exists at all
-    if (combatant.stats[diceType] === undefined && combatant.stats[`${diceType}Mod`] === undefined) {
-        alert(t('no_stats_error'));
-        return 0;
-    }
+    // Determine if the panel should be empty (no character selected or character no longer exists)
+    const isEmpty = !selectedCharacterId || !activeCombatants.some(c => c.id === selectedCharacterId);
 
-    const roll = Math.floor(Math.random() * baseStat) + 1;
-    let result = Math.max(1, roll + modValue);
+    const sheetEl = document.getElementById('panel-char-sheet');
+    const functionalEl = document.getElementById('panel-char-functional');
+    const extraEl = document.getElementById('panel-extra');
 
-    // Intuition bonus for Agility and Accuracy
-    if (diceType === 'agility' || diceType === 'accuracy') {
-        const intuitionValue = parseInt(combatant.stats.intuition) || 0;
-        if (intuitionValue >= 10) {
-            const intuitionBonus = Math.floor((intuitionValue - 10) / 4);
-            result += intuitionBonus;
-        }
-    }
-
-    // Determine color
-    let resultColor = 'white';
-    if (difficulty && difficulty !== "X") {
-        difficulty = parseInt(difficulty);
-        resultColor = result >= difficulty ? '#50fa7b' : '#ff5555';
-    }
-
-    // Update combatant memory state for Last Roll
-    combatant.lastRoll = {
-        stat: diceType,
-        result: result,
-        color: resultColor
-    };
-
-    playSoundEffect('sound/diceroll.mp3');
-
-    // Instantly sync the roll to all clients (which will refresh the UI)
-    syncUpdateCombatant(combatant);
-    return result; 
-}
-
-// Removes the currently selected character from the arena, memory, and cleans up conditions
-async function removeCharacter() {
-    if (!selectedCharacterId) return;
-
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    if (!combatant) return;
-
-    // 1. Remove conditions tied to this character (Server sync)
-    // Directly use the globally synced activeConditions array to prevent Promise/undefined errors!
-    if (typeof activeConditions !== 'undefined' && Array.isArray(activeConditions)) {
-        const filteredConditions = activeConditions.filter(condition => condition.target !== combatant.uniqueName);
-        
-        // Only trigger network update if something was actually deleted
-        if (filteredConditions.length !== activeConditions.length && typeof updateServerConditions === 'function') {
-            updateServerConditions(filteredConditions);
-        }
-    }
-
-    // 2. Request removal from server. Server will broadcast removal and clients will automatically delete token and clear panel.
-    if (typeof syncRemoveCombatant === 'function') {
-        syncRemoveCombatant(selectedCharacterId);
-    }
-}
-
-// Reloads the corresponding data file and recalculates the currently selected character's stats
-async function reloadCharacterData() {
-    if (!selectedCharacterId) return;
-    
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    // We can only reload named characters that originate from a file
-    if (!combatant || combatant.baseName === '') return;
-
-    try {
-        let freshData = null;
-        
-        // Dynamically reload the correct script and fetch fresh data based on character type
-        if (combatant.type === 'player') {
-            await reloadScript('players-data', 'data/players.js');
-            freshData = players[combatant.baseName];
-        } else if (combatant.type === 'mob') {
-            await reloadScript('mobs-data', 'data/mobs.js');
-            freshData = mobs[combatant.baseName];
-        } else if (combatant.type === 'npc') {
-            await reloadScript('npcs-data', 'data/npcs.js');
-            freshData = npcs[combatant.baseName];
-        } else if (combatant.type === 'boss') {
-            await reloadScript('bosses-data', 'data/bosses.js');
-            freshData = bosses[combatant.baseName];
-        }
-
-        if (!freshData) return;
-
-        // Apply equipment math to get the final stats
-        const finalStats = applyGearBonuses(freshData);
-
-        // Keep default HP fallback
-        if (finalStats.hp === undefined) finalStats.hp = 10;
-        if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
-
-        // Preserve current health to prevent unwanted full heals, but clamp to new max HP
-        const currentHp = combatant.stats.hp;
-        const wasDead = combatant.isDead;
-        const acted = combatant.hasActedThisRound;
-        
-        // Update memory core stats
-        combatant.stats = finalStats;
-        combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
-        combatant.isDead = wasDead;
-        combatant.hasActedThisRound = acted;
-        
-        // Deep copy fresh equipment and abilities
-        combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
-        combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
-
-        // Check if any new abilities were added and assign them default memory states
-        combatant.abilities.forEach(ability => {
-            if (!combatant.abilitiesStates[ability.name]) {
-                const isSingleUse = ability.cooldown === "[cooldown_once]";
-                const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
-                combatant.abilitiesStates[ability.name] = {
-                    currentCooldown: 0,
-                    maxCooldown: maxCooldown,
-                    singleUse: isSingleUse
-                };
+    if (isEmpty) {
+        // Hide standard components to clear the space
+        [sheetEl, functionalEl, extraEl].forEach(el => {
+            if (el) {
+                el.style.display = 'none';
+                el.innerHTML = ''; // Thoroughly clear their content
             }
         });
-        
-        syncUpdateCombatant(combatant);
-        
-    } catch (error) {
-        console.error("Error while reloading character data:", error);
-    }
-}
 
-// Generic helper to reload a script dynamically
-async function reloadScript(scriptId, srcPath) {
-    const oldScript = document.querySelector(`#${scriptId}`);
-    if (oldScript) oldScript.remove();
-    
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.id = scriptId;
-        // Adding a timestamp prevents the browser from loading a cached version of the file
-        script.src = `${srcPath}?t=${new Date().getTime()}`;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Error loading ${srcPath}`));
-        document.body.appendChild(script);
-    });
+        // Insert placeholder if it doesn't already exist
+        if (!document.getElementById('right-panel-placeholder')) {
+            const placeholder = document.createElement('div');
+            placeholder.id = 'right-panel-placeholder';
+            placeholder.className = 'right-panel-placeholder';
+            placeholder.textContent = t('placeholder_no_character_selected');
+            mainPanel.appendChild(placeholder);
+        }
+    } else {
+        // Restore standard component displays
+        [sheetEl, functionalEl, extraEl].forEach(el => {
+            if (el) el.style.display = '';
+        });
+
+        // Remove the placeholder if it exists in the DOM
+        const placeholder = document.getElementById('right-panel-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+    }
 }
