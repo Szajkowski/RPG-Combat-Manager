@@ -110,12 +110,14 @@ function connectSocket() {
             case "BROADCASTaddCondition": {
                 activeConditions = data.activeConditions;
                 if (typeof renderConditions === 'function') renderConditions();
+                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
 
             case "BROADCASTupdateConditions": {
                 activeConditions = data.activeConditions;
                 if (typeof renderConditions === 'function') renderConditions();
+                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
                 
@@ -259,16 +261,17 @@ function refreshCombatantDisplay(combatant) {
             charFunctional.innerHTML = generateFunctionalColumn(combatant);
         }
     }
+    // 5. Update conditions
+    renderConditions();
 }
 
 function sendCondition(target, name, description, duration) {
-    let descriptionParsed = typeof parseDescription === 'function' ? parseDescription(description, activeCombatants.find(c => c.uniqueName === target)) : description;
-    
+    // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
     const condition = {
         id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         name: name,
         target: target,
-        description: descriptionParsed,
+        description: description,
         duration: duration
     };
 

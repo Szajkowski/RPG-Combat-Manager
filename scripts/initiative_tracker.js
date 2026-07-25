@@ -1,9 +1,61 @@
-// Render the Initiative Tracker based on reflex and hasActedThisRound status
+let isProcessingRoundTransition = false;
+
+// Helper: Calculate total turns for a combatant dynamically based on [prop_extra_turn]
+function calculateTotalTurns(combatant) {
+    if (combatant.isDead) return 0;
+
+    let extraTurns = 0;
+    const tag = '[prop_extra_turn]';
+
+    // Check abilities
+    if (combatant.abilities) {
+        combatant.abilities.forEach(ability => {
+            if (ability.description && ability.description.toLowerCase().includes(tag)) extraTurns++;
+        });
+    }
+
+    // Check equipment
+    if (combatant.equipment) {
+        combatant.equipment.forEach(item => {
+            if (item.description && item.description.toLowerCase().includes(tag)) extraTurns++;
+        });
+    }
+
+    // Check active conditions targeting this specific combatant
+    if (typeof activeConditions !== 'undefined') {
+        activeConditions.forEach(cond => {
+            if (cond.target === combatant.uniqueName && cond.description && cond.description.toLowerCase().includes(tag)) {
+                extraTurns++;
+            }
+        });
+    }
+
+    return 1 + extraTurns; // Base turn (1) + Extra Turns found
+}
+
+// Helper: Calculate the exact reflex steps where the character acts
+function calculateReflexStops(combatant) {
+    const totalTurns = calculateTotalTurns(combatant);
+    if (totalTurns === 0) return [];
+    
+    const baseReflex = parseInt(combatant.stats.reflex) || 0;
+    if (baseReflex <= 0) return [];
+
+    let stops = [];
+    // Division stops math (e.g. 30 reflex and 4 turns -> 30, 22, 15, 7)
+    for (let i = totalTurns; i >= 1; i--) {
+        const stopReflex = Math.max(1, Math.floor(i * (baseReflex / totalTurns)));
+        stops.push(stopReflex);
+    }
+    return stops; 
+}
+
+// Render the Initiative Tracker mapping out all specific dynamic stops
 function renderInitiativeTracker() {
     const tracker = document.querySelector('.initiative-tracker');
     if (!tracker) return;
 
-    // Filter alive combatants who have an explicitly defined, non-empty reflex stat
+    // Filter alive combatants with valid reflex
     const validCombatants = activeCombatants.filter(c => 
         !c.isDead && 
         c.stats.reflex !== undefined && 
@@ -11,26 +63,35 @@ function renderInitiativeTracker() {
         c.stats.reflex !== ''
     );
 
-    // Render placeholder if there are no combatants with valid initiative stats
     if (validCombatants.length === 0) {
         tracker.innerHTML = `<div style="color: #6272a4; margin: auto;" data-i18n="placeholder_no_initiative">${t('placeholder_no_initiative')}</div>`;
         return;
     }
 
-    // Group by reflex
     const groups = {};
+    const allReflexes = new Set();
+
+    // Map out every stop for every combatant
     validCombatants.forEach(c => {
-        const ref = parseInt(c.stats.reflex) || 0;
-        if (!groups[ref]) groups[ref] = [];
-        groups[ref].push(c);
+        const stops = calculateReflexStops(c);
+        const turnsTaken = c.turnsTakenThisRound || 0;
+        
+        stops.forEach((ref, index) => {
+            if (!groups[ref]) groups[ref] = [];
+            allReflexes.add(ref);
+            
+            // If the turn index is lower than the amount of turns they have taken, this particular spot is done
+            const isDone = index < turnsTaken;
+            groups[ref].push({ combatant: c, isDone: isDone });
+        });
     });
 
-    const sortedReflexes = Object.keys(groups).map(Number).sort((a, b) => b - a);
+    const sortedReflexes = Array.from(allReflexes).sort((a, b) => b - a);
 
-    // Find active reflex (The highest reflex where at least one combatant hasn't acted yet)
+    // Find active reflex (The highest reflex where at least one combatant turn is not done yet)
     let activeReflex = null;
     for (const ref of sortedReflexes) {
-        if (groups[ref].some(c => !c.hasActedThisRound)) {
+        if (groups[ref].some(entry => !entry.isDone)) {
             activeReflex = ref;
             break;
         }
@@ -38,13 +99,33 @@ function renderInitiativeTracker() {
 
     let html = '';
     sortedReflexes.forEach((ref, index) => {
-        const combatants = groups[ref];
-        const names = combatants.map(c => c.uniqueName).join(', ');
-        const isActive = ref === activeReflex;
-        // Group is done if it's not active and EVERYONE in it has acted
-        const isDone = !isActive && combatants.every(c => c.hasActedThisRound);
+        // Prepare unique visual entries per reflex step and count occurrences
+        const uniqueEntries = [];
+        const seenIds = new Set();
+        
+        groups[ref].forEach(entry => {
+            if (!seenIds.has(entry.combatant.id)) {
+                // Count how many turns this specific character has at this exact reflex stop
+                const characterTurnsAtThisRef = groups[ref].filter(e => e.combatant.id === entry.combatant.id);
+                const allDone = characterTurnsAtThisRef.every(e => e.isDone);
+                const count = characterTurnsAtThisRef.length;
+                
+                uniqueEntries.push({ combatant: entry.combatant, isDone: allDone, count: count });
+                seenIds.add(entry.combatant.id);
+            }
+        });
 
-        // Determine class based on state dynamically
+        // Map names with ' xN' suffix if they have multiple turns stacked here
+        const names = uniqueEntries.map(e => {
+            if (e.count > 1) {
+                return `${e.combatant.uniqueName} x${e.count}`;
+            }
+            return e.combatant.uniqueName;
+        }).join(', ');
+        
+        const isActive = ref === activeReflex;
+        const isDone = !isActive && uniqueEntries.every(e => e.isDone);
+
         let slotClass = 'initiative-slot';
         if (isActive) slotClass += ' active';
         else if (isDone) slotClass += ' done';
@@ -63,167 +144,155 @@ function renderInitiativeTracker() {
 
     tracker.innerHTML = html;
 
-    // Automatically scroll to the active element, ensuring it sits exactly in the middle of the container
     setTimeout(() => {
         const activeSlot = tracker.querySelector('.initiative-slot.active');
         if (activeSlot) {
-            // inline: 'center' makes sure the specific div sits in the middle of the horizontal scroll
-            // block: 'nearest' prevents the entire browser window from jumping down
             activeSlot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
-    }, 50); // slight delay to allow the DOM to update its widths before calculating the scroll position
+    }, 50); 
 }
 
-// Next Turn logic: marks current active group as acted, REDUCES COOLDOWNS, and checks for round end
+// Next Turn logic: calculates turn blocks and scales down CDs based on overlapping extra turns
 function nextTurn(isSilent = false) {
     if (activeCombatants.length === 0) return;
 
-    // Group by reflex to find the currently active ones (skipping characters without a defined reflex stat)
-    const groups = {};
+    const groups = {}; 
+    
+    // Check pending stops ONLY for the entire board
     activeCombatants.forEach(c => {
-        if (c.isDead) return;
-        if (c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
-        const ref = parseInt(c.stats.reflex) || 0;
-        if (!groups[ref]) groups[ref] = [];
-        groups[ref].push(c);
+        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
+        
+        const stops = calculateReflexStops(c);
+        const turnsTaken = c.turnsTakenThisRound || 0;
+        
+        stops.forEach((ref, index) => {
+            if (index >= turnsTaken) { 
+                if (!groups[ref]) groups[ref] = [];
+                groups[ref].push({ combatant: c, turnIndex: index });
+            }
+        });
     });
 
     const sortedReflexes = Object.keys(groups).map(Number).sort((a, b) => b - a);
 
-    let activeReflex = null;
-    for (const ref of sortedReflexes) {
-        if (groups[ref].some(c => !c.hasActedThisRound)) {
-            activeReflex = ref;
-            break;
-        }
-    }
+    if (sortedReflexes.length === 0) return; // No actions pending on the board
 
-    // Check if this is the LAST active reflex group in the round
-    const remainingGroups = sortedReflexes.filter(ref => groups[ref].some(c => !c.hasActedThisRound));
+    const activeReflex = sortedReflexes[0];
+    const remainingGroupsCount = sortedReflexes.length;
+
+    // Execute logic for all combatants participating in this reflex threshold
+    const actors = groups[activeReflex];
     
-    if (remainingGroups.length <= 1) {
-        // This is the last active group! Just reduce their CDs and run newRound() directly.
-        if (activeReflex !== null) {
-            groups[activeReflex].forEach(c => {
-                if (c.abilitiesStates) {
-                    Object.keys(c.abilitiesStates).forEach(abilityName => {
-                        const state = c.abilitiesStates[abilityName];
-                        if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
-                            state.currentCooldown--;
-                        }
-                    });
-                }
-                
-                // Decrement explicitly targeted conditions for this combatant
-                if (typeof decrementConditions === 'function') {
-                    decrementConditions(cond => cond.target === c.uniqueName);
-                }
+    // Group them to count how many consecutive turns they are taking AT ONCE (Edge case handling for stacked 1 reflex)
+    const actionsPerCombatant = {};
+    actors.forEach(actor => {
+        if (!actionsPerCombatant[actor.combatant.id]) actionsPerCombatant[actor.combatant.id] = 0;
+        actionsPerCombatant[actor.combatant.id]++;
+    });
 
-                // Explicitly mark as acted so the round transition tracker evaluates remaining turns accurately
-                c.hasActedThisRound = true;
+    Object.keys(actionsPerCombatant).forEach(id => {
+        const c = activeCombatants.find(comb => comb.id === id);
+        const turnsToTake = actionsPerCombatant[id];
+        
+        c.turnsTakenThisRound += turnsToTake;
+        
+        // Cooldown reductions multiplied by how many turns they technically took
+        if (c.abilitiesStates) {
+            Object.keys(c.abilitiesStates).forEach(abilityName => {
+                const state = c.abilitiesStates[abilityName];
+                if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
+                    state.currentCooldown = Math.max(0, state.currentCooldown - turnsToTake);
+                }
             });
         }
+        
+        // Decrement targeted conditions matching the turn amount evaluated (ONLY 't' duration states)
+        if (typeof decrementConditions === 'function') {
+            for (let i = 0; i < turnsToTake; i++) {
+                decrementConditions(cond => {
+                    const durStr = String(cond.duration || '').trim();
+                    const type = durStr.slice(-1);
+                    // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
+                    const isTurnBased = type === 't' || !isNaN(type);
+                    return cond.target === c.uniqueName && isTurnBased;
+                });
+            }
+        }
 
-        // Only call newRound if we are not already processing a round transition fast-forward
+        if (!isSilent) syncUpdateCombatant(c);
+    });
+
+    // Check if we hit the end of the round natively
+    if (remainingGroupsCount <= 1) {
         if (!isProcessingRoundTransition) {
             newRound();
         }
-        return;
-    }
-
-    // Normal next turn logic for mid-round updates
-    if (activeReflex !== null) {
-        groups[activeReflex].forEach(c => {
-            c.hasActedThisRound = true;
-            
-            // Cooldown reduction directly at the end of the character's turn
-            if (c.abilitiesStates) {
-                Object.keys(c.abilitiesStates).forEach(abilityName => {
-                    const state = c.abilitiesStates[abilityName];
-                    if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
-                        state.currentCooldown--;
-                    }
-                });
-            }
-
-            // Decrement explicitly targeted conditions for this combatant
-            if (typeof decrementConditions === 'function') {
-                decrementConditions(cond => cond.target === c.uniqueName);
-            }
-
-            // Suppress individual network api updates during rapid programmatic fast-forwards
-            if (!isSilent) {
-                syncUpdateCombatant(c);
-            }
-        });
     }
 }
 
-// New Round logic: Advances round counter, decrements condition timers, and resets turn states
+// New Round logic: Advances round counter natively evaluating total computed steps
 function newRound() {
-    // Set the transition lock flag to prevent nextTurn from recursively triggering newRound
     isProcessingRoundTransition = true;
 
-    // Check if there are any alive combatants with a valid reflex stat who haven't acted yet this round
-    let hasNotActed = activeCombatants.some(c => 
-        !c.isDead && 
-        c.stats.reflex !== undefined && 
-        c.stats.reflex !== null && 
-        c.stats.reflex !== '' && 
-        !c.hasActedThisRound
-    );
+    // Fast forward verification
+    let hasNotActed = activeCombatants.some(c => {
+        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
+        const totalTurns = calculateTotalTurns(c);
+        return (c.turnsTakenThisRound || 0) < totalTurns;
+    });
     
-    // Programmatically fast-forward outstanding turns silently without spamming network endpoints
     while (hasNotActed) {
-        nextTurn(true);
-        hasNotActed = activeCombatants.some(c => 
-            !c.isDead && 
-            c.stats.reflex !== undefined && 
-            c.stats.reflex !== null && 
-            c.stats.reflex !== '' && 
-            !c.hasActedThisRound
-        );
+        nextTurn(true); // Silent fast-forward till end
+        hasNotActed = activeCombatants.some(c => {
+            if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
+            const totalTurns = calculateTotalTurns(c);
+            return (c.turnsTakenThisRound || 0) < totalTurns;
+        });
     }
 
-    // --- CLEANUP AND ROUND RESET (Executed only when everyone on the board has completed their turn) ---
-    // Reset acted flags and handle edge-case cooldowns
+    // Full round reset
     activeCombatants.forEach(c => {
         if (!c.isDead) {
-            c.hasActedThisRound = false;
-            // Execute a single synchronized batch update for each combatant at the very end of calculation
+            c.turnsTakenThisRound = 0; // Wipe history state
             syncUpdateCombatant(c);
         }
     });
 
-    // Decrement conditions without a live specific target on the board
+    // Handle global round condition decrement logic (Round based 'r', and missing targets for 't')
     const activeNames = activeCombatants.map(c => c.uniqueName);
     if (typeof decrementConditions === 'function') {
-        decrementConditions(cond => !activeNames.includes(cond.target));
+        decrementConditions(cond => {
+            const durStr = String(cond.duration || '').trim();
+            const type = durStr.slice(-1);
+            const isRoundBased = type === 'r';
+            const isTurnBased = type === 't' || !isNaN(type);
+            const isOrphaned = !activeNames.includes(cond.target);
+            
+            // Evaluates TRUE if the condition explicitly tracks rounds, or tracks turns but the target is gone
+            return isRoundBased || (isTurnBased && isOrphaned);
+        });
     }
 
-    // Release the transition lock flag now that the round cleanup sequence is fully complete
     isProcessingRoundTransition = false;
 }
 
-// End Combat: Automatically clear enemies and conditions, preserving heroes and resetting their cooldowns
+// End Combat: Reset cooldowns and interaction histories safely
 function endCombat() {
     activeCombatants.forEach(c => {
         if (c.team === 'enemy' && typeof syncRemoveCombatant === 'function') {
             syncRemoveCombatant(c.id);
         } else if (!c.isDead) {
-            // Reset all cooldowns for surviving characters, including single-use abilities
             if (c.abilitiesStates) {
                 Object.keys(c.abilitiesStates).forEach(abilityName => {
                     const state = c.abilitiesStates[abilityName];
                     state.currentCooldown = 0; 
                 });
             }
-            c.hasActedThisRound = false;
+            c.turnsTakenThisRound = 0; // Wipe history state
             if (typeof syncUpdateCombatant === 'function') syncUpdateCombatant(c);
         }
     });
     
-    // Clear all conditions from the board
     if (typeof updateServerConditions === 'function') {
         updateServerConditions([]);
     }

@@ -191,7 +191,6 @@ var players = {
         maxHp: 100,
         vitality: 10,
         strength: 10,
-        intuition: 1,
         accuracy: 10,
         agility: 10,
         resilience: 10,
@@ -199,32 +198,5 @@ var players = {
         damage: 30,
         physArmor: 4,
         magArmor: 4,
-        abilities: [
-            ability["Test1"],
-            ability["Test2"],
-            ability["Test3"],
-        ],
-        equipment: [
-            {
-                type: "gear",
-                name: "Ostateczny Item Testowy",
-                description: "[prop_unavoidable] Zmienia statystyki tak: [+2 strength], [-2 reflex], [-3 intuition mod], [+1 agility mod] oraz [+50 hp].",
-                damage: "[2 * strength]",
-                physArmor: "[0.5 * vitality]",
-                physArmorPerc: 20,
-                magArmor: "[-3 - 0.5 * intuition]",
-                magArmorPerc: "[20 - 0.5 * intuition]",
-            },
-            {
-                type: "gear",
-                name: "Ostateczny Item Testowy 2",
-                description: "[prop_piercing] Jest wredny, odejmuje [-70 hp].",
-                damage: "[1 * resilience]",
-                physArmor: "[-10 + 2 * vitality]",
-                physArmorPerc: -30,
-                magArmor: 5,
-                magArmorPerc: "[-5 + 0.8 * intuition]",
-            },
-        ]
     },
 };

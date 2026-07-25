@@ -286,7 +286,7 @@ var mobs = {
                 difficulty: 10,
                 cooldown: 0,
                 condition: "Rozpalona broń. Broń zadaje 50% więcej obrażeń",
-                conditionDuration: 6
+                conditionDuration: "6t"
             },
         ],
         equipment: [

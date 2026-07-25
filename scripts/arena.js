@@ -82,7 +82,7 @@ function addCharacter(type, team, stats = {}, image = null) {
         lastRoll: { stat: '', result: '', color: 'white' }, // New dictionary for keeping track of dice rolls
         isDead: finalStats.isDead === true || finalStats.isDead === "true",
         hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
-        hasActedThisRound: false,
+        turnsTakenThisRound: 0, // Swapped from hasActedThisRound
         isStunned: false
     };
 

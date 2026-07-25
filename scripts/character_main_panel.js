@@ -46,15 +46,24 @@ function renderCharMainPanel(id) {
     // Fetch globally saved sheet tab state from localStorage
     const savedSheetTab = localStorage.getItem('CombatManager-SheetTab') || 'tab-rolls';
 
-    // Dynamically prepare the Last Roll string
-    const rollLabelText = combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
-    const rollResultText = combatant.lastRoll.result || '-';
+    // Dynamically prepare the Last Roll string safely checking for existence
+    const rollLabelText = combatant.lastRoll && combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
+    const rollResultText = combatant.lastRoll ? (combatant.lastRoll.result || '-') : '-';
+    const rollColor = combatant.lastRoll ? (combatant.lastRoll.color || 'white') : 'white';
+
+    // Name formatting logic - Inputs only for custom empty tokens, completely locked (but identical) styling for named file entities
+    let charNameHtml = '';
+    if (combatant.type === 'character') {
+        charNameHtml = `<input type="text" class="char-name-input" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">`;
+    } else {
+        charNameHtml = `<div class="char-name-input copyable-value" style="cursor: pointer; line-height: normal; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;" onclick="copyValue('${combatant.uniqueName || ''}', event)">${combatant.uniqueName || ''}</div>`;
+    }
 
     // 1. Render Main Character Sheet (.char-sheet)
     charSheet.innerHTML = `
         <img src="${imgSrc}" class="char-portrait-square" onerror="this.src='/images/default-img.svg'">
         <div class="char-header">
-            <input type="text" class="char-name-input" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">
+            ${charNameHtml}
         </div>
         <div class="char-hp-visual ${combatant.isDead ? 'dead' : ''}">
             <div class="char-hp-visual-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
@@ -135,7 +144,7 @@ function renderCharMainPanel(id) {
 
         <div class="dice-result-box">
             <div class="dice-result-label">${rollLabelText}</div>
-            <div class="dice-result-value" id="last-roll-display" style="color: ${combatant.lastRoll.color};">${rollResultText}</div>
+            <div class="dice-result-value" id="last-roll-display" style="color: ${rollColor};">${rollResultText}</div>
         </div>
     `;
 
@@ -372,8 +381,8 @@ function evaluateFormula(formula, stats) {
 function bindMainPanelInputs(combatantData) {
     const charSheet = document.getElementById('panel-char-sheet');
 
-    // Handle Name change
-    const nameInput = charSheet.querySelector('.char-name-input');
+    // Handle Name change strictly enforcing that we only bind if it's an INPUT tag
+    const nameInput = charSheet.querySelector('input.char-name-input');
     if (nameInput) {
         nameInput.addEventListener('input', (e) => {
             // ALWAYS fetch the freshest memory object to avoid overwriting network changes (like HP)

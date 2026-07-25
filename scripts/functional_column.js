@@ -107,14 +107,14 @@ async function reloadCharacterData() {
         // Preserve current health to prevent unwanted full heals, but clamp to new max HP
         const currentHp = combatant.stats.hp;
         const wasDead = combatant.isDead;
-        const acted = combatant.hasActedThisRound;
+        const turnsTaken = combatant.turnsTakenThisRound || 0; // Migrated state variable
         
         // Update memory core stats
         combatant.stats = finalStats;
         combatant.baselineStats = JSON.parse(JSON.stringify(finalStats)); // Reset baseline stats upon character reloads
         combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
         combatant.isDead = wasDead;
-        combatant.hasActedThisRound = acted;
+        combatant.turnsTakenThisRound = turnsTaken;
         
         // Deep copy fresh equipment and abilities
         combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];

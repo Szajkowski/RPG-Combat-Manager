@@ -18,10 +18,8 @@ var bosses = {
         abilities: [
             {
                 name: "Dominująca obecność",
-                description: "Psychicznie zmusza inne postacie do czynienia jego woli. Przeciwników może uratować tylko rzut na nieustępliwość z trudnością 25. Musi się on powieść za każdym razem, gdy chce się oprzeć woli Edeusa.",
-                roll: "resilience",
-                difficulty: 1,
-                cooldown: "[cooldown_once]"
+                description: "Pasywne. Psychicznie zmusza inne postacie do czynienia jego woli. Przeciwników może uratować tylko rzut na nieustępliwość z trudnością 25. Musi się on powieść za każdym razem, gdy chce się oprzeć woli Edeusa.",
+                cooldown: 3
             },
             ability["Feniks"],
             ability["Narastający żar zagłady"],
@@ -98,7 +96,7 @@ var bosses = {
             },
             {
                 name: "Dodatkowa akcja",
-                description: "Pasywne. Postać ma dwie kolejki na turę. Raz z priorytetem równym 100% refleksu, drugi z 50%",
+                description: "[prop_extra_turn] Postać porusza się dwa razy. Raz refleksem równym 100%, drugi raz z równym 50%.",
             },
             {
                 name: "Niepokonany",

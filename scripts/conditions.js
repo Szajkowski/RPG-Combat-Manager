@@ -7,9 +7,14 @@ function decrementConditions(shouldDecrement) {
         // Execute decrement only if the callback condition evaluates to true
         if (shouldDecrement(cond)) {
             if (cond.duration !== undefined && cond.duration !== null && cond.duration !== "-") {
-                let dur = parseInt(cond.duration);
-                if (!isNaN(dur) && dur > 0) {
-                    cond.duration = dur - 1;
+                let durStr = String(cond.duration).trim();
+                let type = durStr.slice(-1); // Check for 't' or 'r'
+                let num = parseInt(durStr);  // Safely extract the numeric value
+                
+                if (!isNaN(num) && num > 0) {
+                    // Append the type suffix back if it had one (fallback to empty for legacy integers)
+                    let suffix = (type === 't' || type === 'r') ? type : ''; 
+                    cond.duration = (num - 1) + suffix;
                     changed = true;
                 }
             }
@@ -24,8 +29,8 @@ function cleanUpExpiredConditions() {
     const filteredConditions = activeConditions.filter(cond => {
         if (cond.duration === "-") return true;
         if (cond.duration === undefined || cond.duration === null) return true;
-        let dur = parseInt(cond.duration);
-        return isNaN(dur) || dur > 0;
+        let num = parseInt(cond.duration); // ParseInt stops at characters, so '0r' perfectly resolves to 0
+        return isNaN(num) || num > 0;
     });
     
     activeConditions = filteredConditions;
@@ -49,6 +54,10 @@ function renderConditions() {
         // Safely escape the target name in case it has quotes, for the clipboard function
         const safeTarget = (cond.target || '').replace(/'/g, "\\'");
 
+        // Dynamically parse condition description for display using target combatant context
+        const targetCombatant = activeCombatants.find(c => c.uniqueName === cond.target);
+        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(cond.description || "", targetCombatant) : (cond.description || "");
+
         html += `
             <div class="condition-block">
                 <div class="condition-header">
@@ -56,16 +65,15 @@ function renderConditions() {
                     <div style="display: flex; gap: 5px; align-items: center;">
                         ${cond.duration !== undefined && cond.duration !== null ? `<span class="condition-duration" title="${t('condition_duration')}">${cond.duration}</span>` : ''}
                         <div class="condition-actions">
-                            <button class="condition-btn copy" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">©</button>
                             <button class="condition-btn remove" title="${t('condition_remove')}" onclick="removeCondition('${cond.id}')">✖</button>
                         </div>
                     </div>
                 </div>
                 <div class="condition-target-wrapper">
-                    <span>${t('target')}</span>
+                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
                     <input type="text" class="condition-target" value="${cond.target}" onchange="updateConditionTarget('${cond.id}', this.value)">
                 </div>
-                <div class="condition-desc">${cond.description}</div>
+                <div class="condition-desc">${parsedDesc}</div>
             </div>
         `;
     });

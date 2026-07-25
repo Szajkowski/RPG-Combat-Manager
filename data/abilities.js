@@ -16,7 +16,7 @@ var ability = {
         difficulty: 4,
         cooldown: 0,
         condition: "Rozpalony. Zwiększa żywotność o [5].",
-        conditionDuration: 8
+        conditionDuration: "8t"
     },
     "Kula ognia": {
         name: "Kula ognia",
@@ -41,7 +41,7 @@ var ability = {
         difficulty: 6,
         cooldown: 0,
         condition: "Oślepiony. [-5] do rzutów na celność",
-        conditionDuration: 1
+        conditionDuration: "1t"
     },
     "Mały smok": {
         name: "Mały smok",
@@ -66,7 +66,7 @@ var ability = {
         difficulty: "X",
         cooldown: 2,
         condition: "Rozgrzana broń. Niemożność podniesienia broni.",
-        conditionDuration: 1
+        conditionDuration: "2t"
     },
 
 
@@ -172,7 +172,7 @@ var ability = {
         difficulty: 3,
         cooldown: 0,
         condition: "Podmrożony. [-4] do rzutów na zwinność",
-        conditionDuration: 2
+        conditionDuration: "2t"
     },
     "Wodny bicz": {
         name: "Wodny bicz",
@@ -181,7 +181,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         condition: "Podmrożony. [-4] do rzutów na zwinność",
-        conditionDuration: 2
+        conditionDuration: "2t"
     },
     "Regeneracja": {
         name: "Regeneracja",
@@ -206,7 +206,7 @@ var ability = {
         difficulty: 9,
         cooldown: 2,
         condition: "Skupiony. [-4] do trudności rzucania zaklęć",
-        conditionDuration: 2
+        conditionDuration: "2t"
     },
     "Pazur oceanu": {
         name: "Pazur oceanu",
@@ -250,7 +250,7 @@ var ability = {
         difficulty: 12,
         cooldown: 3,
         condition: "Zmrożony. [-6] do rzutów na zwinność",
-        conditionDuration: 2
+        conditionDuration: "2t"
     },
     "Wodna powłoka": {
         name: "Wodna powłoka",
@@ -294,12 +294,12 @@ var ability = {
     },
     "Przepływ losu Artursa": {
         name: "Przepływ losu Artursa",
-        description: "Jeśli to zaklęcie się uda, wówczas przez kolejne [5] tur wszystkie rzuty decydujące o szansie na coś stają się rzutami [50]:[50]. Zaklęcie obejmuje wszystkich zaangażowanych w walkę.",
+        description: "Jeśli to zaklęcie się uda, wówczas przez kolejne [5] rund wszystkie rzuty decydujące o szansie na coś stają się rzutami [50]:[50]. Zaklęcie obejmuje wszystkich zaangażowanych w walkę.",
         roll: "intuition",
         difficulty: 18,
         cooldown: 6,
         condition: "Losowość. Wszystkie rzuty są [50]:[50]",
-        conditionDuration: 5
+        conditionDuration: "5r"
     },
 
 
@@ -311,14 +311,18 @@ var ability = {
         description: "Tworzy lodowy miecz, który zadaje [1 * intuition] obrażeń po turze maga. Roztapia się po wykonaniu [3] cięć, albo gdy zostanie uderzony.",
         roll: "intuition",
         difficulty: 5,
-        cooldown: 0
+        cooldown: 0,
+        condition: "Lodowy miecz. Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+        conditionDuration: "3t"
     },
     "Lodowy arsenał": {
         name: "Lodowy arsenał",
-        description: "Tworzy [3] lodowe miecze, z których każdy zadaje [1 * intuition] obrażeń po turze maga. Roztapiają się po walce, albo gdy zostaną uderzone.",
+        description: "Tworzy [3] lodowe miecze, z których każdy zadaje [1 * intuition] obrażeń po turze maga. Roztapiają się po wykonaniu [3] cięć, albo gdy zostaną uderzone.",
         roll: "intuition",
         difficulty: 10,
-        cooldown: 1
+        cooldown: 1,
+        condition: "3 lodowy miecze. Zadają [1 * intuition] x3 po turze maga przez [3] tury albo, gdy zostaną uderzone.",
+        conditionDuration: "3t"
     },
     "Miecze: Atak!": {
         name: "Miecze: Atak!",
@@ -329,12 +333,12 @@ var ability = {
     },
     "Miecze: Naostrzenie!": {
         name: "Miecze: Naostrzenie!",
-        description: "Sprawia, że posiadane lodowe miecze zaczynają zadawać penetrujące obrażenia. Trwa [2] tury.",
+        description: "Sprawia, że posiadane lodowe miecze zaczynają zadawać penetrujące obrażenia. Trwa [3] tury.",
         roll: "intuition",
         difficulty: 15,
         cooldown: 2,
         condition: "Ostre lodowe miecze. Zadają obrażenia penetrujące.",
-        conditionDuration: 2
+        conditionDuration: "3t"
     },
     "Lodowe przytłoczenie": {
         name: "Lodowe przytłoczenie",
@@ -362,7 +366,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         condition: "Zdeterminowany. Rzuty na nieustępliwość mnożone x[2]",
-        conditionDuration: 3
+        conditionDuration: "3t"
     },
     "Pomoc ziemi": {
         name: "Pomoc ziemi",
@@ -387,7 +391,7 @@ var ability = {
         difficulty: 8,
         cooldown: 3,
         condition: "Unieruchomiony. Redukcja obrażeń fizycznych o [50]%",
-        conditionDuration: 3
+        conditionDuration: "3t"
     },
     "Pędzący głaz": {
         name: "Pędzący głaz",
@@ -398,19 +402,21 @@ var ability = {
     },
     "Bagnista powierzchnia": {
         name: "Bagnista powierzchnia",
-        description: "[prop_unavoidable] Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa [2] tury.",
+        description: "[prop_unavoidable] Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa [3] tury.",
         roll: "strength",
         difficulty: 10,
         cooldown: 2,
         condition: "Ubłocony. Ograniczony ruch. Wymaga całej kolejki na wyjście z błota",
-        conditionDuration: 2
+        conditionDuration: "3t"
     },
     "Kamienny chwyt": {
         name: "Kamienny chwyt",
         description: "[prop_unavoidable] Tworzy ręce z ziemi, które próbują unieruchomić cel na [1] turę (rzut siła kontra siła).",
         roll: "strength",
         difficulty: "X",
-        cooldown: 2
+        cooldown: 2,
+        condition: "Unieruchomiony przez kamienne ręce.",
+        conditionDuration: "1t"
     },
 
 
@@ -423,8 +429,8 @@ var ability = {
         roll: "strength",
         difficulty: 8,
         cooldown: 2,
-        condition: "Cel skupienia. Zaatakowanie innego przeciwnika niż mag skończy się źle",
-        conditionDuration: 3,
+        condition: "Skupiony na jednym celu. Jeśli dany cel zaatakuje kogoś innego i jest w zasięgu, oberwie za [5 * strength] nieunikalnych obrażeń z 20% szansą na ogłuszenie.",
+        conditionDuration: "2t",
     },
     "Skalne włócznie": {
         name: "Skalne włócznie",
@@ -440,14 +446,16 @@ var ability = {
         difficulty: 15,
         cooldown: 4,
         condition: "Krwawienie. [1 * strength] obrażeń penetrujących na początku tury.",
-        conditionDuration: 3
+        conditionDuration: "3t"
     },
     "Niszczyciel zbroi": {
         name: "Niszczyciel zbroi",
-        description: "Uderza cel skupiając się na jego obronie. Pozbawia cel [2 * roll strength] pancerza fizycznego.",
+        description: "Uderza cel skupiając się na jego obronie. Pozbawia cel [-2 * roll strength] pancerza fizycznego.",
         roll: "strength",
         difficulty: "X",
-        cooldown: 4
+        cooldown: 4,
+        condition: "Osłabiony. [-2 * roll strength] pancerza fizycznego.",
+        conditionDuration: "-"
     },
 
 
@@ -494,7 +502,7 @@ var ability = {
         difficulty: 25,
         cooldown: 3,
         condition: "Nadziany na kolec. Brak możliwości ruchu i uników",
-        conditionDuration: 3
+        conditionDuration: "3t"
     },
     "Wzniesienie": {
         name: "Wzniesienie",
@@ -515,7 +523,7 @@ var ability = {
         difficulty: 4,
         cooldown: 0,
         condition: "Dezorientacja. [-6] do rzutów na celność i unik",
-        conditionDuration: 1
+        conditionDuration: "1t"
     },
     "Tnące łuki": {
         name: "Tnące łuki",
@@ -551,12 +559,12 @@ var ability = {
     },
     "Małe przyspieszenie": {
         name: "Małe przyspieszenie",
-        description: "Wybrany cel zyskuje [1] dodatkową akcję. Nie stackuje się z innymi umiejętnościami przyspieszającymi cel na chwilę.",
+        description: "Wybrany cel zyskuje [1] dodatkową akcję. Nie stackuje się z niczym innym co zapewnia dodatkową turę.",
         roll: "agility",
         difficulty: 9,
         cooldown: 2,
-        condition: "[prop_extra_turn] Działa przez [1] turę.",
-        conditionDuration: 2,
+        condition: "[prop_extra_turn] Działa przez [2] tury.",
+        conditionDuration: "2t",
     },
     "Wir pięści": {
         name: "Wir pięści",
@@ -626,12 +634,12 @@ var ability = {
 
     "Grupowe przyspieszenie": {
         name: "Grupowe przyspieszenie",
-        description: "Przez swoje następne [3] tury, wszyscy sojusznicy wraz z magiem zostają obdarowani przyspieszeniem, dzięki czemu zyskują dodatkową akcję na turę, zawsze poruszają się pierwsi przed przeciwnikami oraz ich rzuty na unik zostają pomnożone przez [2].",
+        description: "Przez następne [3] rundy, wszyscy sojusznicy wraz z magiem zostają obdarowani przyspieszeniem, dzięki czemu zyskują dodatkową akcję na turę, zawsze poruszają się pierwsi przed przeciwnikami oraz ich rzuty na unik zostają pomnożone przez [2].",
         roll: "agility",
         difficulty: 25,
         cooldown: 8,
-        condition: "Przyśpieszenie. Dodatkowa akcja, pierwszeństwo ruchu, x[2] do uników",
-        conditionDuration: 3
+        condition: "[prop_extra_turn] Przyśpieszenie. Dodatkowa akcja, pierwszeństwo ruchu, x[2] do uników",
+        conditionDuration: "3t"
     },
     "Tornado": {
         name: "Tornado",
@@ -640,7 +648,7 @@ var ability = {
         difficulty: 35,
         cooldown: 10,
         condition: "Porwany przez tornado. Brak kontroli ruchu",
-        conditionDuration: 2
+        conditionDuration: "2t"
     },
 
 
@@ -662,6 +670,8 @@ var ability = {
         cooldown: 0
     },
 
+// Testy
+
     "Test1": {
         name: "Test1",
         description: "[prop_unavoidable] [prop_piercing] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 2 * rzut = [2 * roll vitality], trelele, 8 * przebicie = [8 * over vitality]",
@@ -678,11 +688,11 @@ var ability = {
     },
     "Test3": {
         name: "Test3",
-        description: "Usuwa [-5 * vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę. Nie stackuje się z innymi efektami dającymi chwilowo dodatkową turę.",
+        description: "Usuwa [-5 * vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę w tej rundzie.",
         roll: "agility",
         difficulty: 1,
         cooldown: 2,
-        condition: "[prop_extra_turn] Aktywne przez [2] tury celu.",
-        conditionDuration: 2,
-    },
+        condition: "[prop_extra_turn] Aktywne przez [1] rundę.",
+        conditionDuration: "1r",
+    }, 
 }

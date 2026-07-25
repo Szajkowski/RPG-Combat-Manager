@@ -153,6 +153,8 @@ const i18n = {
         'quantity': 'Ilość:',
         'cooldown_once': 'raz na walkę',
         'dead': 'Nie żyje',
+
+        // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_unavoidable': 'Nieunikalne.',
         'prop_piercing': 'Przebijające.',
         'prop_extra_turn': 'Daje dodatkową turę.',

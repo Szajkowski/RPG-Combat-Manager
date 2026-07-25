@@ -21,8 +21,8 @@ function renderExtraPanel(combatantId) {
     }
     
     // Use the deep-copied arrays stored in the central memory
-    const abilities = combatant.abilities.slice(0, maxAbilities);
-    const equipment = combatant.equipment;
+    const abilities = combatant.abilities ? combatant.abilities.slice(0, maxAbilities) : [];
+    const equipment = combatant.equipment || [];
 
     const hasAbilities = abilities.length > 0;
     const hasEquipment = equipment.length > 0;
@@ -37,11 +37,20 @@ function renderExtraPanel(combatantId) {
     if (activeTabTarget === 'panel-skills' && !hasAbilities) activeTabTarget = 'panel-equip';
     if (activeTabTarget === 'panel-equip' && !hasEquipment) activeTabTarget = 'panel-skills';
 
-    // Check if structural tab containers already exist to preserve internal scroll states natively
-    let skillsContainer = document.getElementById('panel-skills');
-    let equipContainer = document.getElementById('panel-equip');
+    // Check existing layout elements to determine if UI shell needs structural updates
+    const existingTabsHeader = extraPanel.querySelector('.char-extra-tabs');
+    const existingSkillsContainer = document.getElementById('panel-skills');
+    const existingEquipContainer = document.getElementById('panel-equip');
 
-    if (!skillsContainer || !equipContainer) {
+    const currentHasSkillsTab = existingTabsHeader ? !!existingTabsHeader.querySelector('[data-target="panel-skills"]') : false;
+    const currentHasEquipTab = existingTabsHeader ? !!existingTabsHeader.querySelector('[data-target="panel-equip"]') : false;
+
+    // Structure needs rebuild if containers are missing or tab availability changed
+    const needsStructureRebuild = !existingTabsHeader || !existingSkillsContainer || !existingEquipContainer ||
+                                  (currentHasSkillsTab !== hasAbilities) ||
+                                  (currentHasEquipTab !== hasEquipment);
+
+    if (needsStructureRebuild) {
         let html = '';
         // Always render the tabs container if there's at least one, to serve as a visual header
         html += `<div class="char-extra-tabs">`;
@@ -62,44 +71,49 @@ function renderExtraPanel(combatantId) {
         extraPanel.innerHTML = html;
 
         // Attach tab switching logic and persist state globally to localStorage
-        if (hasAbilities && hasEquipment) {
-            extraPanel.querySelectorAll('.char-extra-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const target = tab.dataset.target;
-                    localStorage.setItem('CombatManager-ExtraTab', target);
+        extraPanel.querySelectorAll('.char-extra-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.target;
+                localStorage.setItem('CombatManager-ExtraTab', target);
 
-                    extraPanel.querySelectorAll('.char-extra-tab').forEach(t => t.classList.remove('active'));
-                    extraPanel.querySelectorAll('.char-extra-content').forEach(c => c.classList.remove('active'));
-                    
-                    tab.classList.add('active');
-                    document.getElementById(target).classList.add('active');
-                });
+                extraPanel.querySelectorAll('.char-extra-tab').forEach(t => t.classList.remove('active'));
+                extraPanel.querySelectorAll('.char-extra-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const targetContent = document.getElementById(target);
+                if (targetContent) targetContent.classList.add('active');
             });
-        }
-        
-        skillsContainer = document.getElementById('panel-skills');
-        equipContainer = document.getElementById('panel-equip');
+        });
     } else {
-        // Maintain active styles on existing containers if tabs layout changes dynamically
+        // Maintain active styles on existing containers if tabs layout matches
         extraPanel.querySelectorAll('.char-extra-tab').forEach(tab => {
             if (tab.dataset.target === activeTabTarget) tab.classList.add('active');
             else tab.classList.remove('active');
         });
-        [skillsContainer, equipContainer].forEach(c => {
-            if (c.id === activeTabTarget) c.classList.add('active');
-            else c.classList.remove('active');
+        [existingSkillsContainer, existingEquipContainer].forEach(c => {
+            if (c) {
+                if (c.id === activeTabTarget) c.classList.add('active');
+                else c.classList.remove('active');
+            }
         });
     }
 
-    // Populate data into containers using the combatant object directly without destroying scroll elements
-    if (hasAbilities && skillsContainer) {
+    const skillsContainer = document.getElementById('panel-skills');
+    const equipContainer = document.getElementById('panel-equip');
+
+    // Populate data into containers using the combatant object directly or clear unused container
+    if (skillsContainer) {
         skillsContainer.innerHTML = '';
-        fillAbilitiesPanel(abilities, combatant, skillsContainer);
+        if (hasAbilities) {
+            fillAbilitiesPanel(abilities, combatant, skillsContainer);
+        }
     }
 
-    if (hasEquipment && equipContainer) {
+    if (equipContainer) {
         equipContainer.innerHTML = '';
-        fillEquipmentPanel(equipment, combatant, equipContainer);
+        if (hasEquipment) {
+            fillEquipmentPanel(equipment, combatant, equipContainer);
+        }
     }
 }
 
@@ -546,10 +560,12 @@ function parseDescription(description, combatant, rollDifficulty = null) {
 
 // Retrieves only the value of the statistic itself, without counting the additional bonus. Roll bonuses shouldn't affect ability damage in the [number * stat] convention
 function getStatValue(combatant, stat) {
+    if (!combatant || !combatant.stats) return 0;
     return parseInt(combatant.stats[stat]) || 0; 
 }
 
 // Retrieves the value of the stat bonus. Useful when calculating things dependent on the height of the roll or margin points
 function getModValue(combatant, stat) {
+    if (!combatant || !combatant.stats) return 0;
     return parseInt(combatant.stats[`${stat}Mod`]) || 0; 
 }
