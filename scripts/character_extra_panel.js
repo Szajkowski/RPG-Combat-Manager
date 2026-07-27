@@ -329,10 +329,25 @@ function useAbility(combatantId, ability) {
     let success = true; // abilities without info on what to roll are treated as always successful
 
     if (ability.roll) { // roll, if the ability has one
-        const result = rollDice(combatant.id, ability.roll, ability.difficulty);
-        success = ability.difficulty === "X" ? true 
-                                             : result >= ability.difficulty ? true 
-                                             : false;
+        const rollData = rollDice(combatant.id, ability.roll, ability.difficulty);
+        
+        if (rollData) {
+            const result = rollData.result;
+            success = ability.difficulty === "X" ? true 
+                                                 : result >= ability.difficulty ? true 
+                                                 : false;
+            
+            // Also registers roll events initiated by abilities!
+            syncAddRollEvent({
+                id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                combatantId: combatant.id,
+                combatantName: combatant.uniqueName,
+                combatantTeam: combatant.team,
+                rolls: [ rollData ]
+            });
+        } else {
+            success = false;
+        }
     }
 
     if (success) {

@@ -98,17 +98,23 @@ function handleDeathsDoor(combatant) {
     // cannot have more than 75% death resistance
     const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); 
 
-    playSoundEffect('sound/diceroll.mp3');
-
     // Roll 1-100
     const rollResult = Math.floor(Math.random() * 100) + 1;
 
-    // Save roll result directly to the combatant memory, which will be synced globally!
-    combatant.lastRoll = {
-        stat: "deaths_door",
-        result: rollResult,
-        color: rollResult >= survivalThreshold ? '#50fa7b' : '#ff5555'
+    // Broadcast the result to the rolls feed globally
+    const rollEvent = {
+        id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        combatantId: combatant.id,
+        combatantName: combatant.uniqueName,
+        rolls: [
+            {
+                stat: "deaths_door",
+                result: rollResult,
+                color: rollResult >= survivalThreshold ? '#50fa7b' : '#ff5555'
+            }
+        ]
     };
+    syncAddRollEvent(rollEvent);
 
     if (rollResult < survivalThreshold) {
         return false; // Character died

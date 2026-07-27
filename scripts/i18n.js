@@ -30,6 +30,7 @@ const i18n = {
         'placeholder_no_initiative': 'Brak postaci z refleksem. Nie można pokazać kolejki tur',
         'placeholder_no_music': 'Brak utworów do otworzenia',
         'placeholder_no_extra_content': 'Postać nie posiada umiejętności ani ekwipunku',
+        'placeholder_no_rolls': 'Historia rzutów jest pusta',
 
         // --- TOP BAR ---
         'btn_next_turn': 'Następna tura (T)',
@@ -202,6 +203,7 @@ const i18n = {
        'placeholder_no_initiative': "No characters with reflex. Can't show the initiative bar",
        'placeholder_no_music': 'No music available',
        'placeholder_no_extra_content': 'Character has no skills or equipment',
+       'placeholder_no_rolls': 'Roll history is empty',
 
         // --- TOP BAR ---
         'btn_next_turn': 'Next turn (T)',

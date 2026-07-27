@@ -21,7 +21,6 @@ function getLocalIp() {
 async function startServer() {
     // Check and generate SSL keys if they don't exist
     let privateKey, certificate;
-    // Check and generate SSL keys if they don't exist
     if (fs.existsSync('server.key') && fs.existsSync('server.cert')) {
         privateKey = fs.readFileSync('server.key', 'utf8');
         certificate = fs.readFileSync('server.cert', 'utf8');
@@ -265,6 +264,7 @@ async function startServer() {
     // Store global game state
     let activeCombatants = []; // Single source of truth for all characters
     let activeConditions = []; // Kept separate for now
+    let rollsHistory = []; // Global roll history feed array
     const connectedClients = new Map(); // Maps socket to client details { clientId, clientName, isGM }
 
     // Handle WebSocket connections
@@ -302,6 +302,7 @@ async function startServer() {
                         type: 'RESPONSEgetFullState',
                         activeCombatants,
                         activeConditions,
+                        rollsHistory
                     }));
                     break;
                 }
@@ -399,6 +400,22 @@ async function startServer() {
                     });
                     break;
                 }  
+
+                case 'REQUESTaddRollEvent': {
+                    // Cap history at 50 events to prevent memory overflow
+                    rollsHistory.push(data.rollEvent);
+                    if (rollsHistory.length > 50) rollsHistory.shift();
+        
+                    wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: 'BROADCASTaddRollEvent',
+                                rollEvent: data.rollEvent
+                            }));
+                        }
+                    });
+                    break;
+                }
                     
                 default:
                     console.log('Unknown message type:', data.type);

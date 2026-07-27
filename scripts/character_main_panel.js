@@ -46,11 +46,6 @@ function renderCharMainPanel(id) {
     // Fetch globally saved sheet tab state from localStorage
     const savedSheetTab = localStorage.getItem('CombatManager-SheetTab') || 'tab-rolls';
 
-    // Dynamically prepare the Last Roll string safely checking for existence
-    const rollLabelText = combatant.lastRoll && combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
-    const rollResultText = combatant.lastRoll ? (combatant.lastRoll.result || '-') : '-';
-    const rollColor = combatant.lastRoll ? (combatant.lastRoll.color || 'white') : 'white';
-
     // Name formatting logic - Inputs only for custom empty tokens, completely locked (but identical) styling for named file entities
     let charNameHtml = '';
     if (combatant.type === 'character') {
@@ -141,11 +136,6 @@ function renderCharMainPanel(id) {
                 <input type="text" class="armor-perc-input base-mag-armor-mod" title="${t('armor_value_percent')}" value="${stats.magArmorMod || ''}">
             </div>
         </div>
-
-        <div class="dice-result-box">
-            <div class="dice-result-label">${rollLabelText}</div>
-            <div class="dice-result-value" id="last-roll-display" style="color: ${rollColor};">${rollResultText}</div>
-        </div>
     `;
 
     // 2. Render Functional Column (.char-functional-col)
@@ -185,7 +175,7 @@ function generateStatRow(combatantId, statName, value, mod) {
             <span class="stat-label" data-i18n="${statName}"></span>
             <input type="number" class="stat-val-input" data-stat="${statName}" value="${value || ''}">
             <input type="text" class="stat-mod-input" data-stat="${statName}Mod" placeholder="mod" value="${mod || ''}">
-            <button class="roll-btn" onclick="rollDice('${combatantId}', '${statName}')">${t('roll')}</button>
+            <button class="roll-btn" onclick="rollSingleStat('${combatantId}', '${statName}')">${t('roll')}</button>
         </div>
     `;
 }

@@ -11,6 +11,7 @@ if (rawPath && !rawPath.includes("index.html") && !rawPath.includes("player.html
 // --- GLOBAL STATE MOVED TO NETWORK FOR ALL CLIENTS ---
 let activeCombatants = []; // Holds all active characters data and their current stats
 let activeConditions = []; // Holds all active conditions
+let rollsHistory = []; // Tracks historical roll events
 let selectedCharacterId = null; // Tracks currently selected character token on the arena
 let myClientId = null; // Stored personal client ID assigned by the server
 
@@ -47,6 +48,7 @@ function connectSocket() {
             case 'RESPONSEgetFullState': {
                 activeCombatants = data.activeCombatants;
                 activeConditions = data.activeConditions; // Sync conditions
+                rollsHistory = data.rollsHistory || []; // Sync rolls
                 
                 if (typeof renderToken === 'function') {
                     activeCombatants.forEach(c => renderToken(c));
@@ -55,6 +57,7 @@ function connectSocket() {
                 // Render dynamic HUDs
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 if (typeof renderConditions === 'function') renderConditions();
+                if (typeof renderRollsFeed === 'function') renderRollsFeed(rollsHistory);
 
                 // Initialize empty states properly
                 if (typeof checkArenaEmptyStates === 'function') checkArenaEmptyStates();
@@ -120,6 +123,13 @@ function connectSocket() {
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
+
+            case 'BROADCASTaddRollEvent': {
+                rollsHistory.push(data.rollEvent);
+                if (rollsHistory.length > 50) rollsHistory.shift();
+                if (typeof appendRollEvent === 'function') appendRollEvent(data.rollEvent, true);
+                break;
+            }
                 
             default:
                 console.log('Unknown message type:', data);
@@ -167,6 +177,16 @@ function syncRemoveCombatant(id) {
         socket.send(JSON.stringify({
             type: 'REQUESTremoveCombatant',
             id: id
+        }));
+    }
+}
+
+// Instructs the server to add a new roll to global history feed
+function syncAddRollEvent(rollEvent) {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'REQUESTaddRollEvent',
+            rollEvent: rollEvent
         }));
     }
 }
@@ -242,15 +262,6 @@ function refreshCombatantDisplay(combatant) {
         safeUpdateInput('.base-phys-armor-mod', combatant.stats.physArmorMod || '');
         safeUpdateInput('.base-mag-armor', combatant.stats.magArmor || 0);
         safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
-
-        // Last Roll (Safe to overwrite since they are standard layout elements)
-        const lastRollDisplay = document.getElementById('last-roll-display');
-        const lastRollLabel = document.querySelector('.dice-result-label');
-        if (lastRollDisplay && lastRollLabel && combatant.lastRoll) {
-            lastRollLabel.textContent = combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
-            lastRollDisplay.textContent = combatant.lastRoll.result || '-';
-            lastRollDisplay.style.color = combatant.lastRoll.color || 'white';
-        }
 
         // 3. Completely re-render Extra Panel to recalculate formulas and success rates in real-time
         renderExtraPanel(combatant.id);

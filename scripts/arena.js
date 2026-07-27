@@ -79,7 +79,6 @@ function addCharacter(type, team, stats = {}, image = null) {
         equipment: stats.equipment ? JSON.parse(JSON.stringify(stats.equipment)) : [],
         abilities: stats.abilities ? JSON.parse(JSON.stringify(stats.abilities)) : [],
         abilitiesStates: initialAbilitiesStates,
-        lastRoll: { stat: '', result: '', color: 'white' }, // New dictionary for keeping track of dice rolls
         isDead: finalStats.isDead === true || finalStats.isDead === "true",
         hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
         turnsTakenThisRound: 0, // Swapped from hasActedThisRound
@@ -161,9 +160,11 @@ function checkArenaEmptyStates() {
     }
 }
 
+// Returns only the result and color as an object (payload), without sending to the server.
+// Prepared for integration with more complex rolls.
 function rollDice(combatantId, diceType, difficulty = null) {
     const combatant = activeCombatants.find(c => c.id === combatantId);
-    if (!combatant) return 0;
+    if (!combatant) return null;
 
     const baseStat = parseInt(combatant.stats[diceType]) || 0;
     const modValue = parseInt(combatant.stats[`${diceType}Mod`]) || 0;
@@ -171,7 +172,7 @@ function rollDice(combatantId, diceType, difficulty = null) {
     // Safely check if stat exists at all
     if (combatant.stats[diceType] === undefined && combatant.stats[`${diceType}Mod`] === undefined) {
         alert(t('no_stats_error'));
-        return 0;
+        return null;
     }
 
     const roll = Math.floor(Math.random() * baseStat) + 1;
@@ -193,16 +194,96 @@ function rollDice(combatantId, diceType, difficulty = null) {
         resultColor = result >= difficulty ? '#50fa7b' : '#ff5555';
     }
 
-    // Update combatant memory state for Last Roll
-    combatant.lastRoll = {
-        stat: diceType,
-        result: result,
-        color: resultColor
-    };
+    return { stat: diceType, result: result, color: resultColor };
+}
 
-    playSoundEffect('sound/diceroll.mp3');
+// Wrapper to execute and broadcast a single roll directly from the character sheet
+function rollSingleStat(combatantId, diceType, difficulty = null) {
+    const combatant = activeCombatants.find(c => c.id === combatantId);
+    if (!combatant) return;
+
+    const rollData = rollDice(combatantId, diceType, difficulty);
+    if (!rollData) return;
+
+    const rollEvent = {
+        id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        combatantId: combatant.id,
+        combatantName: combatant.uniqueName,
+        combatantTeam: combatant.team, // Added for easy color identification on the rolls panel
+        rolls: [ rollData ]
+    };
     
-    // Instantly sync the roll to all clients (which will refresh the UI)
-    syncUpdateCombatant(combatant);
-    return result; 
+    // Instantly broadcast the roll to all clients
+    syncAddRollEvent(rollEvent);
+}
+
+// Renders the entire rolls feed history
+function renderRollsFeed(history) {
+    const feed = document.getElementById('rolls-feed');
+    if (!feed) return;
+
+    feed.innerHTML = '';
+    if (history.length === 0) {
+        feed.innerHTML = `<div class="rolls-placeholder" data-i18n="placeholder_no_rolls">${t('placeholder_no_rolls')}</div>`;
+        return;
+    }
+
+    history.forEach(event => appendRollEvent(event, false));
+    feed.scrollTop = feed.scrollHeight;
+}
+
+// Appends a single roll event visually and triggers animation if requested
+function appendRollEvent(event, animate = true) {
+    const feed = document.getElementById('rolls-feed');
+    if (!feed) return;
+
+    const placeholder = feed.querySelector('.rolls-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const row = document.createElement('div');
+    row.className = 'roll-event-row';
+    if (!animate) row.style.animation = 'none';
+
+    // Determine name color based on team (fallback to purple in case of logic errors)
+    const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+
+    let rollsHtml = '';
+    event.rolls.forEach(r => {
+        // Tumble gets the dice animation. If the result is ready, it prints the text in the given color, the border always remains inherited from default CSS (purple)
+        const diceHtml = animate 
+            ? `<div class="mini-dice tumbling"></div>` 
+            : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
+
+        rollsHtml += `
+            <div class="roll-pill">
+                <span class="roll-stat">${t(r.stat)}</span>
+                ${diceHtml}
+            </div>
+        `;
+    });
+
+    row.innerHTML = `
+        <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
+        <div class="roll-results">
+            ${rollsHtml}
+        </div>
+    `;
+
+    feed.appendChild(row);
+    feed.scrollTop = feed.scrollHeight;
+
+    if (animate) {
+        playSoundEffect('sound/diceroll.mp3'); // Sound triggers simultaneously with the animation for all clients
+        // The CSS dice-tumble animation takes 0.6s. We reveal the numeric result immediately after.
+        setTimeout(() => {
+            const diceElements = row.querySelectorAll('.mini-dice');
+            diceElements.forEach((diceEl, index) => {
+                const r = event.rolls[index];
+                diceEl.classList.remove('tumbling');
+                diceEl.style.color = r.color;
+                // Removed border-color assignment, so the frame stays in classic purple
+                diceEl.textContent = r.result;
+            });
+        }, 600);
+    }
 }
