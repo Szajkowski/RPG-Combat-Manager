@@ -153,6 +153,8 @@ const i18n = {
         'quantity': 'Ilość:',
         'cooldown_once': 'raz na walkę',
         'dead': 'Nie żyje',
+        'stunned': 'Ogłuszenie',
+        'wait': 'Czekaj',
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_unavoidable': 'Nieunikalne.',
@@ -325,6 +327,10 @@ const i18n = {
         'extra_action_ability': 'extra action',
         'cooldown_once': 'once per combat',
         'dead': 'Dead',
+        'stunned': 'Stunned',
+        'wait': 'Wait',
+
+        // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_unavoidable': 'Unavoidable.',
         'prop_piercing': 'Piercing.',
         'prop_extra_turn': 'Grants extra turn.',

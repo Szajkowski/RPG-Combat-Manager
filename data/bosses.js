@@ -91,8 +91,9 @@ var bosses = {
         magArmor: 0,
         abilities: [
             {
-                name: "Szybka ręka",
-                description: "Pasywne. Jeśli gracz będzie potrzebował więcej niż 10 sekund, aby namyśleć się co robi, zostanie postrzelony za [100] obrażeń",
+                name: "Orientuj się",
+                description: "[prop_reaction] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
+                cooldown: 0
             },
             {
                 name: "Dodatkowa akcja",
@@ -100,29 +101,33 @@ var bosses = {
             },
             {
                 name: "Niepokonany",
-                description: "Pasywne. Zyskuje całkowitą odporność na stuny i ograniczenia ruchu na 1 turę. Umiejętność aktywuje się po zostaniu poddanym takiemu efektowi",
-                cooldown: 1
+                description: "[prop_reaction] Pozwala natychmiast zdjąć efekt ogłuszenia.",
+                cooldown: 5
             },
             {
                 name: "Na dobitkę",
-                description: "Podwójny wystrzał z rewolwera",
-                cooldown: 0
+                description: "[prop_unavoidable] Strzela dwa razy w tego samego przeciwnika.",
+                roll: "accuracy",
+                difficulty: 15,
+                cooldown: 1
             },
             {
                 name: "Rykoszet",
-                description: "Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika",
+                description: "[prop_unavoidable] Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika.",
                 roll: "accuracy",
                 difficulty: 10,
-                cooldown: 0
+                cooldown: 1
             },
             {
                 name: "Granat błyskowy",
-                description: "Rzuca granat błyskowy, który liczy się jako dodatkowa akcja. Przeciwnicy rzucają na refleks. Jeśli im się nie powiedzie, zostają oślepieni na 1 turę.",
-                cooldown: 2
+                description: "Rzuca granat błyskowy. Zmusza wszystkich przeciwników do rzutu refleks kontra refleks. Ktokolwiek wyrzuci mniej, zostaje oślepiony na [1] turę.",
+                roll: "reflex",
+                difficulty: "X",
+                cooldown: 4
             },
             {
                 name: "Furia Czerwonych Szali",
-                description: "Można użyć tylko raz na bitwę i dopiero mając mniej niż 50% zdrowia. Wystrzeliwuje 30 pocisków w losowych wrogów, każdy z nich zadaje [100] obrażeń.",
+                description: "Można użyć tylko gdy ma się mniej niż 400 zdrowia. Wystrzeliwuje [30] pocisków w losowych wrogów, każdy z nich zadaje [100] obrażeń.",
                 cooldown: "[cooldown_once]"
             },
         ],

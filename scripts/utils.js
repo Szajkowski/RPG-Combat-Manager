@@ -35,13 +35,8 @@ function pasteValueToInput(input, event) {
     // Trigger generic DOM events in case other scripts/listeners depend on them
     input.dispatchEvent(new Event('change', { bubbles: true }));
     
-    // Clear both local memory and system clipboard to execute a true Cut-and-Paste action
+    // Clear local memory, but don't touch the clipboard. That way you can paste something once, but also ctrl+v it if you need the value multiple times
     window.lastCopiedRPGValue = null;
-    try {
-        navigator.clipboard.writeText('');
-    } catch (err) {
-        console.error("Failed to clear system clipboard: ", err);
-    }
 
     if (typeof showNotification === 'function') {
         showNotification(`${t('pasted')} ${trimmed}`, event);

@@ -106,7 +106,8 @@ function renderToken(combatant) {
     const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
 
     tokenDiv.innerHTML = `
-        <button class="token-delete-btn" onclick="removeCharacterById('${combatant.id}', event)" title="${t('remove_character')}">✕</button>
+        <div class="token-stun-icon ${combatant.isStunned ? 'visible' : ''}">💫</div>
+        <button class="token-delete-btn" onclick="removeCharacterById('${combatant.id}', event)" title="${t('remove_character')}">✖</button>
         <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
         <div class="token-hp-bg">
             <div class="token-hp-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>

@@ -471,7 +471,7 @@ var ability = {
     },
     "Ziemiolokacja": {
         name: "Ziemiolokacja",
-        description: "Pozwala poczuć kształt, rozłożenie i zmiany ziemii wokół maga.",
+        description: "[prop_non_combat] Pozwala poczuć kształt, rozłożenie i zmiany ziemii wokół maga.",
         roll: "strength",
         difficulty: 8,
         cooldown: 0
@@ -694,5 +694,11 @@ var ability = {
         cooldown: 2,
         condition: "[prop_extra_turn] Aktywne przez [1] rundę.",
         conditionDuration: "1r",
-    }, 
+    },
+    "Test4": {
+        name: "Test4",
+        description: "[prop_non_combat] Leczy [3 * intuition] zdrowia.",
+        roll: "intuition",
+        difficulty: 4,
+    },
 }

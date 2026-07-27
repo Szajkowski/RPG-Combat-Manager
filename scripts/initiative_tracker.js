@@ -50,6 +50,31 @@ function calculateReflexStops(combatant) {
     return stops; 
 }
 
+// Helper: Determine if it's currently a specific combatant's turn
+function hasCurrentTurn(combatantId) {
+    if (!activeCombatants || activeCombatants.length === 0) return false;
+
+    const groups = {};
+    activeCombatants.forEach(c => {
+        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
+        const stops = calculateReflexStops(c);
+        const turnsTaken = c.turnsTakenThisRound || 0;
+        
+        stops.forEach((ref, index) => {
+            if (index >= turnsTaken) {
+                if (!groups[ref]) groups[ref] = [];
+                groups[ref].push(c.id);
+            }
+        });
+    });
+
+    const sortedReflexes = Object.keys(groups).map(Number).sort((a, b) => b - a);
+    if (sortedReflexes.length === 0) return false;
+
+    const activeReflex = sortedReflexes[0];
+    return groups[activeReflex].includes(combatantId);
+}
+
 // Render the Initiative Tracker mapping out all specific dynamic stops
 function renderInitiativeTracker() {
     const tracker = document.querySelector('.initiative-tracker');
@@ -82,7 +107,10 @@ function renderInitiativeTracker() {
             
             // If the turn index is lower than the amount of turns they have taken, this particular spot is done
             const isDone = index < turnsTaken;
-            groups[ref].push({ combatant: c, isDone: isDone });
+            // Mark STRICTLY the first un-acted turn as stunned if character is currently stunned
+            const isStunnedTurn = c.isStunned && (index === turnsTaken);
+
+            groups[ref].push({ combatant: c, isDone: isDone, isStunnedTurn: isStunnedTurn });
         });
     });
 
@@ -99,28 +127,46 @@ function renderInitiativeTracker() {
 
     let html = '';
     sortedReflexes.forEach((ref, index) => {
-        // Prepare unique visual entries per reflex step and count occurrences
+        // Prepare unique visual entries per reflex step, splitting Stunned turns from Normal turns
         const uniqueEntries = [];
         const seenIds = new Set();
         
         groups[ref].forEach(entry => {
             if (!seenIds.has(entry.combatant.id)) {
-                // Count how many turns this specific character has at this exact reflex stop
-                const characterTurnsAtThisRef = groups[ref].filter(e => e.combatant.id === entry.combatant.id);
-                const allDone = characterTurnsAtThisRef.every(e => e.isDone);
-                const count = characterTurnsAtThisRef.length;
+                const characterTurns = groups[ref].filter(e => e.combatant.id === entry.combatant.id);
+                const pendingTurns = characterTurns.filter(e => !e.isDone);
                 
-                uniqueEntries.push({ combatant: entry.combatant, isDone: allDone, count: count });
+                if (pendingTurns.length === 0) {
+                    // All turns done at this reflex stop
+                    uniqueEntries.push({ combatant: entry.combatant, isDone: true, count: characterTurns.length, isStunned: false });
+                } else {
+                    const c = entry.combatant;
+                    const stunnedPendingCount = pendingTurns.filter(e => e.isStunnedTurn).length;
+                    
+                    if (stunnedPendingCount > 0) {
+                        // The very first pending turn consumes the stun constraint (Separate into two entries)
+                        uniqueEntries.push({ combatant: c, isDone: false, count: 1, isStunned: true });
+                        if (pendingTurns.length > 1) {
+                            // Remaining un-stunned turns pushed as a normal chunk
+                            uniqueEntries.push({ combatant: c, isDone: false, count: pendingTurns.length - 1, isStunned: false });
+                        }
+                    } else {
+                        uniqueEntries.push({ combatant: c, isDone: false, count: pendingTurns.length, isStunned: false });
+                    }
+                }
                 seenIds.add(entry.combatant.id);
             }
         });
 
-        // Map names with ' xN' suffix if they have multiple turns stacked here
-        const names = uniqueEntries.map(e => {
-            if (e.count > 1) {
-                return `${e.combatant.uniqueName} x${e.count}`;
+        // Map names with ' xN' suffix and inject stun color wrappers
+        const namesHtml = uniqueEntries.map(e => {
+            let text = e.combatant.uniqueName;
+            if (e.count > 1) text += ` x${e.count}`;
+            
+            if (e.isStunned) {
+                return `<span style="color: #f1fa8c;" title="${t('stunned')}">${text}</span>`;
             }
-            return e.combatant.uniqueName;
+            return text;
         }).join(', ');
         
         const isActive = ref === activeReflex;
@@ -133,7 +179,7 @@ function renderInitiativeTracker() {
         html += `
             <div class="${slotClass}">
                 <span class="init-reflex">${ref}</span>
-                <span class="init-names">${names}</span>
+                <span class="init-names">${namesHtml}</span>
             </div>
         `;
 
@@ -148,6 +194,10 @@ function renderInitiativeTracker() {
         const activeSlot = tracker.querySelector('.initiative-slot.active');
         if (activeSlot) {
             activeSlot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+        // Force refresh the Extra Panel for the currently selected character to update turn-based ability locks globally
+        if (typeof selectedCharacterId !== 'undefined' && selectedCharacterId !== null && typeof renderExtraPanel === 'function') {
+            renderExtraPanel(selectedCharacterId);
         }
     }, 50); 
 }
@@ -192,8 +242,14 @@ function nextTurn(isSilent = false) {
 
     Object.keys(actionsPerCombatant).forEach(id => {
         const c = activeCombatants.find(comb => comb.id === id);
-        const turnsToTake = actionsPerCombatant[id];
+        let turnsToTake = actionsPerCombatant[id];
         
+        // Stun strictly consumes 1 turn action and clears itself immediately
+        if (c.isStunned) {
+            turnsToTake = 1;
+            c.isStunned = false; 
+        }
+
         c.turnsTakenThisRound += turnsToTake;
         
         // Cooldown reductions multiplied by how many turns they technically took

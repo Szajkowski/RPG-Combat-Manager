@@ -189,6 +189,13 @@ function refreshCombatantDisplay(combatant) {
         const nameEl = token.querySelector('.token-name');
         if (nameEl) nameEl.textContent = combatant.uniqueName || t('unknown_character');
 
+        // Stun Icon dynamic state update
+        const stunIcon = token.querySelector('.token-stun-icon');
+        if (stunIcon) {
+            if (combatant.isStunned) stunIcon.classList.add('visible');
+            else stunIcon.classList.remove('visible');
+        }
+
         if (combatant.isDead) token.classList.add('dead');
         else token.classList.remove('dead');
     }
@@ -243,13 +250,6 @@ function refreshCombatantDisplay(combatant) {
             lastRollLabel.textContent = combatant.lastRoll.stat ? `${t('last_roll')} (${t(combatant.lastRoll.stat)})` : t('last_roll');
             lastRollDisplay.textContent = combatant.lastRoll.result || '-';
             lastRollDisplay.style.color = combatant.lastRoll.color || 'white';
-        }
-
-        // Stun toggle button
-        const stunBtn = document.querySelector('.func-btn.stun');
-        if (stunBtn) {
-            if (combatant.isStunned) stunBtn.classList.add('active');
-            else stunBtn.classList.remove('active');
         }
 
         // 3. Completely re-render Extra Panel to recalculate formulas and success rates in real-time

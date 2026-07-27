@@ -20,11 +20,12 @@ function renderExtraPanel(combatantId) {
         maxAbilities += Math.floor((attunement - 10) / 2);
     }
     
-    // Use the deep-copied arrays stored in the central memory
-    const abilities = combatant.abilities ? combatant.abilities.slice(0, maxAbilities) : [];
+    // Slice by maxAbilities first to strictly consume attunement slots, THEN filter out [prop_non_combat] for the combat view
+    const slicedAbilities = combatant.abilities ? combatant.abilities.slice(0, maxAbilities) : [];
+    const displayAbilities = slicedAbilities.filter(a => !(a.description && a.description.toLowerCase().includes('[prop_non_combat]')));
     const equipment = combatant.equipment || [];
 
-    const hasAbilities = abilities.length > 0;
+    const hasAbilities = displayAbilities.length > 0;
     const hasEquipment = equipment.length > 0;
 
     // If character has neither skills nor equipment, render an empty state placeholder
@@ -105,7 +106,7 @@ function renderExtraPanel(combatantId) {
     if (skillsContainer) {
         skillsContainer.innerHTML = '';
         if (hasAbilities) {
-            fillAbilitiesPanel(abilities, combatant, skillsContainer);
+            fillAbilitiesPanel(displayAbilities, combatant, skillsContainer);
         }
     }
 
@@ -169,6 +170,10 @@ function fillAbilitiesPanel(abilities, combatant, container) {
             cooldownButton.className = 'action-cd-btn';
             cooldownButton.dataset.abilityName = abilityName;
 
+            // Determine specific logical exceptions
+            const isReaction = ability.description && ability.description.toLowerCase().includes('[prop_reaction]');
+            const hasTurn = typeof hasCurrentTurn === 'function' ? hasCurrentTurn(combatant.id) : true;
+
             // Block ability if character is dead
             if (combatant.isDead) {
                 cooldownButton.style.background = '#ff5555';
@@ -176,7 +181,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
                 cooldownButton.textContent = t('dead');
                 cooldownButton.disabled = true;
             } 
-            // Normal cooldowns
+            // Normal cooldowns block
             else if (abilityState.currentCooldown !== 0) {
                 cooldownButton.style.background = '#ff5555';
                 cooldownButton.style.color = 'white';
@@ -185,6 +190,20 @@ function fillAbilitiesPanel(abilities, combatant, container) {
                 cooldownButton.textContent = displayCooldown;
                 cooldownButton.disabled = true;
             } 
+            // Stun mechanic block (overrides available state)
+            else if (combatant.isStunned) {
+                cooldownButton.style.background = '#f1fa8c'; // Yellow
+                cooldownButton.style.color = '#181922'; // Dark readable text
+                cooldownButton.textContent = t('stunned');
+                cooldownButton.disabled = true;
+            }
+            // Turn constraint mechanic block (Exceptions for Reaction tags)
+            else if (!hasTurn && !isReaction) {
+                cooldownButton.style.background = '#44475a'; // Deep gray
+                cooldownButton.style.color = '#f8f8f2';
+                cooldownButton.textContent = t('wait');
+                cooldownButton.disabled = true;
+            }
             // Available
             else {
                 cooldownButton.textContent = t('available');

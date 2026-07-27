@@ -14,7 +14,8 @@ var npcs = {
         accuracy: 12,
         reflex: 11,
         resilience: 10,
-        damage: 10,magArmor: 0,
+        damage: 10,
+magArmor: 0,
         abilities: [
             ability["Tnące łuki"],
             ability["Leczniczy podmuch"],
@@ -146,6 +147,7 @@ var npcs = {
             ability["Test1"],
             ability["Test2"],
             ability["Test3"],
+            ability["Test4"],
         ],
         equipment: [
             {

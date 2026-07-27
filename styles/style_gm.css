@@ -272,6 +272,29 @@ body {
     z-index: 10;
 }
 
+/* Stunned Token Visual Indicator */
+.token-stun-icon {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    font-size: 22px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 15;
+    pointer-events: none;
+    /* Animation runs continuously, we only toggle visibility */
+    animation: float-stun 2s infinite ease-in-out; 
+}
+
+.token-stun-icon.visible {
+    opacity: 1;
+}
+
+@keyframes float-stun {
+    0%, 100% { transform: translate(-50%, 0) rotate(-10deg); }
+    50% { transform: translate(-50%, -5px) rotate(10deg); }
+}
+
 /* Display the delete button when hovering over the token container */
 .character-token:hover .token-delete-btn {
     opacity: 1;
