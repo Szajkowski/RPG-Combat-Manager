@@ -1,8 +1,10 @@
+// SECTION i18n.js 
+
 window.currentLanguage = localStorage.getItem('CombatManager-Language') || 'PL';
 
 const i18n = {
     'PL': {
-        // --- INTERFEJS / UI ---
+        // --- INTERFACE / UI ---
         'active_conditions': 'Aktywne Stany',
         'music_list': 'Muzyka',
         'hover_to_expand': '(Najedź, aby rozwinąć)',
@@ -39,20 +41,20 @@ const i18n = {
         'condition': 'Stan',
         'confirm_end_combat': 'Zakończyć walkę i usunąć wszystkie postacie oraz stany?',
         
-        // --- DODAWANIE POSTACI ---
+        // --- ADDING CHARACTERS ---
         'add_mob': '+ Dodaj moba',
         'add_npc': '+ Dodaj NPC',
         'add_boss': '+ Dodaj bossa',
         'add_player': '+ Dodaj gracza',
         'add_character': '+ Dodaj postać',
         
-        // --- KARTA POSTACI (LEWA KOLUMNA) ---
+        // --- CHARACTER SHEET (LEFT COLUMN) ---
         'health': 'Zdrowie',
         'tab_rolls': 'Rzuty',
         'tab_damage': 'Obrażenia',
         'last_roll': 'Ostatni Rzut',
         
-        // --- STATYSTYKI (RZUTY) ---
+        // --- STATS (ROLLS) ---
         'vitality': 'żywotność',
         'intuition': 'intuicja',
         'strength': 'siła',
@@ -64,7 +66,7 @@ const i18n = {
         'resilience': 'nieustępliwość',
         'mod': 'mod',
 
-        // Zmiany gramatyczne do opisów umiejętności
+        // Grammatical changes for skill descriptions
         'desc_hp': 'zdrowia',
         'desc_vitality': 'żywotności',
         'desc_intuition': 'intuicji',
@@ -80,7 +82,7 @@ const i18n = {
         'desc_mag_armor': 'pancerza magicznego',
         'desc_mod': 'mod',
 
-        // Zmiany gramatyczne dla modyfikatora "rzut na..." (biernik)
+        // Grammatical changes for the "roll on..." modifier (accusative case)
         'roll_hp': 'zdrowie',
         'roll_vitality': 'żywotność',
         'roll_intuition': 'intuicję',
@@ -96,7 +98,7 @@ const i18n = {
         'margin_of': 'przewaga {stat}',
         'to_result': 'do wyniku {stat}',
 
-        // --- WALKA I OBRAŻENIA ---
+        // --- COMBAT AND DAMAGE ---
         'damage': 'Obrażenia',
         'base_damage': 'Obrażenia Baz.',
         'heal': 'Leczenie',
@@ -130,7 +132,7 @@ const i18n = {
         'armor_value_base': 'Wartość podstawowa',
         'armor_value_percent': 'Wartość procentowa',
 
-        // Pasek funkcyjny
+        // Function bar
         'remove_character': 'Usuń postać',
         'toggle_stun': 'Przełącz ogłuszenie',
         'reload_character': 'Przeładuj postać',
@@ -140,7 +142,7 @@ const i18n = {
         'save_success': 'Statystyki zostały pomyślnie zapisane do pliku źródłowego na serwerze!',
         'save_error': 'Błąd serwera! Nie udało się zapisać zmian w pliku źródłowym.',
 
-        // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
+        // --- SKILLS AND EQUIPMENT (RIGHT PANEL) ---
         'tab_skills': 'Umiejętności',
         'tab_equip': 'Ekwipunek',
         'unavailable': 'Niedostępne',
@@ -164,7 +166,7 @@ const i18n = {
         'prop_reaction': 'Reakcja.',
         'prop_non_combat': 'Nie do walki.',
         
-        // --- POWIADOMIENIA I BŁĘDY ---
+        // --- NOTIFICATIONS AND ERRORS ---
         'copied': 'Skopiowano:',
         'pasted': 'Wklejono:',
         'copy_error': 'Błąd kopiowania!',
@@ -172,9 +174,14 @@ const i18n = {
         'no_stats_error': 'Brak wymaganych pól statystyki!',
         'invalid_url': 'Brak poprawnych graczy w URL!',
         'connection_error': 'Błąd połączenia (zapewne serwer nie jest włączony)',
+
+        // --- TARGETING SYSTEM ---
+        'targeting_cancel_hint': 'PPM aby anulować',
+        'hit_chance': 'Szansa na trafienie:',
+        'vs': 'VS'
     },
     'EN': {
-        // --- INTERFEJS / UI ---
+        // --- INTERFACE / UI ---
         'active_conditions': 'Active Conditions',
         'music_list': 'Music List',
         'hover_to_expand': '(Hover to expand)',
@@ -212,20 +219,20 @@ const i18n = {
         'condition': 'Condition',
         'confirm_end_combat': 'End combat and remove all characters and conditions?',
         
-        // --- DODAWANIE POSTACI ---
+        // --- ADDING CHARACTERS ---
         'add_mob': '+ Add mob',
         'add_npc': '+ Add NPC',
         'add_boss': '+ Add boss',
         'add_player': '+ Add player',
         'add_character': '+ Add character',
         
-        // --- KARTA POSTACI (LEWA KOLUMNA) ---
+        // --- CHARACTER SHEET (LEFT COLUMN) ---
         'health': 'Health',
         'tab_rolls': 'Rolls',
         'tab_damage': 'Damage',
         'last_roll': 'Last Roll',
         
-        // --- STATYSTYKI (RZUTY) ---
+        // --- STATS (ROLLS) ---
         'vitality': 'vitality',
         'intuition': 'intuition',
         'strength': 'strength',
@@ -237,7 +244,7 @@ const i18n = {
         'resilience': 'resilience',
         'mod': 'mod',
 
-        // Zmiany gramatyczne (w j.ang. w zasadzie podstawowe słowa)
+        // Grammatical changes (mostly base words in English)
         'desc_hp': 'HP',
         'desc_vitality': 'vitality',
         'desc_intuition': 'intuition',
@@ -269,7 +276,7 @@ const i18n = {
         'margin_of': '{stat} success margin',
         'to_result': 'to {stat} result',
 
-        // --- WALKA I OBRAŻENIA ---
+        // --- COMBAT AND DAMAGE ---
         'damage': 'Damage',
         'base_damage': 'Base Damage',
         'heal': 'Heal',
@@ -303,7 +310,7 @@ const i18n = {
         'armor_value_base': 'Base value',
         'armor_value_percent': 'Percent value',
 
-        // Pasek funkcyjny
+        // Function bar
         'remove_character': 'Remove character',
         'toggle_stun': 'Toggle stun',
         'resurrect_character': 'Ressurect character',
@@ -314,7 +321,7 @@ const i18n = {
         'save_success': 'Stats successfully written and saved to the backend source file!',
         'save_error': 'Server error! Failed to permanently write adjustments to the source file.',
 
-        // --- UMIEJĘTNOŚCI I EKWIPUNEK (PRAWY PANEL) ---
+        // --- SKILLS AND EQUIPMENT (RIGHT PANEL) ---
         'tab_skills': 'Skills',
         'tab_equip': 'Equipment',
         'unavailable': 'Unavailable',
@@ -339,7 +346,7 @@ const i18n = {
         'prop_reaction': 'Reaction.',
         'prop_non_combat': 'Non combat.',
         
-        // --- POWIADOMIENIA I BŁĘDY ---
+        // --- NOTIFICATIONS AND ERRORS ---
         'copied': 'Copied:',
         'pasted': 'Pasted:',
         'copy_error': 'Copy error!',
@@ -347,6 +354,11 @@ const i18n = {
         'no_stats_error': 'Required stat fields missing!',
         'invalid_url': 'No valid players in URL!',
         'connection_error': 'Connection error (it probably means server is down)',  
+
+        // --- TARGETING SYSTEM ---
+        'targeting_cancel_hint': 'RMB to cancel',
+        'hit_chance': 'Hit chance:',
+        'vs': 'VS'
     }
 };
 

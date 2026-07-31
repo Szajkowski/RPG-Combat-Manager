@@ -244,30 +244,71 @@ function appendRollEvent(event, animate = true) {
     row.className = 'roll-event-row';
     if (!animate) row.style.animation = 'none';
 
-    // Determine name color based on team (fallback to purple in case of logic errors)
-    const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+    // Helper function to dynamically capitalize the first letter of the translated stat name
+    const capitalize = (str) => {
+        if (!str) return str;
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    };
 
-    let rollsHtml = '';
-    event.rolls.forEach(r => {
-        // Tumble gets the dice animation. If the result is ready, it prints the text in the given color, the border always remains inherited from default CSS (purple)
-        const diceHtml = animate 
-            ? `<div class="mini-dice tumbling"></div>` 
-            : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
+    // Helper functions to build standard roll pill HTML
+    const createDiceHtml = (r) => animate ? `<div class="mini-dice tumbling"></div>` : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
+    const createPillHtml = (r) => `<div class="roll-pill"><span class="roll-stat">${capitalize(t(r.stat))}</span>${createDiceHtml(r)}</div>`;
 
-        rollsHtml += `
-            <div class="roll-pill">
-                <span class="roll-stat">${t(r.stat)}</span>
-                ${diceHtml}
+    // Dynamic Narrative Flow Rendering for targeted (combat) actions utilizing the Three Pillars concept
+    if (event.isTargeted) {
+        const nameColorAtt = event.attackerTeam === 'hero' ? '#8be9fd' : (event.attackerTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+        const nameColorDef = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+
+        // 1. Attacker's Pillar (Name on the left + Standalone rolls on the right)
+        const attNameHtml = `<div class="roll-char-name" style="color: ${nameColorAtt};" title="${event.attackerName}">${event.attackerName}</div>`;
+        const attSingleHtml = (event.attackerSingleRolls || []).map(createPillHtml).join('');
+        const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
+
+        // 2. Clash Pillar (Bound Opposed Rolls)
+        let clashPillar = '';
+        if (event.opposedRolls && event.opposedRolls.length > 0) {
+            const clashHtml = event.opposedRolls.map(opp => `
+                <div class="vs-block">
+                    ${createPillHtml(opp.attRoll)}
+                    <div class="vs-text" data-i18n="vs">${t('vs')}</div>
+                    ${createPillHtml(opp.defRoll)}
+                </div>
+            `).join('');
+            clashPillar = `<div class="roll-pillar">${clashHtml}</div>`;
+        }
+
+        // 3. Defender's Pillar (Name on the left + Standalone rolls on the right)
+        const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
+        const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
+        const defPillar = `<div class="roll-pillar">${defNameHtml}${defSingleHtml}</div>`;
+
+        // Assemble existing pillars array and inject separators
+        let flowElements = [attPillar];
+        if (clashPillar) flowElements.push(clashPillar);
+        flowElements.push(defPillar);
+
+        row.innerHTML = `
+            <div class="targeted-roll-container">
+                ${flowElements.join('<div class="targeted-arrow">&#10132;</div>')}
             </div>
         `;
-    });
+    } 
+    // Rendering for standard standalone rolls (e.g., purely clicking "ROLL" from UI)
+    else {
+        const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
 
-    row.innerHTML = `
-        <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
-        <div class="roll-results">
-            ${rollsHtml}
-        </div>
-    `;
+        let rollsHtml = '';
+        event.rolls.forEach(r => {
+            rollsHtml += createPillHtml(r);
+        });
+
+        row.innerHTML = `
+            <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
+            <div class="roll-results">
+                ${rollsHtml}
+            </div>
+        `;
+    }
 
     feed.appendChild(row);
     feed.scrollTop = feed.scrollHeight;
@@ -277,12 +318,28 @@ function appendRollEvent(event, animate = true) {
         // The CSS dice-tumble animation takes 0.6s. We reveal the numeric result immediately after.
         setTimeout(() => {
             const diceElements = row.querySelectorAll('.mini-dice');
+            
+            // Build a flat array of all rolls dynamically based on the event structure to map to the HTML elements
+            let allRolls = [];
+            if (event.isTargeted) {
+                if (event.attackerSingleRolls) allRolls.push(...event.attackerSingleRolls);
+                if (event.opposedRolls) {
+                    event.opposedRolls.forEach(opp => {
+                        allRolls.push(opp.attRoll, opp.defRoll);
+                    });
+                }
+                if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
+            } else {
+                allRolls = event.rolls;
+            }
+
             diceElements.forEach((diceEl, index) => {
-                const r = event.rolls[index];
-                diceEl.classList.remove('tumbling');
-                diceEl.style.color = r.color;
-                // Removed border-color assignment, so the frame stays in classic purple
-                diceEl.textContent = r.result;
+                const r = allRolls[index];
+                if (r) {
+                    diceEl.classList.remove('tumbling');
+                    diceEl.style.color = r.color;
+                    diceEl.textContent = r.result;
+                }
             });
         }, 600);
     }

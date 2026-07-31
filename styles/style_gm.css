@@ -225,7 +225,8 @@ body {
 .arena-add-bar button:hover { background: #6272a4; }
 
 .arena-board { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; justify-content: safe center; /* Prevents top content clipping during vertical overflow */
-    gap: 20px; scrollbar-width: thin;}
+    gap: 20px; scrollbar-width: none; -ms-overflow-style: none; }
+.arena-board::-webkit-scrollbar { display: none; }
 .arena-team { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
 .arena-divider { text-align: center; font-size: 1.5rem; font-weight: bold; color: #44475a; letter-spacing: 5px; margin: -20px 0;}
 
@@ -233,7 +234,8 @@ body {
 .character-token {
     width: 110px; height: 140px; background: #282a36; border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; position: relative;
-    transition: all 0.2s ease; border: 2px solid transparent; display: flex; flex-direction: column;
+    transition: all 0.2s ease; border: 2px solid transparent; display: flex; flex-direction: column; backface-visibility: hidden;
+    will-change: transform;
 }
 .character-token:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
 .character-token.hero-token { border-bottom-color: #8be9fd; }
@@ -527,7 +529,7 @@ input[type=number] { -moz-appearance: textfield; }
     text-align: center; margin: auto; opacity: 0.6;
 }
 
-/* --- NOWY WYGLĄD KOSTKI MG --- */
+/* NEW GM DICE APPEARANCE */
 .gm-dice-widget {
     padding: 12px;
     border-bottom: 2px solid #36394d;
@@ -606,12 +608,22 @@ input[type=number] { -moz-appearance: textfield; }
     font-weight: bold;
     color: white;
 }
-@keyframes rollPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.4); color: #8be9fd; }
-    100% { transform: scale(1); }
+
+/* GM Dice tumbling animation */
+.dice-result-shield.gm-dice-tumbling {
+    animation: dice-tumble 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    position: relative;
+    border-style: solid;
+    border-color: #bd93f9;
 }
-.roll-anim { animation: rollPop 0.3s ease-out; }
+
+.dice-result-shield.gm-dice-tumbling::after {
+    content: "🎲";
+    position: absolute;
+    color: #f8f8f2;
+    font-size: 2.2rem; /* Scaled up for the larger GM dice */
+    animation: inner-spin 0.3s linear infinite;
+}
 
 /* Floating tooltip notification for copy and paste actions */
 .copy-notification {
@@ -636,7 +648,7 @@ input[type=number] { -moz-appearance: textfield; }
     flex-direction: column;
     flex-shrink: 0;
     z-index: 10;
-    height: 113px; 
+    height: 114px; 
     width: 100%; /* Rozszerzenie na całą szerokość areny */
     box-sizing: border-box;
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
@@ -774,4 +786,132 @@ input[type=number] { -moz-appearance: textfield; }
 }
 @keyframes inner-spin {
     100% { transform: rotate(360deg); }
+}
+
+/* --- TARGETING MODE --- */
+#targeting-overlay {
+    display: none; 
+    position: fixed; 
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.55);
+    z-index: 9000; 
+    cursor: crosshair;
+}
+
+#targeting-svg {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 9991;
+}
+
+#targeting-path {
+    animation: dash-flow 0.6s linear infinite;
+}
+
+@keyframes dash-flow {
+    from { stroke-dashoffset: 20; }
+    to { stroke-dashoffset: 0; }
+}
+
+#targeting-tooltip {
+    display: none; 
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    background: #282a36;
+    border: 1px solid #f1fa8c;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #f8f8f2;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.chance-text { font-weight: bold; font-size: 1rem; color: #f1fa8c; }
+.cancel-hint { font-size: 0.75rem; color: #6272a4; text-transform: uppercase; font-weight: bold;}
+
+/* Interaction handling during targeting mode */
+body.targeting-mode .arena-board {
+    position: relative;
+    z-index: 9001; 
+    pointer-events: auto; 
+    cursor: crosshair; 
+}
+
+body.targeting-mode .character-token {
+    z-index: 9005; 
+    pointer-events: auto; 
+    cursor: crosshair !important; 
+}
+
+/* Dead characters cannot be targeted or interacted with */
+body.targeting-mode .character-token.dead {
+    pointer-events: none !important; 
+}
+
+body.targeting-mode .character-token:not(.dead):hover {
+    border-color: #f1fa8c;
+    box-shadow: 0 0 20px rgba(241, 250, 140, 0.4);
+}
+
+/* Push add-bars underneath the overlay so they get dimmed out */
+body.targeting-mode .arena-add-bar {
+    position: relative;
+    z-index: 8999;
+    pointer-events: none;
+}
+
+/* FIX: Dim the rolls container and prevent scrolling during targeting */
+body.targeting-mode .arena-rolls-container {
+    opacity: 0.3;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+/* Hides unnecessary elements during targeting */
+body.targeting-mode .token-delete-btn { display: none !important; }
+body.targeting-mode .character-token { transform: none !important; }
+
+/* TARGETED ROLLS (THREE PILLARS FLOW) */
+.targeted-roll-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap; 
+}
+
+/* Groups a character's name and their standalone rolls tightly together */
+.roll-pillar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Encapsulates opposed elements clearly */
+.vs-block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0 6px; /* Removed top/bottom padding to prevent height expansion */
+    border-radius: 6px;
+    outline: 1px dashed #44475a; /* Outline prevents adding extra height unlike physical border */
+}
+
+.vs-text {
+    color: #6272a4;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.targeted-arrow {
+    color: #6272a4;
+    font-size: 0.85rem;
+    flex-shrink: 0;
 }

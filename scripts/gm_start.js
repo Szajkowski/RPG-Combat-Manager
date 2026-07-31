@@ -55,10 +55,13 @@ function loadInitialConfigCharacters() {
     .catch(error => console.error("Error loading config.ini:", error));
 }
 
+let gmDiceTimeout = null; // Tracks the active timeout to prevent result overlapping
+
 // Rolls a local, GM-only custom dice that doesn't broadcast to players
 function rollGmDice() {
     const input = document.getElementById('gm-dice-input');
     const resultSpan = document.getElementById('gm-dice-result');
+    const shieldDiv = document.querySelector('.dice-result-shield');
     
     let max = parseInt(input.value);
     // Fallback to basic d20 if input is invalid or negative
@@ -69,12 +72,53 @@ function rollGmDice() {
     
     const roll = Math.floor(Math.random() * max) + 1;
     
-    resultSpan.textContent = roll;
-    
-    // Highlight crit success (max) and crit fail (1)
-    resultSpan.style.color = roll === max ? '#50fa7b' : (roll === 1 ? '#ff5555' : '#f8f8f2');
-    
     playSoundEffect('sound/diceroll.mp3');
+
+    // Clear previous timeout if the user is spamming the button
+    if (gmDiceTimeout) {
+        clearTimeout(gmDiceTimeout);
+    }
+
+    // Hide text
+    resultSpan.style.color = 'transparent';
+
+    // Force restart the CSS animation if it was already running
+    shieldDiv.classList.remove('gm-dice-tumbling');
+    void shieldDiv.offsetWidth; // Trigger DOM reflow
+    shieldDiv.classList.add('gm-dice-tumbling');
+    
+    // Wait for the tumble animation to finish before revealing the latest result
+    gmDiceTimeout = setTimeout(() => {
+        shieldDiv.classList.remove('gm-dice-tumbling');
+        resultSpan.textContent = roll;
+        
+        // Highlight crit success (max) and crit fail (1)
+        resultSpan.style.color = roll === max ? '#50fa7b' : (roll === 1 ? '#ff5555' : '#f8f8f2');
+        
+        gmDiceTimeout = null;
+    }, 600);
+}
+
+// Injects the UI necessary for the Targeting System dynamically
+function injectTargetingUI() {
+    if (!document.getElementById('targeting-overlay')) {
+        const overlay = document.createElement('div');
+        overlay.id = 'targeting-overlay';
+        document.body.appendChild(overlay); 
+    }
+
+    if (!document.getElementById('targeting-svg')) {
+        const svgHTML = `
+            <svg id="targeting-svg">
+                <path id="targeting-path" fill="none" stroke="#f1fa8c" stroke-width="4" stroke-dasharray="10, 10" />
+            </svg>
+            <div id="targeting-tooltip">
+                <div class="chance-text"></div>
+                <div class="cancel-hint" data-i18n="targeting_cancel_hint"></div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', svgHTML);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -86,6 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const gmLangBtn = document.getElementById('lang-btn');
     if (gmLangBtn) gmLangBtn.textContent = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
+
+    injectTargetingUI();
 
     // Automated Translation System based on data-i18n attributes
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -196,6 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('click', (e) => {
+        // Prevent accidental paste behavior if targeting mode is active
+        if (document.body.classList.contains('targeting-mode')) return;
+
         const val = window.lastCopiedRPGValue;
         if (!val) return;
 
@@ -219,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', function(event) {
+        // Suppress default shortcuts during active targeting mode
+        if (document.body.classList.contains('targeting-mode')) return;
+        
         const isInputFocused = document.activeElement.tagName.toLowerCase() === 'input' || document.activeElement.tagName.toLowerCase() === 'textarea';
     
         if (!isInputFocused) {
