@@ -23,6 +23,10 @@ const i18n = {
         'title_mute_ui': 'Wycisz aplikację',
         'title_change_language': 'Zmień język',
         'title_dice_size': 'Wielkość kości',
+        'target_team_enemy': 'Drużyna przeciwnika',
+        'target_team_ally': 'Drużyna sojusznicza',
+        'target_all': 'Wszyscy na planszy',
+        'condition_invoker': 'Wywołał:',
 
         // --- PLACEHOLDERS ---
         'placeholder_no_conditions': 'Brak aktywnych stanów',
@@ -161,10 +165,10 @@ const i18n = {
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_unavoidable': 'Nieunikalne.',
-        'prop_piercing': 'Przebijające.',
         'prop_extra_turn': 'Daje dodatkową turę.',
         'prop_reaction': 'Reakcja.',
         'prop_non_combat': 'Nie do walki.',
+        'prop_stuns': 'Ogłuszające.',
         
         // --- NOTIFICATIONS AND ERRORS ---
         'copied': 'Skopiowano:',
@@ -201,6 +205,10 @@ const i18n = {
         'title_mute_ui': 'Mute UI',
         'title_change_language': 'Change language',
         'title_dice_size': 'Dice size',
+        'target_team_enemy': 'Enemy team',
+        'target_team_ally': 'Ally team',
+        'target_all': 'Everyone on board',
+        'condition_invoker': 'Invoker:',
 
        // --- PLACEHOLDERS ---
        'placeholder_no_conditions': 'No active conditions',
@@ -341,10 +349,10 @@ const i18n = {
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_unavoidable': 'Unavoidable.',
-        'prop_piercing': 'Piercing.',
         'prop_extra_turn': 'Grants extra turn.',
         'prop_reaction': 'Reaction.',
         'prop_non_combat': 'Non combat.',
+        'prop_stuns': 'Stuns target.',
         
         // --- NOTIFICATIONS AND ERRORS ---
         'copied': 'Copied:',

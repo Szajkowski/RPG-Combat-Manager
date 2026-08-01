@@ -39,7 +39,7 @@ function cleanUpExpiredConditions() {
     }
 }
 
-// Render the Active Conditions Panel dynamically matching the dummy UI layout perfectly
+// Render the Active Conditions Panel dynamically matching the UI layout
 function renderConditions() {
     const container = document.getElementById('conditions-list-container');
     if (!container) return;
@@ -51,12 +51,26 @@ function renderConditions() {
 
     let html = '';
     activeConditions.forEach(cond => {
-        // Safely escape the target name in case it has quotes, for the clipboard function
+        const safeInvoker = (cond.invoker || '').replace(/'/g, "\\'");
         const safeTarget = (cond.target || '').replace(/'/g, "\\'");
 
-        // Dynamically parse condition description for display using target combatant context
+        // Support both new target_ prefixed keys and legacy group target names
+        const isGroupTarget = ['target_team_enemy', 'target_team_ally', 'target_all', 'team_enemy', 'team_ally', 'all', 'hero', 'enemy'].includes(cond.target);
+        const displayTarget = isGroupTarget ? t(cond.target) : cond.target;
+
+        // Fetch invoker and target combatants
+        const invokerCombatant = activeCombatants.find(c => c.uniqueName === cond.invoker);
         const targetCombatant = activeCombatants.find(c => c.uniqueName === cond.target);
-        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(cond.description || "", targetCombatant) : (cond.description || "");
+
+        // Determine calculation context based on cond.source ("self" [default] vs "target")
+        let evalContext = invokerCombatant;
+        if (cond.source === 'target' && targetCombatant) {
+            evalContext = targetCombatant;
+        } else if (!evalContext && targetCombatant) {
+            evalContext = targetCombatant;
+        }
+
+        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(cond.description || "", evalContext) : (cond.description || "");
 
         html += `
             <div class="condition-block">
@@ -70,9 +84,15 @@ function renderConditions() {
                     </div>
                 </div>
                 <div class="condition-target-wrapper">
-                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
-                    <input type="text" class="condition-target" value="${cond.target}" onchange="updateConditionTarget('${cond.id}', this.value)">
+                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeInvoker}', event)">${t('condition_invoker')}</span>
+                    <input type="text" class="condition-target" value="${cond.invoker || ''}" onchange="updateConditionInvoker('${cond.id}', this.value)">
                 </div>
+                ${cond.target ? `
+                <div class="condition-target-wrapper">
+                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
+                    <input type="text" class="condition-target" value="${displayTarget}" ${isGroupTarget ? 'readonly style="color: #8be9fd; cursor: default;"' : ''} onchange="updateConditionTarget('${cond.id}', this.value)">
+                </div>
+                ` : ''}
                 <div class="condition-desc">${parsedDesc}</div>
             </div>
         `;
@@ -81,13 +101,60 @@ function renderConditions() {
     container.innerHTML = html;
 }
 
-// Updates the target of a specific condition in global state and broadcasts to server
+function updateConditionInvoker(id, newInvoker) {
+    if (!activeConditions) return;
+    const condition = activeConditions.find(c => c.id === id);
+    if (condition && condition.invoker !== newInvoker) {
+        condition.invoker = newInvoker;
+        if (typeof updateServerConditions === 'function') {
+            updateServerConditions(activeConditions);
+        }
+    }
+}
+
 function updateConditionTarget(id, newTarget) {
     if (!activeConditions) return;
-    
     const condition = activeConditions.find(c => c.id === id);
     if (condition && condition.target !== newTarget) {
         condition.target = newTarget;
+        if (typeof updateServerConditions === 'function') {
+            updateServerConditions(activeConditions);
+        }
+    }
+}
+
+function buildConditionObject(invoker, target, name, description, duration, source = "self") {
+    // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
+    return {
+        id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: name,
+        invoker: invoker,
+        target: target || null,
+        source: source || "self",
+        description: description,
+        duration: duration
+    };
+}
+
+// Centralized helper to process, batch, and broadcast conditions from either the new array format or legacy single format
+function processAndSendConditions(invoker, target, sourceData, fallbackName, defaultSource = "self") {
+    let newConditions = [];
+
+    if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
+        sourceData.conditions.forEach(cond => {
+            const condName = cond.conditionName || cond.name || fallbackName;
+            const condDesc = cond.conditionDescription || cond.description || '';
+            const condDuration = cond.conditionDuration || cond.duration || '-';
+            const condSource = cond.source || defaultSource;
+            const condTarget = cond.target !== undefined ? cond.target : target;
+            
+            newConditions.push(buildConditionObject(invoker, condTarget, condName, condDesc, condDuration, condSource));
+        });
+    }
+
+    // Batch update to the server to prevent multiple UI re-renders and network spikes
+    if (newConditions.length > 0) {
+        activeConditions = activeConditions.concat(newConditions);
         if (typeof updateServerConditions === 'function') {
             updateServerConditions(activeConditions);
         }

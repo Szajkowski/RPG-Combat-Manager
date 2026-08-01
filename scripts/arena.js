@@ -87,6 +87,9 @@ function addCharacter(type, team, stats = {}, image = null) {
 
     // Push to server -> which will broadcast it back to everyone (including GM) and trigger renderToken()
     syncAddCombatant(combatant);
+
+    // Automatically apply entry conditions attached directly to the character template
+    processAndSendConditions(uniqueName, null, stats, t('condition'), "self");
 }
 
 // Renders the token visually on the board based on the combatant object

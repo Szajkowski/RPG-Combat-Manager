@@ -92,7 +92,7 @@ var bosses = {
         abilities: [
             {
                 name: "Orientuj się",
-                description: "[prop_reaction] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
+                description: "[prop_reaction] [prop_unavoidable] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
                 cooldown: 0
             },
             {
@@ -101,7 +101,7 @@ var bosses = {
             },
             {
                 name: "Niepokonany",
-                description: "[prop_reaction] Pozwala natychmiast zdjąć efekt ogłuszenia.",
+                description: "[prop_reaction] Blokuje jedną udaną próbę ogłuszenia.",
                 cooldown: 5
             },
             {

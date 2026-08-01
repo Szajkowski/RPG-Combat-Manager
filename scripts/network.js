@@ -276,22 +276,6 @@ function refreshCombatantDisplay(combatant) {
     renderConditions();
 }
 
-function sendCondition(target, name, description, duration) {
-    // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
-    const condition = {
-        id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: name,
-        target: target,
-        description: description,
-        duration: duration
-    };
-
-    socket.send(JSON.stringify({
-        type: "REQUESTaddCondition",
-        condition
-    }));
-}
-
 function updateServerConditions(newConditions) {
     if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({

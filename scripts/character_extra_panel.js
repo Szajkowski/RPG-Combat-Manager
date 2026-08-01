@@ -354,16 +354,12 @@ function useAbility(combatantId, ability) {
         if (abilityState.singleUse) {
             // Permanent block, if the ability is single-use and succeeds
             abilityState.currentCooldown = 'unavailable';
-            if (ability.condition && ability.conditionDuration) {
-                // For now, pass a dummy context or panel to sendCondition if needed
-                sendCondition(combatant.uniqueName, ability.name, ability.condition, ability.conditionDuration);
-            }
         } else { // if it isn't, it gets normal cd
-            if (ability.condition && ability.conditionDuration) {
-                sendCondition(combatant.uniqueName, ability.name, ability.condition, ability.conditionDuration);
-            }
             abilityState.currentCooldown = abilityState.maxCooldown;
         }
+        
+        // Broadcast all associated conditions with combatant as mandatory invoker
+        processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
     } else {
         if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {
             // A failed roll for a single-use ability always gets a one-turn cd. It's written as two because these cds are sort of +1 always, to wait out the next turn, 

@@ -312,8 +312,13 @@ var ability = {
         roll: "intuition",
         difficulty: 5,
         cooldown: 0,
-        condition: "Lodowy miecz. Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-        conditionDuration: "3t"
+        conditions: [
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
+            },
+        ],
     },
     "Lodowy arsenał": {
         name: "Lodowy arsenał",
@@ -321,8 +326,23 @@ var ability = {
         roll: "intuition",
         difficulty: 10,
         cooldown: 1,
-        condition: "3 lodowy miecze. Zadają [1 * intuition] x3 po turze maga przez [3] tury albo, gdy zostaną uderzone.",
-        conditionDuration: "3t"
+        conditions: [
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
+            },
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
+            },
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
+            },
+        ],
     },
     "Miecze: Atak!": {
         name: "Miecze: Atak!",
@@ -337,8 +357,13 @@ var ability = {
         roll: "intuition",
         difficulty: 15,
         cooldown: 2,
-        condition: "Ostre lodowe miecze. Zadają obrażenia penetrujące.",
-        conditionDuration: "3t"
+        conditions: [
+            { 
+                "conditionName": "Ostre lodowe miecze",
+                "conditionDescription": "Lodowe miecze zadają obrażenia penetrujące.",
+                "conditionDuration": "3t",
+            },
+        ],
     },
     "Lodowe przytłoczenie": {
         name: "Lodowe przytłoczenie",
@@ -429,8 +454,18 @@ var ability = {
         roll: "strength",
         difficulty: 8,
         cooldown: 2,
-        condition: "Skupiony na jednym celu. Jeśli dany cel zaatakuje kogoś innego i jest w zasięgu, oberwie za [5 * strength] nieunikalnych obrażeń z 20% szansą na ogłuszenie.",
-        conditionDuration: "2t",
+        conditions: [
+            { 
+                "conditionName": "Skupiony na celu",
+                "conditionDescription": "Jeśli jest blisko postaci ze stanem 'Cel skupienia', zada jej [5 * strength] nieunikalnych obrażeń z 20% szansą na ogłuszenie, za każdym razem gdy ta postać zaatakuje kogokolwiek innego niż cel tego stanu.",
+                "conditionDuration": "2r",
+            },
+            { 
+                "conditionName": "Cel skupienia",
+                "conditionDescription": "Zaatakowanie kogokolwiek innego niż postaci ze stanem 'Skupiony na celu' skończy się silnym nieunikalnym ciosem z szansą ogłuszenia.",
+                "conditionDuration": "2r",
+            }
+        ],
     },
     "Skalne włócznie": {
         name: "Skalne włócznie",
@@ -688,7 +723,7 @@ var ability = {
     },
     "Test3": {
         name: "Test3",
-        description: "Usuwa [-5 * vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę w tej rundzie.",
+        description: "Usuwa [-5 - vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę w tej rundzie.",
         roll: "agility",
         difficulty: 1,
         cooldown: 2,
@@ -701,4 +736,163 @@ var ability = {
         roll: "intuition",
         difficulty: 4,
     },
+    "Test: Multistrike": {
+        name: "Test: Multistrike",
+        description: "Zadaje cios do 3 wybranych celów (nieobowiązkowo wszystkich 3).",
+        roll: "accuracy",
+        difficulty: "X",
+        cooldown: 2,
+        actions: [
+            {
+                type: "damage",
+                target: "multi",
+                possibleTargetNumber: 3,
+                dmgType: "phys",
+                value: "[5 * strength]"
+            }
+        ]
+    },
+    "Test: Przeklęty Ogień": {
+        name: "Test: Przeklęty Ogień",
+        description: "Podpala wroga i regeneruje rzucającego.",
+        roll: "attunement",
+        difficulty: 10,
+        cooldown: 3,
+        actions: [
+            {
+                type: "damage",
+                target: "single",
+                dmgType: "mag",
+                value: "[10 * attunement]",
+                conditions: [
+                    { 
+                        conditionName: "Podpalenie", 
+                        conditionDescription: "Otrzymuje obrażenia od ognia.", 
+                        conditionDuration: "2r" 
+                    }
+                ]
+            },
+            {
+                type: "heal",
+                target: "self",
+                healType: "normal",
+                value: "20",
+                conditions: [
+                    { 
+                        conditionName: "Regeneracja", 
+                        conditionDescription: "Ciało spowite leczeniem.", 
+                        conditionDuration: "2t" 
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Wir Pięści": {
+        name: "Test: Wir Pięści",
+        description: "Zadaje brutalną, [prop_unavoidable] serię 10 ciosów.",
+        cooldown: 4,
+        actions: [
+            {
+                type: "damage",
+                target: "single",
+                repeat: 10,  // <-- Pętla 10 razy (rzut na unik, gdyby był, odbyłby się 1 raz)
+                dmgType: "phys",
+                value: "[1 * strength]"
+            }
+        ]
+    },
+    "Test: Masowy Buff": {
+        name: "Test: Masowy Buff",
+        description: "Nakłada potężne wzmocnienie na wszystkich sojuszników.",
+        cooldown: "[cooldown_once]",
+        actions: [
+            {
+                type: "condition", // <-- Zwykłe nakładanie stanu, bez leczenia/dmg
+                target: "team_ally",
+                conditions: [
+                    { 
+                        conditionName: "Błogosławieństwo", 
+                        conditionDescription: "Daje +2 do testów zwinności.", 
+                        conditionDuration: "3r" 
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Wszystko Wszędzie Naraz": {
+        name: "Test: Wszystko Wszędzie Naraz",
+        description: "[prop_stuns] Epicki sprawdzian silnika. Uderza 2 cele, leczy 1 cel, opancerza 3 cele, uderza 1 cel trzykrotnie i debuffuje całą drużynę wroga.",
+        roll: "attunement",
+        difficulty: 15,
+        cooldown: 5,
+        actions: [
+            {
+                type: "damage",
+                target: "multi",
+                possibleTargets: 2,
+                dmgType: "mag",
+                value: "[5 * attunement]",
+                conditions: [
+                    {
+                        conditionName: "Dziura po uderzeniu",
+                        conditionDescription: "Ałć. [-0.5 * agility] pancerza magicznego.",
+                        conditionDuration: "2r",
+                        source: "target",
+                    }
+                ]
+            },
+            {
+                type: "heal",
+                target: "single",
+                healType: "normal",
+                value: "[10 + 2 * attunement]",
+                conditions: [
+                    {
+                        conditionName: "Healowy stan",
+                        conditionDescription: "Tyle refleksu ma invoker: [1 * reflex]",
+                        conditionDuration: "2r",
+                        source: "self",
+                    },
+                    {
+                        conditionName: "Healowy stan",
+                        conditionDescription: "Tyle refleksu ma cel: [1 * reflex]",
+                        conditionDuration: "2r",
+                        source: "target",
+                    }
+                ]
+            },
+            {
+                type: "armor",
+                target: "multi",
+                possibleTargets: 3,
+                armorType: "phys",
+                value: "[10 + strength]",
+            },
+            {
+                type: "damage",
+                target: "single",
+                repeat: 3,
+                dmgType: "pierce",
+                value: "[2 * agility]"
+            },
+            {
+                type: "condition",
+                target: "team_enemy",
+                conditions: [
+                    {
+                        conditionName: "Totalny Chaos",
+                        conditionDescription: "Przeciwnik traci zmysły. Otrzymuje [2 * agility] obrażeń na koniec tury i jego pancerz spada o [-15%].",
+                        conditionDuration: "2r",
+                        source: "self",
+                    }
+                ]
+            },
+            {
+                type: "heal",
+                target: "self",
+                healType: "threshold",
+                value: "[50]"
+            },
+        ]
+    }
 }

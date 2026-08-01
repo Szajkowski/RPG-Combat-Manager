@@ -73,7 +73,7 @@ magArmor: 0,
         abilities: [
             {
                 name: "Lodowi towarzysze",
-                description: "Pasywne. Raza zawsze ma przy sobie dwa latające lodowe miecze.",
+                description: "Pasywne. Raza zawsze zaczyna walkę z dwoma latającymi lodowymi mieczami.",
             },
             ability["Lodowy miecz"],
             ability["Lodowy arsenał"],
@@ -88,6 +88,18 @@ magArmor: 0,
                 physArmor: 3,
                 magArmor: 10,
                 value: 10
+            },
+        ],
+        conditions: [
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
+            },
+            { 
+                "conditionName": "Lodowy miecz",
+                "conditionDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                "conditionDuration": "3t",
             },
         ],
     },

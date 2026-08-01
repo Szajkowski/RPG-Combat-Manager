@@ -214,8 +214,8 @@ var mobs = {
         abilities: [
             {
                 name: "Niepokonany",
-                description: "Pasywne. Zyskuje całkowitą odporność na stuny i ograniczenia ruchu na 1 turę. Umiejętność aktywuje się po zostaniu poddanym takiemu efektowi",
-                cooldown: 1
+                description: "[prop_reaction] Blokuje jedną udaną próbę ogłuszenia.",
+                cooldown: 5
             },
         ]
     },
