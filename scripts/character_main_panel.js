@@ -101,7 +101,7 @@ function renderCharMainPanel(id) {
                 </div>
                 <div class="complex-body">
                     <input type="number" class="heal-input" placeholder="" data-i18n="value">
-                    <button title="${t('heal_type_normal')}" onclick="healDamage('single', event)" data-i18n="heal_type_normal_short"></button>
+                    <button title="${t('heal_type_normal')}" onclick="healDamage('normal', event)" data-i18n="heal_type_normal_short"></button>
                     <button title="${t('heal_type_threshold')}" onclick="healDamage('threshold', event)" data-i18n="heal_type_threshold_short"></button>
                     <button title="${t('heal_type_group')}" onclick="healDamage('group', event)" data-i18n="heal_type_group_short"></button>
                 </div>

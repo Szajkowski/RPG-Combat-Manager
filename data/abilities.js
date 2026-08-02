@@ -134,7 +134,7 @@ var ability = {
 
     "Narastający żar zagłady": {
         name: "Narastający żar zagłady",
-        description: "[prop_piercing] Wyczarowuje niszczycielski płomień, który zada [2 ^ over vitality] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
+        description: "Wyczarowuje niszczycielski płomień, który zada [2 ^ over vitality] obrażeń celowi. Jeśli to zabije cel, zostanie z niego tylko popiół.",
         roll: "vitality",
         difficulty: 30,
         cooldown: "[cooldown_once]"
@@ -194,7 +194,7 @@ var ability = {
     },
     "Lodowe wiertło": {
         name: "Lodowe wiertło",
-        description: "[prop_piercing] Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
+        description: "Tworzy na dłoni lodowe wiertło. Atak wiertłem zadaje [3 * intuition] obrażeń.",
         roll: "intuition",
         difficulty: 8,
         cooldown: 1
@@ -469,7 +469,7 @@ var ability = {
     },
     "Skalne włócznie": {
         name: "Skalne włócznie",
-        description: "[prop_piercing] Wyczarowuje [2] włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
+        description: "Wyczarowuje [2] włócznie ze skał. Można nimi rzucić (rzut na celność 2 razy). Każda trafiona włócznia zadaje [3 * strength] obrażeń.",
         roll: "strength",
         difficulty: 12,
         cooldown: 3
@@ -709,7 +709,7 @@ var ability = {
 
     "Test1": {
         name: "Test1",
-        description: "[prop_unavoidable] [prop_piercing] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 2 * rzut = [2 * roll vitality], trelele, 8 * przebicie = [8 * over vitality]",
+        description: "[prop_unavoidable] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 2 * rzut = [2 * roll vitality], trelele, 8 * przebicie = [8 * over vitality]",
         roll: "vitality",
         difficulty: 2,
         cooldown: 0
@@ -819,9 +819,9 @@ var ability = {
             }
         ]
     },
-    "Test: Wszystko Wszędzie Naraz": {
+    "Test5": {
         name: "Test: Wszystko Wszędzie Naraz",
-        description: "[prop_stuns] Epicki sprawdzian silnika. Uderza 2 cele, leczy 1 cel, opancerza 3 cele, uderza 1 cel trzykrotnie i debuffuje całą drużynę wroga.",
+        description: "[prop_stuns] Epicki sprawdzian silnika. Uderza 2 cele za [5 * attunement] obrażeń magicznych, leczy 1 cel za [10 + 2 * attunement], opancerza 3 cele za [10 + strength] pancerza fizycznego, uderza 1 cel trzykrotnie za [2 * agility] obrażeń przebijających, debuffuje całą drużynę wroga i leczy siebie do progu 50.",
         roll: "attunement",
         difficulty: 15,
         cooldown: 5,
@@ -881,7 +881,7 @@ var ability = {
                 conditions: [
                     {
                         conditionName: "Totalny Chaos",
-                        conditionDescription: "Przeciwnik traci zmysły. Otrzymuje [2 * agility] obrażeń na koniec tury i jego pancerz spada o [-15%].",
+                        conditionDescription: "Przeciwnik traci zmysły. Otrzymuje [2 * agility] obrażeń na koniec tury i jego pancerz spada o [-15].",
                         conditionDuration: "2r",
                         source: "self",
                     }

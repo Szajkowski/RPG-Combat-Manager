@@ -182,7 +182,18 @@ const i18n = {
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
         'hit_chance': 'Szansa na trafienie:',
-        'vs': 'VS'
+        'vs': 'VS',
+        'action': 'Akcja',
+        'action_dmg_mag': 'Zadanie obrażeń magicznych',
+        'action_dmg_pierce': 'Zadanie obrażeń przebijających',
+        'action_dmg_phys': 'Zadanie obrażeń fizycznych',
+        'action_heal_threshold': 'Leczenie do progu',
+        'action_heal': 'Leczenie',
+        'action_armor_mag': 'Dodanie pancerza magicznego',
+        'action_armor_phys': 'Dodanie pancerza fizycznego',
+        'action_condition': 'Nałożenie stanu',
+        'selected_targets': 'Wybrane cele',
+        'targeting_skip_hint': 'PPM aby pominąć',
     },
     'EN': {
         // --- INTERFACE / UI ---
@@ -366,7 +377,19 @@ const i18n = {
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'RMB to cancel',
         'hit_chance': 'Hit chance:',
-        'vs': 'VS'
+        'vs': 'VS',
+
+        'action': 'Action',
+        'action_dmg_mag': 'Dealing magical damage',
+        'action_dmg_pierce': 'Dealing piercing damage',
+        'action_dmg_phys': 'Dealing physical damage',
+        'action_heal_threshold': 'Healing to threshold',
+        'action_heal': 'Healing',
+        'action_armor_mag': 'Adding magical armor',
+        'action_armor_phys': 'Adding physical armor',
+        'action_condition': 'Applying condition',
+        'selected_targets': 'Selected targets',
+        'targeting_skip_hint': 'RMB to skip'
     }
 };
 

@@ -130,6 +130,13 @@ function connectSocket() {
                 if (typeof appendRollEvent === 'function') appendRollEvent(data.rollEvent, true);
                 break;
             }
+
+            case 'BROADCASTplayActionSequence': {
+                if (typeof playActionSequence === 'function') {
+                    playActionSequence(data.payload);
+                }
+                break;
+            }
                 
             default:
                 console.log('Unknown message type:', data);
@@ -191,8 +198,71 @@ function syncAddRollEvent(rollEvent) {
     }
 }
 
+// Instructs the server to broadcast an action sequence (sounds/animations) to all clients for synchronized execution
+function syncPlayActionSequence(payload) {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'REQUESTplayActionSequence',
+            payload: payload
+        }));
+    }
+}
+
+// Uniformly executes a visual/audio action sequence received from the server.
+// Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
+async function playActionSequence(payload) {
+    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps } = payload;
+    const target = activeCombatants.find(c => c.id === targetId);
+    if (!target) return;
+
+    // We can't import delay directly if it's trapped in a separate scope, so we define a safe inline awaiter
+    const sequenceDelay = ms => new Promise(res => setTimeout(res, ms));
+
+    for (let i = 0; i < repeats; i++) {
+        // Apply deterministic stat updates chunk by chunk
+        if (stepValues && stepValues[i] !== undefined) {
+            if (actionType === 'damage' || actionType === 'heal') {
+                target.stats.hp = stepValues[i];
+                // IMPORTANT: Only set isDead if explicitly flagged by the math logic in deadSteps, preserving Death's Door checks
+                if (actionType === 'damage' && deadSteps && deadSteps[i]) {
+                    target.isDead = true;
+                }
+            } else if (actionType === 'armor') {
+                if (subType === 'phys') {
+                    if (typeof stepValues[i] === 'string' && stepValues[i].includes('%')) target.stats.physArmorMod = stepValues[i];
+                    else target.stats.physArmor = stepValues[i];
+                } else {
+                    if (typeof stepValues[i] === 'string' && stepValues[i].includes('%')) target.stats.magArmorMod = stepValues[i];
+                    else target.stats.magArmor = stepValues[i];
+                }
+            }
+            refreshCombatantDisplay(target);
+        }
+
+        // Visual hit reaction via token CSS
+        const token = document.querySelector(`.character-token[data-id="${target.id}"]`);
+        if (token) {
+            token.classList.remove('hit-animation');
+            void token.offsetWidth; // trigger reflow to restart CSS animation
+            token.classList.add('hit-animation');
+        }
+
+        // Play exact context-aware sound mimicking the sender's resolution
+        if (actionType === 'damage') {
+            if (subType === 'dodge') playSoundEffect('sound/dodge.mp3');
+            else if (subType === 'no_dmg') playSoundEffect('sound/no_dmg_hit.mp3');
+            else playSoundEffect(`sound/${subType}_hit.mp3`);
+        } else if (actionType === 'heal') {
+            playSoundEffect(`sound/heal_${subType}.mp3`);
+        } else if (actionType === 'armor') {
+            playSoundEffect(isAdding ? `sound/${subType}_armor_up.mp3` : `sound/${subType}_armor_down.mp3`, 0.5);
+        }
+
+        if (i < repeats - 1) await sequenceDelay(300);
+    }
+}
+
 // Master UI Updater: Updates Token, Right Panel, and Extra Panel in real-time
-// Differentiates between the sender client and external network clients for text field focus updates
 function refreshCombatantDisplay(combatant) {
     // 1. Update Token on the Arena
     const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);

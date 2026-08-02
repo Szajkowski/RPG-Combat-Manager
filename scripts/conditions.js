@@ -56,7 +56,16 @@ function renderConditions() {
 
         // Support both new target_ prefixed keys and legacy group target names
         const isGroupTarget = ['target_team_enemy', 'target_team_ally', 'target_all', 'team_enemy', 'team_ally', 'all', 'hero', 'enemy'].includes(cond.target);
-        const displayTarget = isGroupTarget ? t(cond.target) : cond.target;
+        
+        // Dynamically resolve translation for group targets (e.g., mapping 'team_enemy' to 'target_team_enemy')
+        let displayTarget = cond.target;
+        if (isGroupTarget) {
+            let i18nKey = cond.target;
+            if (!i18nKey.startsWith('target_')) {
+                i18nKey = 'target_' + i18nKey;
+            }
+            displayTarget = t(i18nKey);
+        }
 
         // Fetch invoker and target combatants
         const invokerCombatant = activeCombatants.find(c => c.uniqueName === cond.invoker);

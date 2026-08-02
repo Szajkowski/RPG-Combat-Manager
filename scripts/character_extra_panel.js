@@ -210,7 +210,8 @@ function fillAbilitiesPanel(abilities, combatant, container) {
                 cooldownButton.disabled = false;
             }
             
-            cooldownButton.onclick = () => useAbility(combatant.id, ability);
+            // PASS EVENT to hook pipeline origin coordinates correctly
+            cooldownButton.onclick = (e) => useAbility(combatant.id, ability, e);
             abilityCard.querySelector('.btn-container').appendChild(cooldownButton);
         }
 
@@ -318,7 +319,7 @@ function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) 
     return Math.floor((successRolls / statValue) * 100);
 }
 
-function useAbility(combatantId, ability) {
+function useAbility(combatantId, ability, event) {
     // Fetch fresh combatant from memory based on ID
     const combatant = activeCombatants.find(c => c.id === combatantId);
     if (!combatant) return;
@@ -326,25 +327,14 @@ function useAbility(combatantId, ability) {
     const abilityState = combatant.abilitiesStates[ability.name];
     if (!abilityState || abilityState.currentCooldown !== 0) return;
 
-    let success = true; // abilities without info on what to roll are treated as always successful
+    let success = true; 
+    let initialRollData = null;
 
-    if (ability.roll) { // roll, if the ability has one
-        const rollData = rollDice(combatant.id, ability.roll, ability.difficulty);
+    if (ability.roll) { 
+        initialRollData = rollDice(combatant.id, ability.roll, ability.difficulty);
         
-        if (rollData) {
-            const result = rollData.result;
-            success = ability.difficulty === "X" ? true 
-                                                 : result >= ability.difficulty ? true 
-                                                 : false;
-            
-            // Also registers roll events initiated by abilities!
-            syncAddRollEvent({
-                id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-                combatantId: combatant.id,
-                combatantName: combatant.uniqueName,
-                combatantTeam: combatant.team,
-                rolls: [ rollData ]
-            });
+        if (initialRollData) {
+            success = ability.difficulty === "X" ? true : initialRollData.result >= ability.difficulty;
         } else {
             success = false;
         }
@@ -352,27 +342,83 @@ function useAbility(combatantId, ability) {
 
     if (success) {
         if (abilityState.singleUse) {
-            // Permanent block, if the ability is single-use and succeeds
             abilityState.currentCooldown = 'unavailable';
-        } else { // if it isn't, it gets normal cd
+        } else { 
+            abilityState.currentCooldown = abilityState.maxCooldown;
+        }
+
+        // Check if the ability utilizes the new Action Pipeline system
+        if (ability.actions && ability.actions.length > 0) {
+            let shouldBroadcastInitRollImmediately = false;
+            
+            // Determine if the initial roll should be broadcasted immediately as a standalone row
+            if (initialRollData) {
+                const firstAction = ability.actions[0];
+                const requiresTargeting = ['single', 'multi'].includes(firstAction.target);
+                const isNonOffensive = ['heal', 'armor', 'condition'].includes(firstAction.type);
+
+                if (requiresTargeting || isNonOffensive) {
+                    shouldBroadcastInitRollImmediately = true;
+                }
+            }
+
+            if (shouldBroadcastInitRollImmediately) {
+                syncAddRollEvent({
+                    id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                    isTargeted: false,
+                    combatantId: combatant.id,
+                    combatantName: combatant.uniqueName,
+                    combatantTeam: combatant.team,
+                    rolls: [ initialRollData ]
+                });
+                initialRollData = null; // Consume the roll so the pipeline doesn't attach it to other actions
+            }
+
+            // IMMEDIATELY sync the combatant to secure the cooldown block across all clients globally 
+            syncUpdateCombatant(combatant);
+
+            if (typeof startActionPipeline === 'function') {
+                // Pass the initial roll (or null if already consumed) to the pipeline
+                startActionPipeline(combatant, ability.actions, ability, initialRollData, event);
+            }
+        } else {
+            // Legacy fallback for simple abilities without pipeline
+            if (initialRollData) {
+                syncAddRollEvent({
+                    id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                    isTargeted: false,
+                    combatantId: combatant.id,
+                    combatantName: combatant.uniqueName,
+                    combatantTeam: combatant.team,
+                    rolls: [ initialRollData ]
+                });
+            }
+            processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
+            // Non-pipeline abilities must sync their cooldown state immediately
+            syncUpdateCombatant(combatant); 
+        }
+    } else {
+        if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {
+            abilityState.currentCooldown = 2;
+        } else if (!abilityState.singleUse) {
             abilityState.currentCooldown = abilityState.maxCooldown;
         }
         
-        // Broadcast all associated conditions with combatant as mandatory invoker
-        processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
-    } else {
-        if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {
-            // A failed roll for a single-use ability always gets a one-turn cd. It's written as two because these cds are sort of +1 always, to wait out the next turn, 
-            // instead of the ability being immediately available again
-            abilityState.currentCooldown = 2;
-        } else if (!abilityState.singleUse) {
-            // Failed roll for regular abilities
-            abilityState.currentCooldown = abilityState.maxCooldown;
+        // Always broadcast failures immediately as normal, non-targeted standalone logs (No arrow)
+        if (initialRollData) {
+            syncAddRollEvent({
+                id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+                isTargeted: false,
+                combatantId: combatant.id,
+                combatantName: combatant.uniqueName,
+                combatantTeam: combatant.team,
+                rolls: [ initialRollData ]
+            });
         }
+        
+        // Failed skills must sync their failure cooldown penalty immediately
+        syncUpdateCombatant(combatant);
     }
-
-    // Instantly sync the modified ability state to all clients (which will refresh the UI buttons globally)
-    syncUpdateCombatant(combatant); 
 }
 
 // TEXT REPLACEMENTS (Used only in text blocks like descriptions)

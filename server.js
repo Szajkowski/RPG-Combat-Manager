@@ -416,6 +416,19 @@ async function startServer() {
                     });
                     break;
                 }
+
+                case 'REQUESTplayActionSequence': {
+                    // Broadcast the action sequence to all clients simultaneously (including the initiator)
+                    wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: 'BROADCASTplayActionSequence',
+                                payload: data.payload
+                            }));
+                        }
+                    });
+                    break;
+                }
                     
                 default:
                     console.log('Unknown message type:', data.type);
