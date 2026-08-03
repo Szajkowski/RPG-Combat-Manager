@@ -61,7 +61,7 @@ var ability = {
     },
     "Ognisty sabotaż": {
         name: "Ognisty sabotaż",
-        description: "[prop_unavoidable] Rozgrzewa broń celu. Rzut na żywotność maga kontra nieustępliwość celu. Jeśli mag wygra, cel puszcza broń i nie może jej podnieść przez swoją następną kolejkę.",
+        description: "[prop_undodgeable] Rozgrzewa broń celu. Rzut na żywotność maga kontra nieustępliwość celu. Jeśli mag wygra, cel puszcza broń i nie może jej podnieść przez swoją następną kolejkę.",
         roll: "vitality",
         difficulty: "X",
         cooldown: 2,
@@ -96,14 +96,14 @@ var ability = {
     },
     "Roztapiacz pancerza": {
         name: "Roztapiacz pancerza",
-        description: "[prop_unavoidable] Zmniejsza pancerz magiczny celu o [2 * roll vitality].",
+        description: "[prop_undodgeable] Zmniejsza pancerz magiczny celu o [2 * roll vitality].",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
     },
     "Pętla ognia": {
         name: "Pętla ognia",
-        description: "[prop_unavoidable] Rysuje pod celem runę, która wybucha za [5 * roll vitality] obrażeń.",
+        description: "[prop_undodgeable] Rysuje pod celem runę, która wybucha za [5 * roll vitality] obrażeń.",
         roll: "vitality",
         difficulty: "X",
         cooldown: 4
@@ -155,7 +155,7 @@ var ability = {
 
     "Płonący omen": {
         name: "Płonący omen",
-        description: "[prop_unavoidable] Tworzy nad celem ognistą runę. Runa aktywuje się, gdy cel otrzyma obrażenia magiczne i przypali go za drugie tyle.",
+        description: "[prop_undodgeable] Tworzy nad celem ognistą runę. Runa aktywuje się, gdy cel otrzyma obrażenia magiczne i przypali go za drugie tyle.",
         roll: "vitality",
         difficulty: 12,
         cooldown: 5
@@ -245,7 +245,7 @@ var ability = {
     },
     "Przeszywający mróz": {
         name: "Przeszywający mróz",
-        description: "[prop_unavoidable] Mocno schładza wodę w organizmie celu, zadając [5 * intuition] obrażeń i zmniejszając jego rzuty na zwinność o [-6] przez [2] tury.",
+        description: "[prop_undodgeable] Mocno schładza wodę w organizmie celu, zadając [5 * intuition] obrażeń i zmniejszając jego rzuty na zwinność o [-6] przez [2] tury.",
         roll: "intuition",
         difficulty: 12,
         cooldown: 3,
@@ -427,7 +427,7 @@ var ability = {
     },
     "Bagnista powierzchnia": {
         name: "Bagnista powierzchnia",
-        description: "[prop_unavoidable] Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa [3] tury.",
+        description: "[prop_undodgeable] Zamienia ziemię w klejące błoto na kolistym obszarze o średnicy paru metrów. Każda jednostka znajdująca się na tym terenie ma bardzo utrudnione poruszanie się i musi spędzić kolejkę, jeśli chce z niego wyjść. Efekt trwa [3] tury.",
         roll: "strength",
         difficulty: 10,
         cooldown: 2,
@@ -436,7 +436,7 @@ var ability = {
     },
     "Kamienny chwyt": {
         name: "Kamienny chwyt",
-        description: "[prop_unavoidable] Tworzy ręce z ziemi, które próbują unieruchomić cel na [1] turę (rzut siła kontra siła).",
+        description: "[prop_undodgeable] Tworzy ręce z ziemi, które próbują unieruchomić cel na [1] turę (rzut siła kontra siła).",
         roll: "strength",
         difficulty: "X",
         cooldown: 2,
@@ -553,7 +553,7 @@ var ability = {
 
     "Zawirowanie": {
         name: "Zawirowanie",
-        description: "[prop_unavoidable] Zakręca szybko celem wokół jego własnej osi, dezorientując go i zmniejszając jego następny rzut na celność oraz na unik o [-6].",
+        description: "[prop_undodgeable] Zakręca szybko celem wokół jego własnej osi, dezorientując go i zmniejszając jego następny rzut na celność oraz na unik o [-6].",
         roll: "agility",
         difficulty: 4,
         cooldown: 0,
@@ -562,7 +562,7 @@ var ability = {
     },
     "Tnące łuki": {
         name: "Tnące łuki",
-        description: "[prop_unavoidable] Wystrzeliwuje [3] pociski z powietrza w kształcie łuków, które uderzą w wybrany cel. Każdy zadaje [1 * agility] obrażeń.",
+        description: "[prop_undodgeable] Wystrzeliwuje [3] pociski z powietrza w kształcie łuków, które uderzą w wybrany cel. Każdy zadaje [1 * agility] obrażeń.",
         roll: "agility",
         difficulty: 6,
         cooldown: 0
@@ -603,7 +603,7 @@ var ability = {
     },
     "Wir pięści": {
         name: "Wir pięści",
-        description: "[prop_unavoidable] Wyczarowuje [10] pięści z powietrza. Każda uderza cel za [0.5 * agility].",
+        description: "[prop_undodgeable] Wyczarowuje [10] pięści z powietrza. Każda uderza cel za [0.5 * agility].",
         roll: "agility",
         difficulty: 10,
         cooldown: 1
@@ -629,7 +629,7 @@ var ability = {
     },
     "Trąba": {
         name: "Trąba",
-        description: "[prop_unavoidable] Uderza cel skompresowanym powietrzem za [4 * agility] i próbuje go przewrócić.",
+        description: "[prop_undodgeable] Uderza cel skompresowanym powietrzem za [4 * agility] i próbuje go przewrócić.",
         roll: "agility",
         difficulty: 15,
         cooldown: 3
@@ -706,31 +706,209 @@ var ability = {
     },
 
 // Testy
+    "Test: extra turn self": {
+        name: "Test: extra turn self",
+        description: "Po użyciu przyspiesza siebie na 1 rundę.",
+        roll: "reflex",
+        difficulty: 5,
+        cooldown: 2,
+        actions: [
+            {
+                type: "condition",
+                target: "self",
+                forceRoll: "vitality",
+                forceRollDifficulty: 4,
+                conditions: [
+                    { 
+                        conditionName: "Przyspieszenie", 
+                        conditionDescription: "", 
+                        conditionDuration: "1r",
+                        conditionProperties: ["prop_extra_turn"],
+                        isBeneficial: true,
+                    },
+                    { 
+                        conditionName: "Nieudane przyspieszenie", 
+                        conditionDescription: "[-0.5 * reflex] refleksu.", 
+                        conditionDuration: "1r",
+                        isBeneficial: false,
+                    }
+                ],
+            },
+        ]
+    },
+
+    "Test: extra turn": {
+        name: "Test: extra turn",
+        description: "Po użyciu przyspiesza cel na 1 rundę.",
+        roll: "reflex",
+        difficulty: 5,
+        cooldown: 2,
+        properties: ["prop_extra_turn"],
+        actions: [
+            {
+                type: "condition",
+                target: "single",
+                forceRoll: "vitality",
+                forceRollDifficulty: 4,
+                conditions: [
+                    { 
+                        conditionName: "Przyspieszenie", 
+                        conditionDescription: "", 
+                        conditionDuration: "1r",
+                        conditionProperties: ["prop_extra_turn"],
+                        isBeneficial: true,
+                    },
+                    { 
+                        conditionName: "Nieudane przyspieszenie", 
+                        conditionDescription: "[-0.5 * reflex] refleksu.", 
+                        conditionDuration: "1r",
+                        isBeneficial: false,
+                    }
+                ],
+            },
+        ]
+    },
+    "Test: damage actions": {
+        name: "Test: damage actions",
+        description: "Uderza cel za [1 * vitality] i wymusza roll na żywotność z trudnością 10. Daje stan jeśli się powiedzie. Potem uderza do 3 wybranych celów za [15 + 2 * attunement] obrażeń magicznych. Aby się obronić trzeba uniknąć tego ataku LUB wygrać rzut siła vs siła ORAZ wyrzucić chociaż [8] zwinności. Potem uderza 3 razy za [3 * attunement] obrażeń przebijącacych w cały team przeciwnika. Aby się obronić należy uniknąć + wyrzucić przynajmniej 9 siły.",
+        roll: "reflex",
+        difficulty: 5,
+        cooldown: 0,
+        actions: [
+            {
+                type: "damage",
+                target: "single",
+                damageType: "pierce",
+                value: "[1 * vitality]",
+                forceRoll: "vitality",
+                forceRollDifficulty: 10,
+                conditions: [
+                    {
+                        conditionName: "Stan po beneficial uderzeniu celu",
+                        conditionDescription: "Powinien się pojawić tylko jeśli user umiejętności zaliczył roll na żywotność. To buff. +[2 * reflex] obrażeń.",
+                        conditionDuration: "2r",
+                        source: "self",
+                        isBeneficial: true,
+                    }
+                ]
+            },
+            {
+                type: "damage",
+                target: "multi",
+                possibleTargets: 3,
+                damageType: "mag",
+                value: "[15 + 2 * attunement]",
+                forceRoll: "agility",
+                forceRollDifficulty: 8,
+                forceRollVS: "strength vs strength",
+                conditions: [
+                    {
+                        conditionName: "Stan po uderzeniu celu",
+                        conditionDescription: "Powinien się pojawić tylko po zadaniu celowi obrazeń oraz zawaleniu przez niego rolla vs. Stan bierze dane od wywołującego. [1 * strength]",
+                        conditionDuration: "2t",
+                        source: "self",
+                        isBeneficial: false,
+                    },
+                    {
+                        conditionName: "Stan po uderzeniu celu 2",
+                        conditionDescription: "Powinien się pojawić tylko sukcesie, czyli zadaniu celowi obrazeń i uwaleniu przez niego rolla. Stan bierze dane od celu. [1 * strength]",
+                        conditionDuration: "2t",
+                        source: "target",
+                        isBeneficial: false,
+                    },
+                ]
+            },
+            {
+                type: "damage",
+                target: "team_enemy",
+                damageType: "phys",
+                value: "[3 * attunement]",
+                repeat: 3,
+                forceRoll: "strength",
+                forceRollDifficulty: 9,
+                conditions: [
+                    {
+                        conditionName: "Stan po masowym uderzeniu",
+                        conditionDescription: "Powinien się pojawić tylko na tych, którzy zostali trafieni i uwalili roll na siłę. Trwa 2 rundy.",
+                        conditionDuration: "2r",
+                        source: "self",
+                        isBeneficial: false,
+                    }
+                ]
+            },
+        ]
+    },
+    "Test: healing actions": {
+        name: "Test: healing actions",
+        description: "Leczy siebie do progu 500, leczy cel do progu 50, leczy do 3 celow za [3 * attunement] x2 jesli wyrzuca chociaz 4 intuicji, leczy cala sojusznicza druzyne za [2 * attunement] jesli wygraja rzut witalnosc vs witalnosc, leczy kazdego do progu 1, jesli wyrzuca chociaz 3 refleksu",
+        cooldown: 0,
+        actions: [
+            {
+                type: "heal",
+                target: "self",
+                healType: "threshold",
+                value: 500,
+                conditions: [
+                    {
+                        conditionName: "Stan po uleczeniu siebie",
+                        conditionDescription: "Powinien się pojawić zawsze, jako że nie ma forced rolla. Powinien także nie mieć wgl celu, bo akcja ma target self.",
+                        conditionDuration: "2t",
+                        source: "self",
+                    },
+                ]
+            },
+            {
+                type: "heal",
+                target: "single",
+                healType: "threshold",
+                value: 50,
+                conditions: [
+                    {
+                        conditionName: "Stan po uleczeniu",
+                        conditionDescription: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
+                        conditionDuration: "2t",
+                        source: "target",
+                    },
+                ]
+            },
+            {
+                type: "heal",
+                target: "multi",
+                possibleTargets: 3,
+                healType: "normal",
+                value: "[3 * attunement]",
+                repeat: 2,
+                forceRoll: "intuition",
+                forceRollDifficulty: 4,
+            },
+            {
+                type: "heal",
+                target: "team_ally",
+                healType: "normal",
+                value: "[2 * attunement]",
+                repeat: 3,
+                forceRollVS: "vitality vs vitality",
+                conditions: [
+                    {
+                        conditionName: "Stan po masowym leczeniu",
+                        conditionDescription: "Powinien się pojawić tylko na tych, którzy zostali sukcesywnie uleczeni. Trwa 2 rundy.",
+                        conditionDuration: "2r",
+                        source: "self"
+                    }
+                ]
+            },
+            {
+                type: "heal",
+                target: "all",
+                healType: "threshold",
+                value: 1,
+                forceRoll: "reflex",
+                forceRollDifficulty: 3,
+            },
+        ]
+    },
 
     "Test1": {
-        name: "Test1",
-        description: "[prop_unavoidable] 5 * Żywotność = [5 * vitality], 6 * Intuicja = [6 * intuition], 2 * rzut = [2 * roll vitality], trelele, 8 * przebicie = [8 * over vitality]",
-        roll: "vitality",
-        difficulty: 2,
-        cooldown: 0
-    },
-    "Test2": {
-        name: "Test2",
-        description: "[prop_reaction] [prop_extra_turn] 0.5 * Żywotność = [0.5 * vitality], 6 * Intuicja = [6 * intuition], 100 - 4 * rzut zwinności = [100 - 4 * roll agility], 8 * przebicie = [1.5 ^ over resilience], ",
-        roll: "vitality",
-        difficulty: 10,
-        cooldown: 0
-    },
-    "Test3": {
-        name: "Test3",
-        description: "Usuwa [-5 - vitality] pancerza fizycznego. Wybrany cel zyskuje [1] dodatkową turę w tej rundzie.",
-        roll: "agility",
-        difficulty: 1,
-        cooldown: 2,
-        condition: "[prop_extra_turn] Aktywne przez [1] rundę.",
-        conditionDuration: "1r",
-    },
-    "Test4": {
         name: "Test4",
         description: "[prop_non_combat] Leczy [3 * intuition] zdrowia.",
         roll: "intuition",
@@ -747,7 +925,7 @@ var ability = {
                 type: "damage",
                 target: "multi",
                 possibleTargetNumber: 3,
-                dmgType: "phys",
+                damageType: "phys",
                 value: "[5 * strength]"
             }
         ]
@@ -762,7 +940,7 @@ var ability = {
             {
                 type: "damage",
                 target: "single",
-                dmgType: "mag",
+                damageType: "mag",
                 value: "[10 * attunement]",
                 conditions: [
                     { 
@@ -789,14 +967,14 @@ var ability = {
     },
     "Test: Wir Pięści": {
         name: "Test: Wir Pięści",
-        description: "Zadaje brutalną, [prop_unavoidable] serię 10 ciosów.",
+        description: "Zadaje brutalną, [prop_undodgeable] serię 10 ciosów.",
         cooldown: 4,
         actions: [
             {
                 type: "damage",
                 target: "single",
                 repeat: 10,  // <-- Pętla 10 razy (rzut na unik, gdyby był, odbyłby się 1 raz)
-                dmgType: "phys",
+                damageType: "phys",
                 value: "[1 * strength]"
             }
         ]
@@ -819,7 +997,7 @@ var ability = {
             }
         ]
     },
-    "Test5": {
+    "Test: All at once": {
         name: "Test: Wszystko Wszędzie Naraz",
         description: "[prop_stuns] Epicki sprawdzian silnika. Uderza 2 cele za [5 * attunement] obrażeń magicznych, leczy 1 cel za [10 + 2 * attunement], opancerza 3 cele za [10 + strength] pancerza fizycznego, uderza 1 cel trzykrotnie za [2 * agility] obrażeń przebijających, debuffuje całą drużynę wroga i leczy siebie do progu 50.",
         roll: "attunement",
@@ -830,7 +1008,7 @@ var ability = {
                 type: "damage",
                 target: "multi",
                 possibleTargets: 2,
-                dmgType: "mag",
+                damageType: "mag",
                 value: "[5 * attunement]",
                 conditions: [
                     {
@@ -872,7 +1050,7 @@ var ability = {
                 type: "damage",
                 target: "single",
                 repeat: 3,
-                dmgType: "pierce",
+                damageType: "pierce",
                 value: "[2 * agility]"
             },
             {
@@ -894,5 +1072,29 @@ var ability = {
                 value: "[50]"
             },
         ]
-    }
+    },
+    "Test_Auto": {
+        name: "Test 1: Czysty Atak (Brak forceRoll)",
+        description: "Uderza 1 cel dwukrotnie za [3 * strength] obrażeń fizycznych bez możliwości rzutów obronnych. Bierze pod uwagę tylko rzut na unik (celność vs zwinnosc atakowanego). Nakłada na cel stan Krwawienie.",
+        roll: "strength",
+        difficulty: 2,
+        cooldown: 2,
+        actions: [
+            {
+                type: "damage",
+                target: "single",
+                repeat: 2,
+                damageType: "phys",
+                value: "[3 * strength]",
+                conditions: [
+                    {
+                        conditionName: "Krwawienie",
+                        conditionDescription: "Tracisz [1 * strength] HP co turę.",
+                        conditionDuration: "2r",
+                        source: "target"
+                    }
+                ]
+            }
+        ]
+    },
 }

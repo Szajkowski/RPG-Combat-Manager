@@ -79,7 +79,14 @@ function renderConditions() {
             evalContext = targetCombatant;
         }
 
-        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(cond.description || "", evalContext) : (cond.description || "");
+        // Aggregate condition properties as prefixes
+        let descString = cond.description || "";
+        if (cond.conditionProperties && cond.conditionProperties.length > 0) {
+            const propsPrefix = cond.conditionProperties.map(p => `[${p}]`).join(' ');
+            descString = propsPrefix + (descString ? ' ' + descString : '');
+        }
+
+        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(descString, evalContext) : descString;
 
         html += `
             <div class="condition-block">
@@ -132,7 +139,7 @@ function updateConditionTarget(id, newTarget) {
     }
 }
 
-function buildConditionObject(invoker, target, name, description, duration, source = "self") {
+function buildConditionObject(invoker, target, name, description, duration, source = "self", conditionProperties = []) {
     // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
     return {
         id: `condition-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -141,23 +148,46 @@ function buildConditionObject(invoker, target, name, description, duration, sour
         target: target || null,
         source: source || "self",
         description: description,
-        duration: duration
+        duration: duration,
+        conditionProperties: conditionProperties
     };
 }
 
 // Centralized helper to process, batch, and broadcast conditions from either the new array format or legacy single format
-function processAndSendConditions(invoker, target, sourceData, fallbackName, defaultSource = "self") {
+function processAndSendConditions(invoker, target, sourceData, fallbackName, defaultSource = "self", evalData = null) {
     let newConditions = [];
+    const actionHasForcedRolls = !!(sourceData.forceRoll || sourceData.forceRollVS);
 
     if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
         sourceData.conditions.forEach(cond => {
+            // STRICT REQUIREMENT FOR ISBENEFICIAL FLAG (ONLY IF ACTION FORCES DEFENSIVE ROLLS)
+            if (actionHasForcedRolls && cond.isBeneficial === undefined) {
+                alert(`Critical Error: Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag (required for actions with forced rolls)!`);
+                throw new Error(`Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag!`);
+            }
+
+            // Evaluates if this specific condition should apply based on its isBeneficial flag and force roll results
+            if (evalData && evalData.hasForcedRolls) {
+                if (cond.isBeneficial !== evalData.targetPassedChecks) {
+                    return; // Skip pushing this condition if the target passed/failed the save appropriately
+                }
+            }
+
             const condName = cond.conditionName || cond.name || fallbackName;
             const condDesc = cond.conditionDescription || cond.description || '';
             const condDuration = cond.conditionDuration || cond.duration || '-';
             const condSource = cond.source || defaultSource;
-            const condTarget = cond.target !== undefined ? cond.target : target;
             
-            newConditions.push(buildConditionObject(invoker, condTarget, condName, condDesc, condDuration, condSource));
+            let condTarget = cond.target !== undefined ? cond.target : target;
+            
+            // Resolves "self" tags to explicitly clear the UI targeting parameter internally
+            if (condTarget === 'self' || condTarget === invoker) {
+                condTarget = null; 
+            }
+            
+            const condProps = cond.conditionProperties || cond.properties || [];
+            
+            newConditions.push(buildConditionObject(invoker, condTarget, condName, condDesc, condDuration, condSource, condProps));
         });
     }
 

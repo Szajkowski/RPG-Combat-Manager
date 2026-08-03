@@ -5,26 +5,29 @@ function calculateTotalTurns(combatant) {
     if (combatant.isDead) return 0;
 
     let extraTurns = 0;
-    const tag = '[prop_extra_turn]';
+    const tag = 'prop_extra_turn';
 
-    // Check abilities
+    // Check abilities explicitly examining the properties array
     if (combatant.abilities) {
         combatant.abilities.forEach(ability => {
-            if (ability.description && ability.description.toLowerCase().includes(tag)) extraTurns++;
+            if (ability.properties && ability.properties.includes(tag)) extraTurns++;
         });
     }
 
-    // Check equipment
+    // Check equipment looking at the properties array (with fallback for legacy items relying on old description tag searches)
     if (combatant.equipment) {
         combatant.equipment.forEach(item => {
-            if (item.description && item.description.toLowerCase().includes(tag)) extraTurns++;
+            if (item.properties && item.properties.includes(tag)) extraTurns++;
+            else if (!item.properties && item.description && item.description.toLowerCase().includes(`[${tag}]`)) extraTurns++;
         });
     }
 
-    // Check active conditions targeting this specific combatant
+    // Check active conditions targeting this specific combatant explicitly via conditionProperties
     if (typeof activeConditions !== 'undefined') {
         activeConditions.forEach(cond => {
-            if (cond.target === combatant.uniqueName && cond.description && cond.description.toLowerCase().includes(tag)) {
+            // Null target automatically implies the condition affects the invoker
+            const effectiveTarget = cond.target ? cond.target : cond.invoker;
+            if (effectiveTarget === combatant.uniqueName && cond.conditionProperties && cond.conditionProperties.includes(tag)) {
                 extraTurns++;
             }
         });
@@ -240,6 +243,8 @@ function nextTurn(isSilent = false) {
         actionsPerCombatant[actor.combatant.id]++;
     });
 
+    const modifiedCombatants = [];
+
     Object.keys(actionsPerCombatant).forEach(id => {
         const c = activeCombatants.find(comb => comb.id === id);
         let turnsToTake = actionsPerCombatant[id];
@@ -270,13 +275,19 @@ function nextTurn(isSilent = false) {
                     const type = durStr.slice(-1);
                     // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
                     const isTurnBased = type === 't' || !isNaN(type);
-                    return cond.target === c.uniqueName && isTurnBased;
+                    const effectiveTarget = cond.target ? cond.target : cond.invoker;
+                    return effectiveTarget === c.uniqueName && isTurnBased;
                 });
             }
         }
 
-        if (!isSilent) syncUpdateCombatant(c);
+        modifiedCombatants.push(c);
     });
+
+    // Batch update the server to avoid spamming network requests per combatant
+    if (!isSilent && modifiedCombatants.length > 0) {
+        if (typeof syncUpdateCombatantsBatch === 'function') syncUpdateCombatantsBatch(modifiedCombatants);
+    }
 
     // Check if we hit the end of the round natively
     if (remainingGroupsCount <= 1) {
@@ -307,12 +318,18 @@ function newRound() {
     }
 
     // Full round reset
+    const modifiedCombatants = [];
     activeCombatants.forEach(c => {
         if (!c.isDead) {
             c.turnsTakenThisRound = 0; // Wipe history state
-            syncUpdateCombatant(c);
+            modifiedCombatants.push(c);
         }
     });
+
+    // Batch update the server
+    if (modifiedCombatants.length > 0 && typeof syncUpdateCombatantsBatch === 'function') {
+        syncUpdateCombatantsBatch(modifiedCombatants);
+    }
 
     // Handle global round condition decrement logic (Round based 'r', and missing targets for 't')
     const activeNames = activeCombatants.map(c => c.uniqueName);
@@ -322,7 +339,9 @@ function newRound() {
             const type = durStr.slice(-1);
             const isRoundBased = type === 'r';
             const isTurnBased = type === 't' || !isNaN(type);
-            const isOrphaned = !activeNames.includes(cond.target);
+            
+            const effectiveTarget = cond.target ? cond.target : cond.invoker;
+            const isOrphaned = !activeNames.includes(effectiveTarget);
             
             // Evaluates TRUE if the condition explicitly tracks rounds, or tracks turns but the target is gone
             return isRoundBased || (isTurnBased && isOrphaned);
@@ -334,6 +353,8 @@ function newRound() {
 
 // End Combat: Reset cooldowns and interaction histories safely
 function endCombat() {
+    const modifiedCombatants = [];
+
     activeCombatants.forEach(c => {
         if (c.team === 'enemy' && typeof syncRemoveCombatant === 'function') {
             syncRemoveCombatant(c.id);
@@ -345,10 +366,14 @@ function endCombat() {
                 });
             }
             c.turnsTakenThisRound = 0; // Wipe history state
-            if (typeof syncUpdateCombatant === 'function') syncUpdateCombatant(c);
+            modifiedCombatants.push(c);
         }
     });
     
+    if (modifiedCombatants.length > 0 && typeof syncUpdateCombatantsBatch === 'function') {
+        syncUpdateCombatantsBatch(modifiedCombatants);
+    }
+
     if (typeof updateServerConditions === 'function') {
         updateServerConditions([]);
     }

@@ -1,5 +1,3 @@
-// SECTION i18n.js 
-
 window.currentLanguage = localStorage.getItem('CombatManager-Language') || 'PL';
 
 const i18n = {
@@ -136,6 +134,10 @@ const i18n = {
         'armor_value_base': 'Wartość podstawowa',
         'armor_value_percent': 'Wartość procentowa',
 
+        // Damage Action Combat Flow names
+        'roll_hit': 'trafienie',
+        'roll_dodge': 'unik',
+
         // Function bar
         'remove_character': 'Usuń postać',
         'toggle_stun': 'Przełącz ogłuszenie',
@@ -164,7 +166,7 @@ const i18n = {
         'wait': 'Czekaj',
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
-        'prop_unavoidable': 'Nieunikalne.',
+        'prop_undodgeable': 'Nieunikalne.',
         'prop_extra_turn': 'Daje dodatkową turę.',
         'prop_reaction': 'Reakcja.',
         'prop_non_combat': 'Nie do walki.',
@@ -181,7 +183,7 @@ const i18n = {
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
-        'hit_chance': 'Szansa na trafienie:',
+        'success_chance': 'Szansa na powodzenie:',
         'vs': 'VS',
         'action': 'Akcja',
         'action_dmg_mag': 'Zadanie obrażeń magicznych',
@@ -329,6 +331,10 @@ const i18n = {
         'armor_value_base': 'Base value',
         'armor_value_percent': 'Percent value',
 
+        // Damage Action Combat Flow names
+        'roll_hit': 'hit',
+        'roll_dodge': 'dodge',
+
         // Function bar
         'remove_character': 'Remove character',
         'toggle_stun': 'Toggle stun',
@@ -359,7 +365,7 @@ const i18n = {
         'wait': 'Wait',
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
-        'prop_unavoidable': 'Unavoidable.',
+        'prop_undodgeable': 'Undodgeable.',
         'prop_extra_turn': 'Grants extra turn.',
         'prop_reaction': 'Reaction.',
         'prop_non_combat': 'Non combat.',
@@ -376,7 +382,7 @@ const i18n = {
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'RMB to cancel',
-        'hit_chance': 'Hit chance:',
+        'success_chance': 'Success chance:',
         'vs': 'VS',
 
         'action': 'Action',

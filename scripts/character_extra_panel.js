@@ -20,9 +20,9 @@ function renderExtraPanel(combatantId) {
         maxAbilities += Math.floor((attunement - 10) / 2);
     }
     
-    // Slice by maxAbilities first to strictly consume attunement slots, THEN filter out [prop_non_combat] for the combat view
+    // Slice by maxAbilities first to strictly consume attunement slots, THEN filter out [prop_non_combat] via properties array for the combat view
     const slicedAbilities = combatant.abilities ? combatant.abilities.slice(0, maxAbilities) : [];
-    const displayAbilities = slicedAbilities.filter(a => !(a.description && a.description.toLowerCase().includes('[prop_non_combat]')));
+    const displayAbilities = slicedAbilities.filter(a => !(a.properties && a.properties.includes('prop_non_combat')));
     const equipment = combatant.equipment || [];
 
     const hasAbilities = displayAbilities.length > 0;
@@ -138,9 +138,26 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         const abilityCard = document.createElement('div');
         abilityCard.className = 'char-extra-card';
 
+        // Aggregate unique properties directly from ability properties arrays to append as prefixes
+        let allProps = new Set(ability.properties || []);
+        if (ability.actions && Array.isArray(ability.actions)) {
+            ability.actions.forEach(act => {
+                if (act.properties && Array.isArray(act.properties)) {
+                    act.properties.forEach(p => allProps.add(p));
+                }
+            });
+        }
+        
+        let descString = ability.description || "";
+        if (allProps.size > 0) {
+            // Join using space because translation map values natively contain trailing periods
+            const propsPrefix = Array.from(allProps).map(p => `[${p}]`).join(' ');
+            descString = propsPrefix + (descString ? ' ' + descString : '');
+        }
+
         // Build ability content
-        // Parse description directly using memory stats instead of reading DOM
-        const parsedDesc = parseDescription(ability.description || "", combatant, ability.difficulty);
+        // Parse description using the newly generated composite string
+        const parsedDesc = parseDescription(descString, combatant, ability.difficulty);
 
         let cardInner = `
             <div class="char-extra-card-title">
@@ -170,8 +187,8 @@ function fillAbilitiesPanel(abilities, combatant, container) {
             cooldownButton.className = 'action-cd-btn';
             cooldownButton.dataset.abilityName = abilityName;
 
-            // Determine specific logical exceptions
-            const isReaction = ability.description && ability.description.toLowerCase().includes('[prop_reaction]');
+            // Determine specific logical exceptions checking properties directly
+            const isReaction = ability.properties && ability.properties.includes('prop_reaction');
             const hasTurn = typeof hasCurrentTurn === 'function' ? hasCurrentTurn(combatant.id) : true;
 
             // Block ability if character is dead
@@ -231,8 +248,16 @@ function fillEquipmentPanel(equipment, combatant, container) {
             itemCard.className = 'char-extra-card';
             
             let html = `<div class="char-extra-card-title">${item.name}</div>`;
-            if (item.description) {
-                html += `<div class="char-extra-card-desc">${parseDescription(item.description, combatant)}</div>`;
+            
+            // Construct properties prefix dynamically for items as well if properties array exists
+            let descString = item.description || "";
+            if (item.properties && item.properties.length > 0) {
+                const propsPrefix = item.properties.map(p => `[${p}]`).join(' ');
+                descString = propsPrefix + (descString ? ' ' + descString : '');
+            }
+
+            if (descString) {
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant)}</div>`;
             }
 
             html += `<div class="char-extra-card-meta">`;
@@ -279,8 +304,16 @@ function fillEquipmentPanel(equipment, combatant, container) {
             itemCard.className = 'char-extra-card';
             
             let html = `<div class="char-extra-card-title">${item.name}</div>`;
-            if (item.description) {
-                html += `<div class="char-extra-card-desc">${parseDescription(item.description, combatant)}</div>`;
+            
+            // Construct properties prefix dynamically for items as well if properties array exists
+            let descString = item.description || "";
+            if (item.properties && item.properties.length > 0) {
+                const propsPrefix = item.properties.map(p => `[${p}]`).join(' ');
+                descString = propsPrefix + (descString ? ' ' + descString : '');
+            }
+
+            if (descString) {
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant)}</div>`;
             }
             
             html += `
@@ -347,6 +380,9 @@ function useAbility(combatantId, ability, event) {
             abilityState.currentCooldown = abilityState.maxCooldown;
         }
 
+        // IMMEDIATELY sync the combatant to secure the cooldown block across all clients globally before any manual targeting delays
+        syncUpdateCombatant(combatant);
+
         // Check if the ability utilizes the new Action Pipeline system
         if (ability.actions && ability.actions.length > 0) {
             let shouldBroadcastInitRollImmediately = false;
@@ -355,9 +391,10 @@ function useAbility(combatantId, ability, event) {
             if (initialRollData) {
                 const firstAction = ability.actions[0];
                 const requiresTargeting = ['single', 'multi'].includes(firstAction.target);
-                const isNonOffensive = ['heal', 'armor', 'condition'].includes(firstAction.type);
-
-                if (requiresTargeting || isNonOffensive) {
+                
+                const hasExtraRolls = firstAction.type === 'damage' || firstAction.forceRoll || firstAction.forceRollVS;
+                
+                if (requiresTargeting || !hasExtraRolls) {
                     shouldBroadcastInitRollImmediately = true;
                 }
             }
@@ -371,11 +408,8 @@ function useAbility(combatantId, ability, event) {
                     combatantTeam: combatant.team,
                     rolls: [ initialRollData ]
                 });
-                initialRollData = null; // Consume the roll so the pipeline doesn't attach it to other actions
+                initialRollData = null; // Consume the roll so the pipeline doesn't attach it to other actions downstream
             }
-
-            // IMMEDIATELY sync the combatant to secure the cooldown block across all clients globally 
-            syncUpdateCombatant(combatant);
 
             if (typeof startActionPipeline === 'function') {
                 // Pass the initial roll (or null if already consumed) to the pipeline
@@ -394,8 +428,6 @@ function useAbility(combatantId, ability, event) {
                 });
             }
             processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
-            // Non-pipeline abilities must sync their cooldown state immediately
-            syncUpdateCombatant(combatant); 
         }
     } else {
         if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {

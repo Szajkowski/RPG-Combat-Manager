@@ -678,13 +678,13 @@ input[type=number] { -moz-appearance: textfield; }
     gap: 8px; 
     flex-grow: 1;
 
-    scrollbar-width: none; 
-    -ms-overflow-style: none;
+    scrollbar-width: thin; 
+    /* -ms-overflow-style: none; */
 }
 
-.rolls-feed::-webkit-scrollbar {
+/* .rolls-feed::-webkit-scrollbar {
     display: none;
-}
+} */
 
 .rolls-placeholder {
     position: absolute;

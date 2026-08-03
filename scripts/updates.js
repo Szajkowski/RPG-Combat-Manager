@@ -89,6 +89,23 @@ function connectSocket() {
                 break;
             }
 
+            case 'BROADCASTupdateCombatantsBatch': {
+                // Update local instances in a batch
+                if (Array.isArray(data.combatants)) {
+                    data.combatants.forEach(updatedC => {
+                        const index = activeCombatants.findIndex(c => c.id === updatedC.id);
+                        if (index !== -1) {
+                            activeCombatants[index] = updatedC;
+                        }
+                    });
+                    
+                    // Call the bulk UI refresh function
+                    if (typeof refreshDisplay === 'function') refreshDisplay(data.combatants);
+                    if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                }
+                break;
+            }
+
             case 'BROADCASTremoveCombatant': {
                 const indexToRemove = activeCombatants.findIndex(c => c.id === data.id);
                 if (indexToRemove !== -1) {
@@ -178,6 +195,16 @@ function syncUpdateCombatant(combatant) {
     }
 }
 
+// Updates multiple existing combatants dynamically avoiding multiple API calls
+function syncUpdateCombatantsBatch(combatantsArray) {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'REQUESTupdateCombatantsBatch',
+            combatants: combatantsArray
+        }));
+    }
+}
+
 // Instructs the server to completely remove a combatant
 function syncRemoveCombatant(id) {
     if (socket.readyState === WebSocket.OPEN) {
@@ -211,7 +238,7 @@ function syncPlayActionSequence(payload) {
 // Uniformly executes a visual/audio action sequence received from the server.
 // Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
 async function playActionSequence(payload) {
-    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps } = payload;
+    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, stepId, isAuto } = payload;
     const target = activeCombatants.find(c => c.id === targetId);
     if (!target) return;
 
@@ -247,103 +274,136 @@ async function playActionSequence(payload) {
             token.classList.add('hit-animation');
         }
 
+        // Deduplicate sounds based on batch ID (stepId) and specific iteration loop index (i)
+        // This ensures exact precision - e.g., 5 hits and 1 dodge on the same attack will produce 1 hit sound and 1 dodge sound
+        const soundKey = stepId ? `${stepId}-${actionType}-${subType}-${i}` : null;
+        let shouldPlaySound = true;
+        
+        // Block consecutive exact match sounds ONLY if this was flagged as an automated block action
+        if (soundKey && isAuto) {
+            if (!window.playedStepSounds) window.playedStepSounds = new Set();
+            if (window.playedStepSounds.has(soundKey)) {
+                shouldPlaySound = false;
+            } else {
+                window.playedStepSounds.add(soundKey);
+                // Clear the key after 5 seconds to free memory and allow future identical attacks
+                setTimeout(() => window.playedStepSounds.delete(soundKey), 5000);
+            }
+        }
+
         // Play exact context-aware sound mimicking the sender's resolution
-        if (actionType === 'damage') {
-            if (subType === 'dodge') playSoundEffect('sound/dodge.mp3');
-            else if (subType === 'no_dmg') playSoundEffect('sound/no_dmg_hit.mp3');
-            else playSoundEffect(`sound/${subType}_hit.mp3`);
-        } else if (actionType === 'heal') {
-            playSoundEffect(`sound/heal_${subType}.mp3`);
-        } else if (actionType === 'armor') {
-            playSoundEffect(isAdding ? `sound/${subType}_armor_up.mp3` : `sound/${subType}_armor_down.mp3`, 0.5);
+        if (shouldPlaySound) {
+            if (actionType === 'damage') {
+                if (subType === 'dodge') playSoundEffect('sound/dodge.mp3');
+                else if (subType === 'no_dmg') playSoundEffect('sound/no_dmg_hit.mp3');
+                else playSoundEffect(`sound/${subType}_hit.mp3`);
+            } else if (actionType === 'heal') {
+                playSoundEffect(`sound/heal_${subType}.mp3`);
+            } else if (actionType === 'armor') {
+                playSoundEffect(isAdding ? `sound/${subType}_armor_up.mp3` : `sound/${subType}_armor_down.mp3`, 0.5);
+            }
         }
 
         if (i < repeats - 1) await sequenceDelay(300);
     }
 }
 
-// Master UI Updater: Updates Token, Right Panel, and Extra Panel in real-time
-function refreshCombatantDisplay(combatant) {
-    // 1. Update Token on the Arena
+// Helper function to update a single token's visual state on the arena
+function updateTokenDisplay(combatant) {
     const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);
-    if (token) {
-        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
-        const hpClass = getHpClass(hpPercentage, combatant.isDead);
-        
-        const tokenFill = token.querySelector('.token-hp-fill');
-        if (tokenFill) {
-            tokenFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
-            tokenFill.className = `token-hp-fill ${hpClass}`;
-        }
+    if (!token) return;
 
-        const nameEl = token.querySelector('.token-name');
-        if (nameEl) nameEl.textContent = combatant.uniqueName || t('unknown_character');
-
-        // Stun Icon dynamic state update
-        const stunIcon = token.querySelector('.token-stun-icon');
-        if (stunIcon) {
-            if (combatant.isStunned) stunIcon.classList.add('visible');
-            else stunIcon.classList.remove('visible');
-        }
-
-        if (combatant.isDead) token.classList.add('dead');
-        else token.classList.remove('dead');
+    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+    const hpClass = getHpClass(hpPercentage, combatant.isDead);
+    
+    const tokenFill = token.querySelector('.token-hp-fill');
+    if (tokenFill) {
+        tokenFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
+        tokenFill.className = `token-hp-fill ${hpClass}`;
     }
 
-    // 2. Update Right Panel if this character is currently selected
-    if (selectedCharacterId === combatant.id) {
-        const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
-        const hpClass = getHpClass(hpPercentage, combatant.isDead);
-        
-        // HP Visuals
-        const sheetVisual = document.querySelector('.char-hp-visual');
-        if (sheetVisual) {
-            if (combatant.isDead) sheetVisual.classList.add('dead');
-            else sheetVisual.classList.remove('dead');
-        }
+    const nameEl = token.querySelector('.token-name');
+    if (nameEl) nameEl.textContent = combatant.uniqueName || t('unknown_character');
 
-        const sheetFill = document.querySelector('.char-hp-visual-fill');
-        if (sheetFill) {
-            sheetFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
-            sheetFill.className = `char-hp-visual-fill ${hpClass}`;
-        }
-
-        // A little update helper
-        const safeUpdateInput = (selector, value) => {
-            const input = document.querySelector(selector);
-            if (!input) return;
-            else input.value = value;
-        };
-
-        safeUpdateInput('.char-name-input', combatant.uniqueName);
-        safeUpdateInput('.current-hp-input', combatant.stats.hp);
-        safeUpdateInput('.max-hp-input', combatant.stats.maxHp);
-
-        // Core Stats
-        const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
-        allStats.forEach(stat => {
-            safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || '');
-            safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.stats[`${stat}Mod`] || '');
-        });
-
-        // Armor & Damage
-        safeUpdateInput('.base-damage-input', combatant.stats.damage || 0);
-        safeUpdateInput('.base-phys-armor', combatant.stats.physArmor || 0);
-        safeUpdateInput('.base-phys-armor-mod', combatant.stats.physArmorMod || '');
-        safeUpdateInput('.base-mag-armor', combatant.stats.magArmor || 0);
-        safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
-
-        // 3. Completely re-render Extra Panel to recalculate formulas and success rates in real-time
-        renderExtraPanel(combatant.id);
-
-        // 4. Dynamic rebuild of the functional column (ensures Resurrect button appears instantly)
-        const charFunctional = document.getElementById('panel-char-functional');
-        if (charFunctional) {
-            charFunctional.innerHTML = generateFunctionalColumn(combatant);
-        }
+    // Stun Icon dynamic state update
+    const stunIcon = token.querySelector('.token-stun-icon');
+    if (stunIcon) {
+        if (combatant.isStunned) stunIcon.classList.add('visible');
+        else stunIcon.classList.remove('visible');
     }
-    // 5. Update conditions
-    renderConditions();
+
+    if (combatant.isDead) token.classList.add('dead');
+    else token.classList.remove('dead');
+}
+
+// Helper function to update the Right Panel if the combatant is currently selected
+function updateRightPanelDisplay(combatant) {
+    if (selectedCharacterId !== combatant.id) return;
+
+    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+    const hpClass = getHpClass(hpPercentage, combatant.isDead);
+    
+    // HP Visuals
+    const sheetVisual = document.querySelector('.char-hp-visual');
+    if (sheetVisual) {
+        if (combatant.isDead) sheetVisual.classList.add('dead');
+        else sheetVisual.classList.remove('dead');
+    }
+
+    const sheetFill = document.querySelector('.char-hp-visual-fill');
+    if (sheetFill) {
+        sheetFill.style.width = `${Math.max(0, Math.min(100, hpPercentage))}%`;
+        sheetFill.className = `char-hp-visual-fill ${hpClass}`;
+    }
+
+    // Input update helper
+    const safeUpdateInput = (selector, value) => {
+        const input = document.querySelector(selector);
+        if (input) input.value = value;
+    };
+
+    safeUpdateInput('.char-name-input', combatant.uniqueName);
+    safeUpdateInput('.current-hp-input', combatant.stats.hp);
+    safeUpdateInput('.max-hp-input', combatant.stats.maxHp);
+
+    // Core Stats
+    const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
+    allStats.forEach(stat => {
+        safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || '');
+        safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.stats[`${stat}Mod`] || '');
+    });
+
+    // Armor & Damage
+    safeUpdateInput('.base-damage-input', combatant.stats.damage || 0);
+    safeUpdateInput('.base-phys-armor', combatant.stats.physArmor || 0);
+    safeUpdateInput('.base-phys-armor-mod', combatant.stats.physArmorMod || '');
+    safeUpdateInput('.base-mag-armor', combatant.stats.magArmor || 0);
+    safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
+
+    // Completely re-render Extra Panel to recalculate formulas and success rates in real-time
+    if (typeof renderExtraPanel === 'function') renderExtraPanel(combatant.id);
+
+    // Dynamic rebuild of the functional column (ensures Resurrect button appears instantly)
+    const charFunctional = document.getElementById('panel-char-functional');
+    if (charFunctional) {
+        charFunctional.innerHTML = generateFunctionalColumn(combatant);
+    }
+}
+
+// Master UI Updater for bulk elements dynamically skipping independent DOM updates to boost performance
+function refreshDisplay(combatantsArray) {
+    combatantsArray.forEach(combatant => {
+        updateTokenDisplay(combatant);
+        updateRightPanelDisplay(combatant);
+    });
+
+    // Update conditions globally once per batch update
+    if (typeof renderConditions === 'function') renderConditions();
+}
+
+// Fallback legacy UI Updater routing single updates specifically through batch rendering engine constraints
+function refreshCombatantDisplay(combatant) {
+    refreshDisplay([combatant]); 
 }
 
 function updateServerConditions(newConditions) {

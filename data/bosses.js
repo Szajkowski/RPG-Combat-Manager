@@ -92,7 +92,7 @@ var bosses = {
         abilities: [
             {
                 name: "Orientuj się",
-                description: "[prop_reaction] [prop_unavoidable] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
+                description: "[prop_reaction] [prop_undodgeable] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
                 cooldown: 0
             },
             {
@@ -106,14 +106,14 @@ var bosses = {
             },
             {
                 name: "Na dobitkę",
-                description: "[prop_unavoidable] Strzela dwa razy w tego samego przeciwnika.",
+                description: "[prop_undodgeable] Strzela dwa razy w tego samego przeciwnika.",
                 roll: "accuracy",
                 difficulty: 15,
                 cooldown: 1
             },
             {
                 name: "Rykoszet",
-                description: "[prop_unavoidable] Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika.",
+                description: "[prop_undodgeable] Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika.",
                 roll: "accuracy",
                 difficulty: 10,
                 cooldown: 1

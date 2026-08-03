@@ -88,9 +88,9 @@ function renderCharMainPanel(id) {
                 </div>
                 <div class="complex-body">
                     <input type="number" class="damage-input" placeholder="" data-i18n="value">
-                    <button title="${t('dmg_type_phys')}" onclick="applyDamage('phys', event)" data-i18n="dmg_type_phys_short"></button>
-                    <button title="${t('dmg_type_mag')}" onclick="applyDamage('mag', event)" data-i18n="dmg_type_mag_short"></button>
-                    <button title="${t('dmg_type_pierce')}" onclick="applyDamage('pierce', event)" data-i18n="dmg_type_pierce_short"></button>
+                    <button title="${t('dmg_type_phys')}" onclick="applyDamageGM('phys', event)" data-i18n="dmg_type_phys_short"></button>
+                    <button title="${t('dmg_type_mag')}" onclick="applyDamageGM('mag', event)" data-i18n="dmg_type_mag_short"></button>
+                    <button title="${t('dmg_type_pierce')}" onclick="applyDamageGM('pierce', event)" data-i18n="dmg_type_pierce_short"></button>
                 </div>
             </div>
 
@@ -101,9 +101,9 @@ function renderCharMainPanel(id) {
                 </div>
                 <div class="complex-body">
                     <input type="number" class="heal-input" placeholder="" data-i18n="value">
-                    <button title="${t('heal_type_normal')}" onclick="healDamage('normal', event)" data-i18n="heal_type_normal_short"></button>
-                    <button title="${t('heal_type_threshold')}" onclick="healDamage('threshold', event)" data-i18n="heal_type_threshold_short"></button>
-                    <button title="${t('heal_type_group')}" onclick="healDamage('group', event)" data-i18n="heal_type_group_short"></button>
+                    <button title="${t('heal_type_normal')}" onclick="applyHealGM('normal', event)" data-i18n="heal_type_normal_short"></button>
+                    <button title="${t('heal_type_threshold')}" onclick="applyHealGM('threshold', event)" data-i18n="heal_type_threshold_short"></button>
+                    <button title="${t('heal_type_group')}" onclick="applyHealGM('group', event)" data-i18n="heal_type_group_short"></button>
                 </div>
             </div>
 
@@ -114,8 +114,8 @@ function renderCharMainPanel(id) {
                 </div>
                 <div class="complex-body">
                     <input type="number" class="armor-input" placeholder="" data-i18n="value">
-                    <button title="${t('armor_type_phys')}" onclick="changeArmor('phys', event)" data-i18n="armor_type_phys_short"></button>
-                    <button title="${t('armor_type_mag')}" onclick="changeArmor('mag', event)" data-i18n="armor_type_mag_short"></button>
+                    <button title="${t('armor_type_phys')}" onclick="applyArmorGM('phys', event)" data-i18n="armor_type_phys_short"></button>
+                    <button title="${t('armor_type_mag')}" onclick="applyArmorGM('mag', event)" data-i18n="armor_type_mag_short"></button>
                 </div>
             </div>
 

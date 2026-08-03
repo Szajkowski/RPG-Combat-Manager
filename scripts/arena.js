@@ -235,6 +235,74 @@ function renderRollsFeed(history) {
     feed.scrollTop = feed.scrollHeight;
 }
 
+// Performs actual randomized dice rolls resolving opposing interactions and supports caching the first roll across mass actions
+function performOpposedRoll(attacker, defender, attStatName, defStatName, cachedAttRoll = null, isHitVsDodge = false) {
+    const attBase = parseInt(attacker.stats[attStatName]) || 0;
+    const defBase = parseInt(defender.stats[defStatName]) || 0;
+
+    let attRes = 0, defRes = 0;
+
+    if (cachedAttRoll !== null && cachedAttRoll !== undefined) {
+        attRes = cachedAttRoll;
+    } else if (attBase > 0) {
+        const attMod = parseInt(attacker.stats[`${attStatName}Mod`]) || 0;
+        attRes = Math.max(1, Math.floor(Math.random() * attBase) + 1 + attMod);
+    }
+
+    if (defBase > 0) {
+        const defMod = parseInt(defender.stats[`${defStatName}Mod`]) || 0;
+        defRes = Math.max(1, Math.floor(Math.random() * defBase) + 1 + defMod);
+    }
+
+    // Tie goes to the attacker
+    const isSuccess = attRes >= defRes;
+    
+    // Inject display names conditionally
+    const displayAttStat = isHitVsDodge ? 'roll_hit' : attStatName;
+    const displayDefStat = isHitVsDodge ? 'roll_dodge' : defStatName;
+
+    return {
+        isSuccess: isSuccess,
+        actualAttRoll: attRes, // Saved for potential external caching
+        attRoll: { stat: displayAttStat, result: attBase > 0 ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555' },
+        defRoll: { stat: displayDefStat, result: defBase > 0 ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b' }
+    };
+}
+
+// Small helper mapping structure matching the broadcast event payload exactly
+function buildRollEvent(attacker, target, rollsObj, payload = null, skipSync = false) {
+    return {
+        id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        groupId: payload ? payload.stepId : null,
+        isTargeted: true, 
+        isAuto: skipSync, 
+        attackerName: attacker.uniqueName,
+        attackerTeam: attacker.team,
+        defenderName: target.uniqueName,
+        defenderTeam: target.team,
+        attackerSingleRolls: rollsObj.attackerSingleRolls,
+        opposedRolls: rollsObj.opposedRolls,
+        defenderSingleRolls: rollsObj.defenderSingleRolls
+    };
+}
+
+// Rolls Death's Door chance for the combatant and returns the result object. DOES NOT broadcast to server independently!
+function rollDeathsDoor(combatant) {
+    const resilience = parseInt(combatant.stats.resilience) || 0;
+    const baseSurvivalChance = 15; // Base survival chance
+    // cannot have more than 75% death resistance
+    const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); 
+
+    // Roll 1-100
+    const rollResult = Math.floor(Math.random() * 100) + 1;
+    const survived = rollResult >= survivalThreshold;
+
+    return {
+        survived: survived,
+        roll: { stat: "deaths_door", result: rollResult, color: survived ? '#50fa7b' : '#ff5555' }
+    };
+}
+
 // Appends a single roll event visually and triggers animation if requested
 function appendRollEvent(event, animate = true) {
     const feed = document.getElementById('rolls-feed');
@@ -242,10 +310,6 @@ function appendRollEvent(event, animate = true) {
 
     const placeholder = feed.querySelector('.rolls-placeholder');
     if (placeholder) placeholder.remove();
-
-    const row = document.createElement('div');
-    row.className = 'roll-event-row';
-    if (!animate) row.style.animation = 'none';
 
     // Helper function to dynamically capitalize the first letter of the translated stat name
     const capitalize = (str) => {
@@ -257,38 +321,134 @@ function appendRollEvent(event, animate = true) {
     const createDiceHtml = (r) => animate ? `<div class="mini-dice tumbling"></div>` : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
     const createPillHtml = (r) => `<div class="roll-pill"><span class="roll-stat">${capitalize(t(r.stat))}</span>${createDiceHtml(r)}</div>`;
 
+    // Helper functions to prevent multiple diceroll sounds in a single action
+    const playDiceSoundDeduplicated = () => {
+        let shouldPlayDiceSound = true;
+        
+        // Deduplicate sound ONLY for auto-actions (e.g., group targets) to play once per group
+        // Manual actions (like multi-target clicks) will play sound for every individual target clicked
+        if (event.isAuto && event.groupId) {
+            const diceSoundKey = `dice-${event.groupId}`;
+            if (!window.playedStepSounds) window.playedStepSounds = new Set();
+            
+            if (window.playedStepSounds.has(diceSoundKey)) {
+                shouldPlayDiceSound = false; // A character from this group did already trigger the diceroll sound
+            } else {
+                window.playedStepSounds.add(diceSoundKey);
+                setTimeout(() => window.playedStepSounds.delete(diceSoundKey), 5000);
+            }
+        }
+        
+        if (shouldPlayDiceSound) {
+            playSoundEffect('sound/diceroll.mp3');
+        }
+    };
+
+    // MULTI-TARGET GROUPING LOGIC: If this event belongs to a grouped action, append it to the existing row instead of making a new one
+    if (event.isTargeted && event.groupId) {
+        const existingRow = feed.querySelector(`.roll-event-row[data-group-id="${event.groupId}"]`);
+        if (existingRow) {
+            const container = existingRow.querySelector('.targeted-roll-container');
+            if (container) {
+                const ampersand = document.createElement('div');
+                ampersand.className = 'targeted-arrow';
+                ampersand.innerHTML = '&amp;'; // Symbol of connection
+                
+                const defNameColor = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+                const defNameHtml = `<div class="roll-char-name" style="color: ${defNameColor};" title="${event.defenderName}">${event.defenderName}</div>`;
+                const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
+                
+                let clashPillarHtml = '';
+                if (event.opposedRolls && event.opposedRolls.length > 0) {
+                    clashPillarHtml = event.opposedRolls.map(opp => `
+                        <div class="vs-block">
+                            ${createPillHtml(opp.attRoll)}
+                            <div class="vs-text" data-i18n="vs">${t('vs')}</div>
+                            ${createPillHtml(opp.defRoll)}
+                        </div>
+                    `).join('');
+                }
+
+                const defPillar = document.createElement('div');
+                defPillar.className = 'roll-pillar';
+                defPillar.innerHTML = defNameHtml + clashPillarHtml + defSingleHtml;
+                
+                container.appendChild(ampersand);
+                container.appendChild(defPillar);
+                
+                // Animate ONLY the newly appended dice
+                if (animate) {
+                    playDiceSoundDeduplicated(); 
+                    setTimeout(() => {
+                        const newDice = defPillar.querySelectorAll('.mini-dice');
+                        let targetRolls = [];
+                        if (event.opposedRolls) {
+                            event.opposedRolls.forEach(opp => targetRolls.push(opp.attRoll, opp.defRoll));
+                        }
+                        if (event.defenderSingleRolls) targetRolls.push(...event.defenderSingleRolls);
+
+                        newDice.forEach((diceEl, index) => {
+                            const r = targetRolls[index];
+                            if (r) {
+                                diceEl.classList.remove('tumbling');
+                                diceEl.style.color = r.color;
+                                diceEl.textContent = r.result;
+                            }
+                        });
+                    }, 600);
+                }
+                
+                feed.scrollTop = feed.scrollHeight;
+                return; // Stop execution here, we successfully appended to a group
+            }
+        }
+    }
+
+    const row = document.createElement('div');
+    row.className = 'roll-event-row';
+    if (event.groupId) row.dataset.groupId = event.groupId; // Tag the row for future group appending
+    if (!animate) row.style.animation = 'none';
+
     // Dynamic Narrative Flow Rendering for targeted (combat) actions utilizing the Three Pillars concept
     if (event.isTargeted) {
+        const isSelf = event.attackerName === event.defenderName;
+
         const nameColorAtt = event.attackerTeam === 'hero' ? '#8be9fd' : (event.attackerTeam === 'enemy' ? '#ff5555' : '#bd93f9');
         const nameColorDef = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
 
-        // 1. Attacker's Pillar (Name on the left + Standalone rolls on the right)
+        // Attacker's Pillar (Name on the left + Standalone rolls on the right)
         const attNameHtml = `<div class="roll-char-name" style="color: ${nameColorAtt};" title="${event.attackerName}">${event.attackerName}</div>`;
-        const attSingleHtml = (event.attackerSingleRolls || []).map(createPillHtml).join('');
+        
+        const attRolls = [...(event.attackerSingleRolls || [])];
+        if (isSelf && event.defenderSingleRolls) {
+            // Merge defender rolls directly into attacker pillar if self-targeting
+            attRolls.push(...event.defenderSingleRolls);
+        }
+        
+        const attSingleHtml = attRolls.map(createPillHtml).join('');
         const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
 
-        // 2. Clash Pillar (Bound Opposed Rolls)
-        let clashPillar = '';
-        if (event.opposedRolls && event.opposedRolls.length > 0) {
-            const clashHtml = event.opposedRolls.map(opp => `
-                <div class="vs-block">
-                    ${createPillHtml(opp.attRoll)}
-                    <div class="vs-text" data-i18n="vs">${t('vs')}</div>
-                    ${createPillHtml(opp.defRoll)}
-                </div>
-            `).join('');
-            clashPillar = `<div class="roll-pillar">${clashHtml}</div>`;
-        }
-
-        // 3. Defender's Pillar (Name on the left + Standalone rolls on the right)
-        const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
-        const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
-        const defPillar = `<div class="roll-pillar">${defNameHtml}${defSingleHtml}</div>`;
-
-        // Assemble existing pillars array and inject separators
         let flowElements = [attPillar];
-        if (clashPillar) flowElements.push(clashPillar);
-        flowElements.push(defPillar);
+
+        // Only generate Defender pillar if it's NOT self-targeted
+        if (!isSelf) {
+            let clashHtml = '';
+            if (event.opposedRolls && event.opposedRolls.length > 0) {
+                clashHtml = event.opposedRolls.map(opp => `
+                    <div class="vs-block">
+                        ${createPillHtml(opp.attRoll)}
+                        <div class="vs-text" data-i18n="vs">${t('vs')}</div>
+                        ${createPillHtml(opp.defRoll)}
+                    </div>
+                `).join('');
+            }
+
+            const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
+            const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
+            const defPillar = `<div class="roll-pillar">${defNameHtml}${clashHtml}${defSingleHtml}</div>`;
+
+            flowElements.push(defPillar);
+        }
 
         row.innerHTML = `
             <div class="targeted-roll-container">
@@ -317,7 +477,7 @@ function appendRollEvent(event, animate = true) {
     feed.scrollTop = feed.scrollHeight;
 
     if (animate) {
-        playSoundEffect('sound/diceroll.mp3'); // Sound triggers simultaneously with the animation for all clients
+        playDiceSoundDeduplicated(); 
         // The CSS dice-tumble animation takes 0.6s. We reveal the numeric result immediately after.
         setTimeout(() => {
             const diceElements = row.querySelectorAll('.mini-dice');
@@ -325,13 +485,19 @@ function appendRollEvent(event, animate = true) {
             // Build a flat array of all rolls dynamically based on the event structure to map to the HTML elements
             let allRolls = [];
             if (event.isTargeted) {
+                const isSelf = event.attackerName === event.defenderName;
                 if (event.attackerSingleRolls) allRolls.push(...event.attackerSingleRolls);
-                if (event.opposedRolls) {
-                    event.opposedRolls.forEach(opp => {
-                        allRolls.push(opp.attRoll, opp.defRoll);
-                    });
+                
+                if (!isSelf) {
+                    if (event.opposedRolls) {
+                        event.opposedRolls.forEach(opp => {
+                            allRolls.push(opp.attRoll, opp.defRoll);
+                        });
+                    }
+                    if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
+                } else {
+                    if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
                 }
-                if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
             } else {
                 allRolls = event.rolls;
             }

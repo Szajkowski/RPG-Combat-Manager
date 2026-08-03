@@ -121,6 +121,112 @@ function injectTargetingUI() {
     }
 }
 
+// Toggles the specific input group between Flat and Percentage mode visually
+function toggleMode(btn) {
+    const isPerc = btn.classList.toggle('perc-mode');
+    
+    if (isPerc) {
+        btn.dataset.i18n = "value_perc";
+        btn.textContent = t('value_perc');
+    } else {
+        btn.dataset.i18n = "value_flat";
+        btn.textContent = t('value_flat');
+    }
+}
+
+// Initiates targeting mode instead of dealing damage directly
+function applyDamageGM(type, event) {
+    if (!selectedCharacterId) return;
+
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const damageInput = document.querySelector('.damage-input');
+
+    if (!combatant || combatant.isDead) {
+        if (damageInput) damageInput.value = '';
+        return;
+    }
+
+    const damageStr = damageInput.value.trim();
+    if (!damageStr || parseInt(damageStr) <= 0) {
+        damageInput.value = '';
+        return; 
+    }
+
+    if (event) {
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+
+    const isPercMode = damageInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
+    
+    startTargetingMode(combatant, 'damage', { value: damageStr, damageType: type, type: 'damage', isPercMode: isPercMode, target: 'single' }, lastMouseX, lastMouseY);
+}
+
+// Initiates targeting mode for healing (or executes group heal immediately)
+function applyHealGM(type, event) {
+    if (!selectedCharacterId && type !== 'group') return;
+
+    const healInput = document.querySelector('.heal-input');
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    if (!combatant || combatant.isDead) {
+        if (healInput) healInput.value = '';
+        return;
+    }
+
+    const healValueStr = healInput.value.trim();
+    if (!healValueStr || parseInt(healValueStr) <= 0) {
+        if (healInput) healInput.value = '';
+        return;
+    }
+
+    if (event) {
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+
+    const isPercMode = healInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
+    const finalHealStr = (!healValueStr.endsWith('%') && isPercMode) ? `${healValueStr}%` : healValueStr;
+
+    if (type === 'group') {
+        const team = combatant.team;
+        const stepId = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7); 
+        activeCombatants.filter(c => c.team === team).forEach((member) => {
+            resolveHealAction(member, type, finalHealStr, 1, combatant, false, stepId);
+        });
+        healInput.value = ''; 
+    } else {
+        startTargetingMode(combatant, 'heal', { value: finalHealStr, healType: type, type: 'heal', target: 'single' }, lastMouseX, lastMouseY);
+    }
+}
+
+// Initiates targeting mode for adding/removing armor
+function applyArmorGM(type, event) {
+    if (!selectedCharacterId) return;
+
+    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const armorInput = document.querySelector('.armor-input');
+
+    if (!combatant || combatant.isDead) {
+        if (armorInput) armorInput.value = '';
+        return;
+    }
+
+    const valueStr = armorInput.value.trim();
+    if (!valueStr) return;
+
+    if (event) {
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+
+    const isPercMode = armorInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
+    const isPercentage = valueStr.endsWith('%') || isPercMode;
+    const parsedValue = parseInt(valueStr);
+    if (isNaN(parsedValue)) return;
+    
+    startTargetingMode(combatant, 'armor', { value: parsedValue, armorType: type, type: 'armor', isPercentage: isPercentage, target: 'single' }, lastMouseX, lastMouseY);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Setup UI Toggle buttons
     const gmToggleBtn = document.getElementById('mute-btn');

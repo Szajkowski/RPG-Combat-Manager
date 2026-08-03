@@ -327,6 +327,8 @@ async function startServer() {
                     const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
                     if (index !== -1) {
                         activeCombatants[index] = data.combatant;
+
+                        console.log(`Updated combatant: ${data.combatant.uniqueName}`);
                         
                         wss.clients.forEach(client => {
                             if (client.readyState === WebSocket.OPEN) {
@@ -334,6 +336,31 @@ async function startServer() {
                                     type: 'BROADCASTupdateCombatant',
                                     combatant: data.combatant,
                                     senderId: clientId // Pass the sender identity
+                                }));
+                            }
+                        });
+                    }
+                    break;
+                }
+
+                case 'REQUESTupdateCombatantsBatch': {
+                    // Update all combatants received in the payload at once
+                    if (Array.isArray(data.combatants)) {
+                        data.combatants.forEach(updatedC => {
+                            const index = activeCombatants.findIndex(c => c.id === updatedC.id);
+                            if (index !== -1) {
+                                activeCombatants[index] = updatedC;
+                            }
+                        });
+
+                        console.log(`Updated multiple combatants (batch): ${data.combatants.length} characters.`);
+                        
+                        wss.clients.forEach(client => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'BROADCASTupdateCombatantsBatch',
+                                    combatants: data.combatants,
+                                    senderId: clientId
                                 }));
                             }
                         });
