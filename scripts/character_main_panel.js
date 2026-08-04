@@ -71,55 +71,9 @@ function renderCharMainPanel(id) {
             </div>
         </div>
 
-        <div class="char-internal-tabs">
-            <div class="char-internal-tab ${savedSheetTab === 'tab-rolls' ? 'active' : ''}" data-target="tab-rolls" data-i18n="tab_rolls"></div>
-            <div class="char-internal-tab ${savedSheetTab === 'tab-damage' ? 'active' : ''}" data-target="tab-damage" data-i18n="tab_damage"></div>
-        </div>
-
-        <div class="char-tab-content ${savedSheetTab === 'tab-rolls' ? 'active' : ''}" id="tab-rolls">
-            ${rollsHtml}
-        </div>
-
-        <div class="char-tab-content ${savedSheetTab === 'tab-damage' ? 'active' : ''}" id="tab-damage">
-            <div class="complex-control dmg-group">
-                <div class="complex-header">
-                    <span class="complex-label" data-i18n="damage"></span>
-                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
-                </div>
-                <div class="complex-body">
-                    <input type="number" class="damage-input" placeholder="" data-i18n="value">
-                    <button title="${t('dmg_type_phys')}" onclick="applyDamageGM('phys', event)" data-i18n="dmg_type_phys_short"></button>
-                    <button title="${t('dmg_type_mag')}" onclick="applyDamageGM('mag', event)" data-i18n="dmg_type_mag_short"></button>
-                    <button title="${t('dmg_type_pierce')}" onclick="applyDamageGM('pierce', event)" data-i18n="dmg_type_pierce_short"></button>
-                </div>
-            </div>
-
-            <div class="complex-control heal-group">
-                <div class="complex-header">
-                    <span class="complex-label" data-i18n="heal"></span>
-                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
-                </div>
-                <div class="complex-body">
-                    <input type="number" class="heal-input" placeholder="" data-i18n="value">
-                    <button title="${t('heal_type_normal')}" onclick="applyHealGM('normal', event)" data-i18n="heal_type_normal_short"></button>
-                    <button title="${t('heal_type_threshold')}" onclick="applyHealGM('threshold', event)" data-i18n="heal_type_threshold_short"></button>
-                    <button title="${t('heal_type_group')}" onclick="applyHealGM('group', event)" data-i18n="heal_type_group_short"></button>
-                </div>
-            </div>
-
-            <div class="complex-control armor-group">
-                <div class="complex-header">
-                    <span class="complex-label" data-i18n="add_armor"></span>
-                    <button class="complex-toggle" onclick="toggleMode(this)" data-i18n="value_flat"></button>
-                </div>
-                <div class="complex-body">
-                    <input type="number" class="armor-input" placeholder="" data-i18n="value">
-                    <button title="${t('armor_type_phys')}" onclick="applyArmorGM('phys', event)" data-i18n="armor_type_phys_short"></button>
-                    <button title="${t('armor_type_mag')}" onclick="applyArmorGM('mag', event)" data-i18n="armor_type_mag_short"></button>
-                </div>
-            </div>
-
-            <div class="stat-row" style="border-color: #44475a;">
+        <div class="char-stats-container" style="display: flex; flex-direction: column; gap: 4px; overflow-y: auto; scrollbar-width: none;">
+            ${rollsHtml} 
+            <div class="stat-row" style="border-color: #44475a; margin-top: 5px;">
                 <span class="stat-label" data-i18n="base_damage"></span>
                 <input type="number" class="base-damage-input" style="margin:0;" value="${stats.damage || 0}">
             </div>
@@ -127,13 +81,13 @@ function renderCharMainPanel(id) {
                 <span class="stat-label" data-i18n="phys_armor_caps"></span>
                 <input type="number" class="armor-val-input base-phys-armor" title="${t('armor_value_base')}" value="${stats.physArmor || 0}">
                 <span class="armor-plus-sign">+</span>
-                <input type="text" class="armor-perc-input base-phys-armor-mod" title="${t('armor_value_percent')}" value="${stats.physArmorMod || ''}">
+                <input type="text" class="armor-perc-input base-phys-armor-mod" title="${t('armor_value_percent')}" placeholder="%" value="${stats.physArmorMod || ''}">
             </div>
             <div class="stat-row" style="border-color: #44475a;">
                 <span class="stat-label" data-i18n="mag_armor_caps"></span>
                 <input type="number" class="armor-val-input base-mag-armor" title="${t('armor_value_base')}" value="${stats.magArmor || 0}">
                 <span class="armor-plus-sign">+</span>
-                <input type="text" class="armor-perc-input base-mag-armor-mod" title="${t('armor_value_percent')}" value="${stats.magArmorMod || ''}">
+                <input type="text" class="armor-perc-input base-mag-armor-mod" title="${t('armor_value_percent')}" placeholder="%" value="${stats.magArmorMod || ''}">
             </div>
         </div>
     `;
@@ -149,20 +103,6 @@ function renderCharMainPanel(id) {
         } else {
             el.textContent = t(key);
         }
-    });
-
-    // 4. Attach event listeners to tabs
-    document.querySelectorAll('.char-internal-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            const target = tab.dataset.target;
-            localStorage.setItem('CombatManager-SheetTab', target);
-            
-            document.querySelectorAll('.char-internal-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.char-sheet .char-tab-content').forEach(c => c.classList.remove('active'));
-            
-            tab.classList.add('active');
-            document.getElementById(target).classList.add('active');
-        });
     });
 
     bindMainPanelInputs(combatant);

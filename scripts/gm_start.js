@@ -121,110 +121,91 @@ function injectTargetingUI() {
     }
 }
 
-// Toggles the specific input group between Flat and Percentage mode visually
-function toggleMode(btn) {
-    const isPerc = btn.classList.toggle('perc-mode');
+// Dynamically populate subtype selection depending on main action type using the new pill structure
+function updateGmActionSubtypes() {
+    const typePill = document.querySelector('#gm-action-type .pill.active');
+    const subtypeContainer = document.getElementById('gm-action-subtype');
     
-    if (isPerc) {
-        btn.dataset.i18n = "value_perc";
-        btn.textContent = t('value_perc');
-    } else {
-        btn.dataset.i18n = "value_flat";
-        btn.textContent = t('value_flat');
+    if (!typePill || !subtypeContainer) return;
+
+    subtypeContainer.innerHTML = '';
+    const type = typePill.dataset.value;
+
+    if (type === 'damage') {
+        subtypeContainer.innerHTML = `
+            <button class="pill active dmg-theme" data-value="phys">${t('dmg_type_phys')}</button>
+            <button class="pill dmg-theme" data-value="mag">${t('dmg_type_mag')}</button>
+            <button class="pill dmg-theme" data-value="pierce">${t('dmg_type_pierce')}</button>
+        `;
+    } else if (type === 'heal') {
+        subtypeContainer.innerHTML = `
+            <button class="pill active heal-theme" data-value="normal">${t('heal_type_normal')}</button>
+            <button class="pill heal-theme" data-value="threshold">${t('heal_type_threshold')}</button>
+        `;
+    } else if (type === 'armor') {
+        subtypeContainer.innerHTML = `
+            <button class="pill active armor-theme" data-value="phys">${t('armor_type_phys')}</button>
+            <button class="pill armor-theme" data-value="mag">${t('armor_type_mag')}</button>
+        `;
     }
 }
 
-// Initiates targeting mode instead of dealing damage directly
-function applyDamageGM(type, event) {
-    if (!selectedCharacterId) return;
-
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    const damageInput = document.querySelector('.damage-input');
-
-    if (!combatant || combatant.isDead) {
-        if (damageInput) damageInput.value = '';
-        return;
-    }
-
-    const damageStr = damageInput.value.trim();
-    if (!damageStr || parseInt(damageStr) <= 0) {
-        damageInput.value = '';
-        return; 
-    }
-
-    if (event) {
-        lastMouseX = event.clientX;
-        lastMouseY = event.clientY;
-    }
-
-    const isPercMode = damageInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
+// Executes a GM Action bridging it securely to the native Action Pipeline without limits
+function executeGmAction(event) {
+    const valInput = document.getElementById('gm-action-value');
+    if (!valInput || !valInput.value) return;
     
-    startTargetingMode(combatant, 'damage', { value: damageStr, damageType: type, type: 'damage', isPercMode: isPercMode, target: 'single' }, lastMouseX, lastMouseY);
-}
+    const parsedVal = parseFloat(valInput.value);
+    if (isNaN(parsedVal) || parsedVal === 0) return;
 
-// Initiates targeting mode for healing (or executes group heal immediately)
-function applyHealGM(type, event) {
-    if (!selectedCharacterId && type !== 'group') return;
+    // Retrieve active properties directly from currently selected pills
+    const type = document.querySelector('#gm-action-type .pill.active')?.dataset.value;
+    const subtype = document.querySelector('#gm-action-subtype .pill.active')?.dataset.value;
+    const mode = document.querySelector('#gm-action-mode .pill.active')?.dataset.value;
+    const targetMode = document.querySelector('#gm-action-target .pill.active')?.dataset.value;
 
-    const healInput = document.querySelector('.heal-input');
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    if (!combatant || combatant.isDead) {
-        if (healInput) healInput.value = '';
-        return;
+    if (!type || !subtype || !mode || !targetMode) return;
+
+    const isPercentage = mode === 'perc';
+    let finalValue = isPercentage ? `${valInput.value}%` : parsedVal;
+
+    // Craft raw payload mapping straight to pipeline syntax expectations
+    let payload = {
+        type: type,
+        target: targetMode === 'targeted' ? 'multi' : targetMode,
+        possibleTargets: 9999, // JSON.stringify kills Infinity, using 9999 prevents reverting to 1
+        isGmAction: true,
+        value: finalValue
+    };
+
+    if (type === 'damage') {
+        payload.damageType = subtype;
+        payload.isPercMode = isPercentage;
+    } else if (type === 'heal') {
+        payload.healType = subtype;
+    } else if (type === 'armor') {
+        payload.armorType = subtype;
+        payload.isPercentage = isPercentage;
     }
 
-    const healValueStr = healInput.value.trim();
-    if (!healValueStr || parseInt(healValueStr) <= 0) {
-        if (healInput) healInput.value = '';
-        return;
+    // Dummy identity wrapper for pipeline logs representing the Game Master purely
+    const gmAttacker = {
+        id: 'GM-Entity',
+        uniqueName: 'Game Master',
+        team: 'gm',
+        stats: {}
+    };
+
+    if (typeof startActionPipeline === 'function') {
+        // Lock the widget open so it doesn't disappear when moving the mouse to target
+        const widget = document.querySelector('.gm-action-widget');
+        if (widget) widget.classList.add('locked-open');
+        
+        startActionPipeline(gmAttacker, [payload], { name: 'GM Action' }, null, event);
+        
+        // Clear value input cleanly upon successful registration to pipeline
+        valInput.value = '';
     }
-
-    if (event) {
-        lastMouseX = event.clientX;
-        lastMouseY = event.clientY;
-    }
-
-    const isPercMode = healInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
-    const finalHealStr = (!healValueStr.endsWith('%') && isPercMode) ? `${healValueStr}%` : healValueStr;
-
-    if (type === 'group') {
-        const team = combatant.team;
-        const stepId = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7); 
-        activeCombatants.filter(c => c.team === team).forEach((member) => {
-            resolveHealAction(member, type, finalHealStr, 1, combatant, false, stepId);
-        });
-        healInput.value = ''; 
-    } else {
-        startTargetingMode(combatant, 'heal', { value: finalHealStr, healType: type, type: 'heal', target: 'single' }, lastMouseX, lastMouseY);
-    }
-}
-
-// Initiates targeting mode for adding/removing armor
-function applyArmorGM(type, event) {
-    if (!selectedCharacterId) return;
-
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
-    const armorInput = document.querySelector('.armor-input');
-
-    if (!combatant || combatant.isDead) {
-        if (armorInput) armorInput.value = '';
-        return;
-    }
-
-    const valueStr = armorInput.value.trim();
-    if (!valueStr) return;
-
-    if (event) {
-        lastMouseX = event.clientX;
-        lastMouseY = event.clientY;
-    }
-
-    const isPercMode = armorInput.closest('.complex-control').querySelector('.complex-toggle').classList.contains('perc-mode');
-    const isPercentage = valueStr.endsWith('%') || isPercMode;
-    const parsedValue = parseInt(valueStr);
-    if (isNaN(parsedValue)) return;
-    
-    startTargetingMode(combatant, 'armor', { value: parsedValue, armorType: type, type: 'armor', isPercentage: isPercentage, target: 'single' }, lastMouseX, lastMouseY);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -238,6 +219,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gmLangBtn) gmLangBtn.textContent = window.currentLanguage === 'PL' ? '🇵🇱' : '🇬🇧';
 
     injectTargetingUI();
+    updateGmActionSubtypes(); // Initialize subtypes payload mapping explicitly
+
+    // Interactive Pill Selection Logic
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.pill')) {
+            const group = e.target.closest('.pill-group');
+            if (group) {
+                // Remove active class from all pills in the group
+                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                // Activate the clicked pill
+                e.target.classList.add('active');
+
+                // Trigger subtype UI update if the main action type was the one that changed
+                if (group.id === 'gm-action-type') {
+                    updateGmActionSubtypes();
+                }
+            }
+        }
+    });
 
     // Automated Translation System based on data-i18n attributes
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Automatically translate tooltips for icon buttons
+    // Automatically translate tooltips for icon buttons and standard UI elements
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
         el.setAttribute('title', t(key));
@@ -322,19 +322,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- INPUT VALIDATION AND CUT-PASTE MECHANICS FOR DMG/HEAL/ARMOR ---
+    // --- INPUT VALIDATION AND CUT-PASTE MECHANICS FOR GM WIDGET ---
     document.addEventListener('keydown', (e) => {
-        if (e.target.matches('.damage-input, .heal-input, .armor-input')) {
+        if (e.target.matches('#gm-action-value')) {
             // Allow control keys and system shortcuts
             if (e.ctrlKey || e.metaKey || e.altKey) return;
             // Allow multi-character layout keys (Backspace, Delete, Arrows, etc.)
             if (e.key.length > 1) return;
             
-            // HTML5 type="number" inputs return null/throw errors for selectionStart in most browsers!
-            // Check if it's armor-input and if it doesn't already have a minus.
+            // Allow minus
             if (e.key === '-') {
-                // Prevent if it's not armor-input, OR if it already has valid numbers, OR if it has invalid state (e.g. existing minus)
-                if (!e.target.matches('.armor-input') || e.target.value !== '' || e.target.validity.badInput) {
+                if (e.target.value !== '' || e.target.validity.badInput) {
                     e.preventDefault();
                 }
                 return;
@@ -354,16 +352,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = window.lastCopiedRPGValue;
         if (!val) return;
 
-        // Paste value to dmg/heal/armor inputs (only numbers and a minus)
-        if (e.target.matches('.damage-input, .heal-input, .armor-input')) {
+        if (e.target.matches('#gm-action-value')) {
             if (/^-?\d+$/.test(val.trim())) {
                 if (typeof pasteValueToInput === 'function') {
                     pasteValueToInput(e.target, e);
                 }
             }
-        } 
-        // Cut-Paste for condition targets (accepts anything except purely numerical strings)
-        else if (e.target.matches('.condition-target')) {
+        } else if (e.target.matches('.condition-target')) {
             if (!/^-?\d+$/.test(val.trim())) {
                 if (typeof pasteValueToInput === 'function') {
                     pasteValueToInput(e.target, e);

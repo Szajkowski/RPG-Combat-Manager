@@ -40,6 +40,63 @@
                 <button class="icon-btn accent-btn" onclick="endCombat()" data-i18n="btn_end_combat" data-i18n-title="btn_end_combat"></button>
 
                 <div class="top-bar-divider"></div>
+
+                <div class="gm-dice-widget top-bar-widget">
+                    <div class="dice-input-box">
+                        <span class="dice-prefix" data-i18n="dice_short"></span>
+                        <input type="number" id="gm-dice-input" value="20" min="2" max="1000" data-i18n-title="title_dice_size">
+                        <button class="roll-btn" onclick="rollGmDice()" data-i18n="roll"></button>
+                    </div>
+                    <div class="dice-result-shield">
+                        <span id="gm-dice-result">-</span>
+                    </div>
+                </div>
+
+                <div class="top-bar-divider"></div>
+
+                <div class="gm-action-widget top-bar-widget">
+                    <div class="gm-action-trigger" data-i18n-title="gm_action_menu">
+                        <span data-i18n="gm_action_menu"></span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="gm-action-dropdown">
+                        <div class="dropdown-section">
+                            <input type="number" id="gm-action-value" class="gm-action-input" data-i18n="value" placeholder="Value">
+                            <div class="pill-group" id="gm-action-mode">
+                                <button class="pill active" data-value="flat" data-i18n="value_flat"></button>
+                                <button class="pill" data-value="perc" data-i18n="value_perc"></button>
+                            </div>
+                        </div>
+                    
+                        <div class="dropdown-section">
+                            <span class="dropdown-section-title" data-i18n="action_section_type"></span>
+                            <div class="pill-group" id="gm-action-type">
+                                <button class="pill active" data-value="damage" data-i18n="damage"></button>
+                                <button class="pill" data-value="heal" data-i18n="heal"></button>
+                                <button class="pill" data-value="armor" data-i18n="add_armor"></button>
+                            </div>
+                        </div>
+
+                        <div class="dropdown-section">
+                            <span class="dropdown-section-title" data-i18n="action_section_subtype"></span>
+                            <div class="pill-group" id="gm-action-subtype"></div>
+                        </div>
+
+                        <div class="dropdown-section">
+                            <span class="dropdown-section-title" data-i18n="action_section_target"></span>
+                            <div class="pill-group" id="gm-action-target">
+                                <button class="pill active" data-value="targeted" data-i18n="target_manual_short"></button>
+                                <button class="pill" data-value="heroes" data-i18n="target_heroes_short"></button>
+                                <button class="pill" data-value="enemies" data-i18n="target_enemies_short"></button>
+                                <button class="pill" data-value="all" data-i18n="target_all_short"></button>
+                            </div>
+                        </div>
+                        
+                        <button class="execute-action-btn" onclick="executeGmAction(event)" data-i18n="execute_action">Execute</button>
+                    </div>
+                </div>
+
+                <div class="top-bar-divider"></div>
                 
                 <button id="mute-btn" class="circle-btn" data-i18n-title="title_mute_ui" onclick="toggleGlobalMute()">🔊</button>
                 <button id="lang-btn" class="circle-btn" data-i18n-title="title_change_language" onclick="toggleLanguage()">🇵🇱</button>
@@ -50,18 +107,6 @@
     <div class="main-workspace">
         
         <div class="left-panel">
-            <div class="panel-header" data-i18n="gm_dice"></div>
-            <div class="gm-dice-widget">
-                <div class="dice-input-box">
-                    <span class="dice-prefix" data-i18n="dice_short"></span>
-                    <input type="number" id="gm-dice-input" value="20" min="2" max="1000" data-i18n-title="title_dice_size">
-                    <button class="dice-roll-btn" onclick="rollGmDice()" data-i18n="roll"></button>
-                </div>
-                <div class="dice-result-shield">
-                    <span id="gm-dice-result">-</span>
-                </div>
-            </div>
-
             <div class="panel-header">
                 <span data-i18n="active_conditions"></span>
             </div>

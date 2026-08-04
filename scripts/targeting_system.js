@@ -61,7 +61,7 @@ async function processNextPipelineAction() {
     const targetType = currentAction.target;
 
     // Handle auto-executing actions that require no manual cursor input
-    if (['self', 'team_enemy', 'team_ally', 'target_all', 'all'].includes(targetType)) {
+    if (['self', 'team_enemy', 'team_ally', 'target_all', 'all', 'heroes', 'enemies'].includes(targetType)) {
         const startTime = Date.now();
         await executeAutoAction(currentAction, targetType);
         
@@ -88,6 +88,8 @@ async function executeAutoAction(action, targetType) {
     if (targetType === 'self') targets = [abilityUser];
     else if (targetType === 'team_enemy') targets = activeCombatants.filter(c => c.team !== abilityUser.team && !c.isDead);
     else if (targetType === 'team_ally') targets = activeCombatants.filter(c => c.team === abilityUser.team && !c.isDead);
+    else if (targetType === 'heroes') targets = activeCombatants.filter(c => c.team === 'hero' && !c.isDead);
+    else if (targetType === 'enemies') targets = activeCombatants.filter(c => c.team === 'enemy' && !c.isDead);
     else if (targetType === 'all' || targetType === 'target_all') targets = activeCombatants.filter(c => !c.isDead);
 
     // Parallel execution explicitly maintained to trigger unified broadcasting animations.
@@ -192,17 +194,21 @@ function updateTargetingTooltip() {
         if (action.target === 'multi') {
             const maxTargets = action.possibleTargets || 1;
             const currentCount = currentActionTargets.length;
-            targetsText = `${t('selected_targets')}: ${currentCount}/${maxTargets}`;
+            if (maxTargets === 9999) {
+                targetsText = `${t('selected_targets')}: ${currentCount}`;
+            } else {
+                targetsText = `${t('selected_targets')}: ${currentCount}/${maxTargets}`;
+            }
         }
 
         // Distinctly styled HTML block for clear readability and strict logical separation
         cancelHint.innerHTML = `
-            <div style="margin-bottom: 4px;">
-                <span style="color: #6272a4; font-weight: bold;">${t('action') || 'Akcja'}:</span> 
-                <span style="color: #f8f8f2;">${actionName}</span>
+            <div class="tooltip-action-row">
+                <span class="tooltip-action-label">${t('action')}:</span> 
+                <span class="tooltip-action-value">${actionName}</span>
             </div>
-            ${targetsText ? `<div style="font-size: 0.8rem; color: #8be9fd; margin-bottom: 4px;">${targetsText}</div>` : ''}
-            <div style="font-size: 0.75rem; color: #6272a4; border-top: 1px solid #44475a; padding-top: 4px; margin-top: 4px;">
+            ${targetsText ? `<div class="tooltip-target-count">${targetsText}</div>` : ''}
+            <div class="tooltip-skip-hint">
                 ${t('targeting_skip_hint')}
             </div>
         `;
@@ -214,6 +220,10 @@ function updateTargetingTooltip() {
 // Cleanly removes all DOM manipulations and restores original layout
 function clearTargetingState() {
     document.body.classList.remove('targeting-mode');
+    
+    // Unlock GM action dropdown if it was used
+    const gmWidget = document.querySelector('.gm-action-widget');
+    if (gmWidget) gmWidget.classList.remove('locked-open');
     
     // Reset visually dimmed targets
     document.querySelectorAll('.character-token').forEach(t => {
@@ -349,18 +359,24 @@ async function executeTargetedAction(targetId) {
     let isLastMulti = false;
 
     if (isPipeline && payload.target === 'multi') {
-        // Strictly prevent clicking the exact same target multiple times within a single 'multi' action block
-        if (currentActionTargets.includes(targetId)) return;
-        currentActionTargets.push(targetId);
-        
-        // Visually dim the selected target so the user knows they can't click it again for this multi-step
-        const token = document.querySelector(`.character-token[data-id="${targetId}"]`);
-        if (token) {
-            token.style.opacity = '0.4';
-            token.style.pointerEvents = 'none';
+        if (payload.isGmAction) {
+            // GM actions ignore dimming, allow duplicate targets, and allow infinite clicks until manual cancel
+            currentActionTargets.push(targetId);
+            isLastMulti = false; 
+        } else {
+            // Strictly prevent clicking the exact same target multiple times within a single 'multi' action block
+            if (currentActionTargets.includes(targetId)) return;
+            currentActionTargets.push(targetId);
+            
+            // Visually dim the selected target so the user knows they can't click it again for this multi-step
+            const token = document.querySelector(`.character-token[data-id="${targetId}"]`);
+            if (token) {
+                token.style.opacity = '0.4';
+                token.style.pointerEvents = 'none';
+            }
+            
+            isLastMulti = currentActionTargets.length >= (payload.possibleTargets || 1);
         }
-        
-        isLastMulti = currentActionTargets.length >= (payload.possibleTargets || 1);
     }
 
     // Step 1: Manage UI State immediately (suspend interaction if processing pipeline, or close entirely if done)

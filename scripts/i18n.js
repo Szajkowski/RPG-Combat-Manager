@@ -10,9 +10,6 @@ const i18n = {
         'unknown_character': 'Nieznana postać',
         'target': 'Cel:',
         'copy': 'Kopiuj',
-        'value': 'wartość',
-        'value_flat': 'Wartość: stała',
-        'value_perc': 'Wartość: procentowa',
         'condition_copy': 'Kopiuj cel',
         'condition_remove': 'Usuń stan',
         'condition_duration': 'Pozostały czas trwania',
@@ -24,7 +21,35 @@ const i18n = {
         'target_team_enemy': 'Drużyna przeciwnika',
         'target_team_ally': 'Drużyna sojusznicza',
         'target_all': 'Wszyscy na planszy',
-        'condition_invoker': 'Wywołał:',
+        'condition_invoker': 'Od:',
+        'target_heroes': 'Drużyna bohaterów',
+        'target_enemies': 'Drużyna przeciwników',
+        
+        // Action Menu Details
+        'gm_action_menu': 'Menu akcji',
+        'value': 'Wartość',
+        'value_flat': 'Stała',
+        'value_perc': 'Procentowa',
+
+        'action_section_type': 'Akcja',
+        'dmg_type_phys': 'Fizyczne',
+        'dmg_type_mag': 'Magiczne',
+        'dmg_type_pierce': 'Przebijające',
+
+        'action_section_subtype': 'Rodzaj',
+        'heal_type_normal': 'Zwykłe',
+        'heal_type_threshold': 'Do progu',
+        'heal_type_group': 'Grupowe',
+        'armor_type_phys': 'Fizyczny',
+        'armor_type_mag': 'Magiczny',
+
+        'action_section_target': 'Cel',
+        'target_manual_short': 'Ręcznie',
+        'target_heroes_short': 'Bohaterowie',
+        'target_enemies_short': 'Przeciwnicy',
+        'target_all_short': 'Wszyscy',
+
+        'execute_action': 'Wykonaj',
 
         // --- PLACEHOLDERS ---
         'placeholder_no_conditions': 'Brak aktywnych stanów',
@@ -56,7 +81,7 @@ const i18n = {
         'tab_damage': 'Obrażenia',
         'last_roll': 'Ostatni Rzut',
         
-        // --- STATS (ROLLS) ---
+        // --- STATS ---
         'vitality': 'żywotność',
         'intuition': 'intuicja',
         'strength': 'siła',
@@ -66,6 +91,9 @@ const i18n = {
         'accuracy': 'celność',
         'reflex': 'refleks',
         'resilience': 'nieustępliwość',
+        'base_damage': 'Obrażenia Baz.',
+        'armor_value_base': 'Wartość podstawowa',
+        'armor_value_percent': 'Wartość procentowa',
         'mod': 'mod',
 
         // Grammatical changes for skill descriptions
@@ -102,37 +130,15 @@ const i18n = {
 
         // --- COMBAT AND DAMAGE ---
         'damage': 'Obrażenia',
-        'base_damage': 'Obrażenia Baz.',
         'heal': 'Leczenie',
-        'add_armor': 'Dodaj Pancerz',
+        'add_armor': 'Pancerz',
+        'damage': 'Obrażenia',
         'phys_armor': 'Pancerz fizyczny',
         'mag_armor': 'Pancerz magiczny',
         'phys_armor_caps': 'Panc. FIZYCZNY',
         'mag_armor_caps': 'Panc. MAGICZNY',
         'deaths_door': "Wrota śmierci",
         'roll': "RZUT",
-
-        'dmg_type_phys': 'Fizyczne',
-        'dmg_type_phys_short': 'FIZ',
-        'dmg_type_mag': 'Magiczne',
-        'dmg_type_mag_short': 'MAG',
-        'dmg_type_pierce': 'Przebijające',
-        'dmg_type_pierce_short': 'PRZ',
-        
-        'heal_type_normal': 'Zwykłe',
-        'heal_type_normal_short': 'ZWY',
-        'heal_type_threshold': 'Do progu',
-        'heal_type_threshold_short': 'PRÓG',
-        'heal_type_group': 'Grupowe',
-        'heal_type_group_short': 'GRP',
-
-        'armor_type_phys': 'Fizyczny',
-        'armor_type_phys_short': 'FIZ',
-        'armor_type_mag': 'Magiczny',
-        'armor_type_mag_short': 'MAG',
-
-        'armor_value_base': 'Wartość podstawowa',
-        'armor_value_percent': 'Wartość procentowa',
 
         // Damage Action Combat Flow names
         'roll_hit': 'trafienie',
@@ -207,9 +213,6 @@ const i18n = {
         'unknown_character': 'Unknown character',
         'target': 'Target:',
         'copy': 'Copy',
-        'value': 'value',
-        'value_flat': 'Value: flat',
-        'value_perc': 'Value: percentage',
         'condition_copy': 'Copy target',
         'condition_remove': 'Remove condition',
         'condition_duration': 'Remaining duration',
@@ -220,8 +223,37 @@ const i18n = {
         'title_dice_size': 'Dice size',
         'target_team_enemy': 'Enemy team',
         'target_team_ally': 'Ally team',
-        'target_all': 'Everyone on board',
-        'condition_invoker': 'Invoker:',
+        'target_all': 'Everyone',
+        'condition_invoker': 'From:',
+
+        'target_heroes': 'Hero Team',
+        'target_enemies': 'Enemy Team',
+
+        // Action Menu Details
+        'gm_action_menu': 'Actions menu',
+        'value': 'Value',
+        'value_flat': 'Flat',
+        'value_perc': 'Percentage',
+
+        'action_section_type': 'Action',
+        'dmg_type_phys': 'Physical',
+        'dmg_type_mag': 'Magical',
+        'dmg_type_pierce': 'Piercing',
+
+        'action_section_subtype': 'Type',
+        'heal_type_normal': 'Normal',
+        'heal_type_threshold': 'To threshold',
+        'heal_type_group': 'Group',
+        'armor_type_phys': 'Physical',
+        'armor_type_mag': 'Magical',
+
+        'action_section_target': 'Target',
+        'target_manual_short': 'Manual',
+        'target_heroes_short': 'Hero Team',
+        'target_enemies_short': 'Enemy Team',
+        'target_all_short': 'Everyone',
+
+        'execute_action': 'Execute',
 
        // --- PLACEHOLDERS ---
        'placeholder_no_conditions': 'No active conditions',
@@ -253,7 +285,7 @@ const i18n = {
         'tab_damage': 'Damage',
         'last_roll': 'Last Roll',
         
-        // --- STATS (ROLLS) ---
+        // --- STATS ---
         'vitality': 'vitality',
         'intuition': 'intuition',
         'strength': 'strength',
@@ -263,6 +295,9 @@ const i18n = {
         'accuracy': 'accuracy',
         'reflex': 'reflex',
         'resilience': 'resilience',
+        'base_damage': 'Base Damage',
+        'armor_value_base': 'Base value',
+        'armor_value_percent': 'Percent value',
         'mod': 'mod',
 
         // Grammatical changes (mostly base words in English)
@@ -299,37 +334,14 @@ const i18n = {
 
         // --- COMBAT AND DAMAGE ---
         'damage': 'Damage',
-        'base_damage': 'Base Damage',
         'heal': 'Heal',
-        'add_armor': 'Add Armor',
+        'add_armor': 'Armor',
         'phys_armor': 'Physical armor',
         'mag_armor': 'Magical armor',
         'phys_armor_caps': 'PHYS Armor',
         'mag_armor_caps': 'MAG Armor',
         'deaths_door': "Death's door",
         'roll': "ROLL",
-
-        'dmg_type_phys': 'Physical',
-        'dmg_type_phys_short': 'PHYS',
-        'dmg_type_mag': 'Magical',
-        'dmg_type_mag_short': 'MAG',
-        'dmg_type_pierce': 'Piercing',
-        'dmg_type_pierce_short': 'PIERCE',
-        
-        'heal_type_normal': 'Normal',
-        'heal_type_normal_short': 'NORM',
-        'heal_type_threshold': 'To threshold',
-        'heal_type_threshold_short': 'THRESH',
-        'heal_type_group': 'Group',
-        'heal_type_group_short': 'GRP',
-    
-        'armor_type_phys': 'Physical',
-        'armor_type_phys_short': 'PHYS',
-        'armor_type_mag': 'Magical',
-        'armor_type_mag_short': 'MAG',
-
-        'armor_value_base': 'Base value',
-        'armor_value_percent': 'Percent value',
 
         // Damage Action Combat Flow names
         'roll_hit': 'hit',

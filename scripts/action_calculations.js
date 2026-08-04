@@ -34,6 +34,8 @@ function getArmorActionBeneficialState(payload, attacker) {
 
 // Dynamically calculates compound success probability combining Base Hit + Defenses/Checks (forceRoll & forceRollVS)
 function calculateActionSuccessChance(attacker, target, payload) {
+    if (payload.isGmAction) return 100; // Directly skip logical bounds for GM actions
+
     // 1. Base Success Probability (Only relevant for Damage Types)
     let baseSuccessChance = 1.0;
     if (payload.type === 'damage') {
@@ -155,6 +157,17 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     // Safely insert the main ability roll at the beginning of the FIRST executed action's log block
     let initRoll = consumeRollFn ? consumeRollFn() : null;
     if (initRoll) attackerSingleRolls.push(initRoll);
+
+    // GM Action explicitly overrides and skips the Hit vs Dodge Phase and Forced Rolls entirely
+    if (payload.isGmAction) {
+        return { 
+            success: true, 
+            hasForcedRolls: false,
+            targetPassedChecks: false,
+            rolls: { attackerSingleRolls, opposedRolls, defenderSingleRolls }, 
+            subType: payload.damageType || null 
+        };
+    }
 
     let isBaseSuccess = true;
 

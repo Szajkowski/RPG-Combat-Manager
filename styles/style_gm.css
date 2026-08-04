@@ -69,7 +69,7 @@ body {
 .init-arrow { color: #6272a4; font-weight: bold; flex-shrink: 0; }
 
 .top-controls-wrapper {
-    width: 340px;
+    width: 725px;
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -165,7 +165,7 @@ body {
 .condition-btn.remove:hover { background: #bd93f9; color: #181922; }
 
 .condition-target-wrapper { display: flex; align-items: center; gap: 5px; }
-.condition-target-wrapper span { color: #6272a4; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+.condition-target-wrapper span { color: #6272a4; font-size: 0.75rem; font-weight: bold; }
 .condition-target { flex: 1; width: 0; background: #181922; border: 1px solid #36394d; color: #f8f8f2; padding: 4px 6px; border-radius: 3px; font-size: 0.8rem; }
 .condition-desc { font-size: 0.8rem; color: #bfbfbf; line-height: 1.3; margin-top: 2px; }
 
@@ -313,9 +313,6 @@ body {
 .hp-fill-low { background: #ff5555; }
 .hp-fill-dead { background: #000000; }
 
-/* Active percentage toggle styling */
-.complex-toggle.perc-mode { color: #8be9fd; }
-
 .token-name { 
     text-align: center; font-weight: bold; font-size: 0.75rem; padding: 0 4px 4px 4px; 
     line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
@@ -359,47 +356,25 @@ body {
 .char-internal-tab:hover { background: #282a36; }
 .char-internal-tab.active { color: #8be9fd; border-bottom: 2px solid #8be9fd; background: #212330; }
 
-.char-tab-content { 
-    display: none; flex-direction: column; flex: 1; 
-    justify-content: space-between; overflow-y: hidden; 
+.char-stats-container { 
+    flex-direction: column; flex: 1; justify-content: space-between; overflow-y: hidden; 
 }
-.char-tab-content.active { display: flex; }
 
-/* TAB 1: ROLLS */
-#tab-rolls 
+/* PART 1: ROLLS */
 .stat-row { display: flex; align-items: center; background: #181922; padding: 3px 6px; border-radius: 4px; border: 1px solid #36394d; }
 .stat-label { flex: 1; font-size: 0.8rem; color: #bfbfbf; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .stat-mod-input { width: 35px; background: #282a36; border: 1px solid #44475a; color: #8be9fd; text-align: center; border-radius: 3px; font-size: 0.8rem; padding: 2px; margin-right: 8px;}
 .stat-val-input { width: 40px; background: transparent; border: none; color: white; font-weight: bold; text-align: right; font-size: 1rem; border-bottom: 1px solid #44475a; margin-right: 8px; }
 .roll-btn { background: #44475a; border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; }
-.roll-btn:hover { background: #bd93f9; color: #181922; }
-
-/* TAB 2: DAMAGE */
-#tab-damage .complex-control { margin-bottom: 0; flex-shrink: 0;}
-.complex-control { background: #181922; border: 1px solid #36394d; border-radius: 6px; overflow: hidden; flex-shrink: 0;}
-.complex-header { background: #282a36; padding: 3px 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #36394d; }
-.complex-label { font-size: 0.75rem; color: #8be9fd; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-.complex-toggle { background: #44475a; color: white; border: none; font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-weight: bold; transition: 0.2s;}
-.complex-toggle:hover { background: #6272a4; }
-.complex-body { display: flex; padding: 5px; gap: 5px; align-items: center;}
-.complex-body input { flex: 1; width: 0; background: #212330; border: 1px solid #44475a; color: white; text-align: center; border-radius: 4px; font-weight: bold; padding: 4px;}
-.complex-body button { background: #44475a; border: none; color: white; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: 0.2s;}
-
-.dmg-group button:hover { background: #ff5555; }
-.heal-group button:hover { background: #50fa7b; color: #181922; }
-.armor-group button:hover { background: #8be9fd; color: #181922; }
-
-.stat-row { display: flex; align-items: center; background: #181922; padding: 3px 6px; border-radius: 4px; border: 1px solid #36394d; }
+.roll-btn:hover { background: #6272a4; }
+.top-controls .roll-btn { background: #44475a; border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; }
+.top-controls .roll-btn:hover { background: #6272a4; }
 
 .armor-val-input { width: 35px; background: transparent; border: none; color: white; font-weight: bold; text-align: right; font-size: 1rem; border-bottom: 1px solid #44475a; margin-right: 5px; }
 .armor-plus-sign { color: #6272a4; font-weight: bold; margin-right: 2px; font-size: 1.1rem; }
 .armor-perc-input { width: 35px; background: #282a36; border: 1px solid #44475a; color: #8be9fd; text-align: center; border-radius: 3px; font-size: 0.8rem; padding: 2px; margin-right: 2px; }
 .armor-perc-sign { color: #8be9fd; font-weight: bold; font-size: 0.9rem; margin-right: 5px; }
-
-.dice-result-box { background: #181922; border: 1px solid #bd93f9; border-radius: 6px; padding: 8px; text-align: center; flex-shrink: 0; margin-top: 10px;}
-.dice-result-label { font-size: 0.75rem; color: #bd93f9; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
-.dice-result-value { font-size: 1.5rem; font-weight: bold; color: white; }
 
 /* PART 2: NARROW FUNCTIONAL COLUMN */
 .char-functional-col {
@@ -530,11 +505,12 @@ input[type=number] { -moz-appearance: textfield; }
 }
 
 /* NEW GM DICE APPEARANCE */
+/* Compact GM Dice Widget */
 .gm-dice-widget {
-    padding: 12px;
-    border-bottom: 2px solid #36394d;
+    padding: 0;
+    border-bottom: none;
     display: flex;
-    gap: 12px;
+    gap: 6px;
     align-items: center;
     box-sizing: border-box;
 }
@@ -547,55 +523,34 @@ input[type=number] { -moz-appearance: textfield; }
     border: 1px solid #6272a4;
     border-radius: 6px;
     padding: 2px 6px;
-    height: 38px;
+    height: 32px;
     box-sizing: border-box;
 }
 
 .dice-prefix {
     color: #6272a4;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     padding-right: 2px;
 }
 
 #gm-dice-input {
-    width: 100%;
+    width: 45px;
     background: transparent;
     border: none;
     color: #fff;
     font-weight: bold;
-    font-size: 1rem;
+    font-size: 0.85rem;
     text-align: center;
     outline: none;
 }
 
-.dice-roll-btn {
-    background: #44475a;
-    border: none;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: bold;
-    white-space: nowrap;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.dice-roll-btn:hover {
-    background: #6272a4;
-}
-
-.dice-roll-btn:active {
-    transform: scale(0.95);
-}
-
 .dice-result-shield {
-    width: 48px;
-    height: 48px;
+    width: 34px;
+    height: 34px;
     background: #181922;
     border: 2px dashed #bd93f9;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -604,7 +559,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 
 #gm-dice-result {
-    font-size: 1.4rem;
+    font-size: 1.0rem;
     font-weight: bold;
     color: white;
 }
@@ -621,7 +576,7 @@ input[type=number] { -moz-appearance: textfield; }
     content: "🎲";
     position: absolute;
     color: #f8f8f2;
-    font-size: 2.2rem; /* Scaled up for the larger GM dice */
+    font-size: 1.4rem; /* Scaled up for the larger GM dice */
     animation: inner-spin 0.3s linear infinite;
 }
 
@@ -914,4 +869,274 @@ body.targeting-mode .character-token { transform: none !important; }
     color: #6272a4;
     font-size: 0.85rem;
     flex-shrink: 0;
+}
+
+/* --- TOP BAR WIDGETS --- */
+.top-bar-widget { border: none; padding: 0; display: flex; align-items: center; }
+
+/* GM Action Widget Trigger & Dropdown */
+.gm-action-widget { 
+    position: relative; 
+    display: flex; 
+    align-items: center; 
+}
+
+.gm-action-trigger {
+    background: #282a36;
+    border: 1px solid #44475a;
+    color: #f8f8f2;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+/* Bind trigger highlighted state to the widget hover or lock */
+.gm-action-widget:hover .gm-action-trigger,
+.gm-action-widget.locked-open .gm-action-trigger {
+    background: #36394d;
+    border-color: #bd93f9;
+    color: #bd93f9;
+}
+
+.dropdown-arrow {
+    font-size: 0.7rem;
+    color: #6272a4;
+    transition: transform 0.2s ease;
+}
+
+/* Bind arrow highlighted state to the widget hover or lock */
+.gm-action-widget:hover .dropdown-arrow,
+.gm-action-widget.locked-open .dropdown-arrow {
+    transform: rotate(180deg);
+    color: #bd93f9;
+}
+
+/* Custom GM Action dropdown lock */
+.gm-action-widget.locked-open .gm-action-dropdown {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* GM Action widget internals styling */
+.gm-action-dropdown {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    
+    display: flex;
+    position: absolute; 
+    top: 100%; 
+    right: 0;
+    margin-top: 6px;
+    background: #212330; 
+    border: 1px solid #44475a; 
+    border-radius: 8px;
+    padding: 15px; 
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6); 
+    z-index: 200;
+    flex-direction: column; 
+    gap: 12px; 
+    width: 340px;
+    box-sizing: border-box;
+}
+
+/* Invisible pseudo-element bridging hover gap between trigger and dropdown */
+.gm-action-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+}
+
+.gm-action-widget:hover .gm-action-dropdown,
+.gm-action-dropdown:hover { 
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* THE PILL SYSTEM */
+.dropdown-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dropdown-section-title {
+    font-size: 0.75rem;
+    color: #bd93f9;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    text-align: center;
+    user-select: none;
+}
+
+.pill-group {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+/* Force 2x2 grid for targets so EN translations don't break layout */
+#gm-action-target {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.top-controls .gm-action-dropdown .pill {
+    flex: 1;
+    background: #36394d;
+    border: none;
+    color: white;
+    padding: 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-align: center;
+    transition: background 0.2s ease, color 0.2s ease;
+    user-select: none;
+    display: block; /* Overrides default flex from .top-controls button */
+}
+
+/* Hover state for Default Pills */
+.top-controls .gm-action-dropdown .pill:hover {
+    background: rgba(189, 147, 249, 0.15);
+    color: #f8f8f2;
+}
+
+/* Active state for Default Pills */
+.top-controls .gm-action-dropdown .pill.active {
+    background: rgba(189, 147, 249, 0.35);
+    color: #bd93f9;
+}
+
+/* Specific Thematic Hovers and Actives */
+.top-controls #gm-action-mode .pill[data-value="perc"]:hover,
+.top-controls #gm-action-type .pill[data-value="armor"]:hover,
+.top-controls .gm-action-dropdown .pill.armor-theme:hover {
+    background: rgba(139, 233, 253, 0.15);
+    color: #f8f8f2;
+}
+
+.top-controls #gm-action-mode .pill[data-value="perc"].active,
+.top-controls #gm-action-type .pill[data-value="armor"].active,
+.top-controls .gm-action-dropdown .pill.armor-theme.active {
+    background: rgba(139, 233, 253, 0.35);
+    color: #8be9fd;
+}
+
+.top-controls #gm-action-type .pill[data-value="damage"]:hover,
+.top-controls .gm-action-dropdown .pill.dmg-theme:hover {
+    background: rgba(255, 85, 85, 0.15);
+    color: #f8f8f2;
+}
+
+.top-controls #gm-action-type .pill[data-value="damage"].active,
+.top-controls .gm-action-dropdown .pill.dmg-theme.active {
+    background: rgba(255, 85, 85, 0.35);
+    color: #ff5555;
+}
+
+.top-controls #gm-action-type .pill[data-value="heal"]:hover,
+.top-controls .gm-action-dropdown .pill.heal-theme:hover {
+    background: rgba(80, 250, 123, 0.15);
+    color: #f8f8f2;
+}
+
+.top-controls #gm-action-type .pill[data-value="heal"].active,
+.top-controls .gm-action-dropdown .pill.heal-theme.active {
+    background: rgba(80, 250, 123, 0.35);
+    color: #50fa7b;
+}
+
+/* Make sure cursor is default when active to show it cannot be pressed further */
+.top-controls .gm-action-dropdown .pill.active {
+    cursor: default;
+}
+
+.gm-action-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #181922; 
+    border: 1px solid #6272a4;
+    color: #f8f8f2; 
+    padding: 8px 10px; 
+    border-radius: 4px; 
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.gm-action-input:focus {
+    border-color: #bd93f9;
+    background: #282a36;
+}
+
+/* Execute action button - match .top-controls basic look */
+.top-controls .gm-action-dropdown .execute-action-btn {
+    background: #36394d;
+    color: white;
+    border: none;
+    padding: 9px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.8rem;
+    width: 100%;
+    display: block; /* Overrides display: flex */
+}
+
+.top-controls .gm-action-dropdown .execute-action-btn:hover {
+    background: #6272a4;
+    color: white;
+}
+
+.top-controls .gm-action-dropdown .execute-action-btn:active {
+    transform: scale(0.98);
+}
+
+/* Targeting Tooltip Content Styles */
+.tooltip-action-row {
+    margin-bottom: 4px;
+}
+.tooltip-action-label {
+    color: #6272a4;
+    font-weight: bold;
+}
+.tooltip-action-value {
+    color: #f8f8f2;
+}
+.tooltip-target-count {
+    font-size: 0.8rem;
+    color: #8be9fd;
+    margin-bottom: 4px;
+}
+.tooltip-skip-hint {
+    font-size: 0.75rem;
+    color: #6272a4;
+    border-top: 1px solid #44475a;
+    padding-top: 4px;
+    margin-top: 4px;
 }
