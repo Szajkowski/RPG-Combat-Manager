@@ -238,7 +238,7 @@ function syncPlayActionSequence(payload) {
 // Uniformly executes a visual/audio action sequence received from the server.
 // Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
 async function playActionSequence(payload) {
-    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, stepId, isAuto } = payload;
+    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, stepId, isAuto, hasPhysFlat, hasPhysPerc, hasMagFlat, hasMagPerc, isMixedSound } = payload;
     const target = activeCombatants.find(c => c.id === targetId);
     if (!target) return;
 
@@ -255,13 +255,11 @@ async function playActionSequence(payload) {
                     target.isDead = true;
                 }
             } else if (actionType === 'armor') {
-                if (subType === 'phys') {
-                    if (typeof stepValues[i] === 'string' && stepValues[i].includes('%')) target.stats.physArmorMod = stepValues[i];
-                    else target.stats.physArmor = stepValues[i];
-                } else {
-                    if (typeof stepValues[i] === 'string' && stepValues[i].includes('%')) target.stats.magArmorMod = stepValues[i];
-                    else target.stats.magArmor = stepValues[i];
-                }
+                const sv = stepValues[i];
+                if (sv.physFlat !== undefined) target.stats.physArmor = sv.physFlat;
+                if (sv.physPerc !== undefined) target.stats.physArmorMod = `${sv.physPerc}%`;
+                if (sv.magFlat !== undefined) target.stats.magArmor = sv.magFlat;
+                if (sv.magPerc !== undefined) target.stats.magArmorMod = `${sv.magPerc}%`;
             }
             refreshCombatantDisplay(target);
         }
@@ -274,9 +272,13 @@ async function playActionSequence(payload) {
             token.classList.add('hit-animation');
         }
 
-        // Deduplicate sounds based on batch ID (stepId) and specific iteration loop index (i)
-        // This ensures exact precision - e.g., 5 hits and 1 dodge on the same attack will produce 1 hit sound and 1 dodge sound
-        const soundKey = stepId ? `${stepId}-${actionType}-${subType}-${i}` : null;
+        // Contextual routing for multi-layered armor modifications to choose which sound is dominant 
+        const soundSubType = (hasPhysFlat || hasPhysPerc) ? 'phys' : 'mag';
+        
+        // Define soundKey using 'mixed' if appropriate to ensure proper deduplication arrays
+        const activeKeyIdentifier = isMixedSound ? 'mixed' : soundSubType;
+        const soundKey = stepId ? `${stepId}-${actionType}-${activeKeyIdentifier}-${i}` : null;
+        
         let shouldPlaySound = true;
         
         // Block consecutive exact match sounds ONLY if this was flagged as an automated block action
@@ -300,7 +302,11 @@ async function playActionSequence(payload) {
             } else if (actionType === 'heal') {
                 playSoundEffect(`sound/heal_${subType}.mp3`);
             } else if (actionType === 'armor') {
-                playSoundEffect(isAdding ? `sound/${subType}_armor_up.mp3` : `sound/${subType}_armor_down.mp3`, 0.5);
+                if (isMixedSound) {
+                    playSoundEffect('sound/mixed_armor.mp3', 0.5);
+                } else {
+                    playSoundEffect(isAdding ? `sound/${soundSubType}_armor_up.mp3` : `sound/${soundSubType}_armor_down.mp3`, 0.5);
+                }
             }
         }
 

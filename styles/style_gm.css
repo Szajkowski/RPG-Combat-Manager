@@ -1067,6 +1067,17 @@ body.targeting-mode .character-token { transform: none !important; }
     color: #50fa7b;
 }
 
+/* Yellow Theme for Target Pills matching crosshairs */
+.top-controls #gm-action-target .pill:hover {
+    background: rgba(241, 250, 140, 0.15);
+    color: #f8f8f2;
+}
+
+.top-controls #gm-action-target .pill.active {
+    background: rgba(241, 250, 140, 0.35);
+    color: #f1fa8c;
+}
+
 /* Make sure cursor is default when active to show it cannot be pressed further */
 .top-controls .gm-action-dropdown .pill.active {
     cursor: default;

@@ -166,6 +166,14 @@ function executeGmAction(event) {
 
     if (!type || !subtype || !mode || !targetMode) return;
 
+    // GM Action constraint: Prevent healing or damaging with explicitly negative values
+    if (type === 'damage' || type === 'heal') {
+        if (parsedVal < 0) {
+            alert("Game Master error: Cannot heal or deal damage with negative values!");
+            return;
+        }
+    }
+
     const isPercentage = mode === 'perc';
     let finalValue = isPercentage ? `${valInput.value}%` : parsedVal;
 
@@ -174,18 +182,26 @@ function executeGmAction(event) {
         type: type,
         target: targetMode === 'targeted' ? 'multi' : targetMode,
         possibleTargets: 9999, // JSON.stringify kills Infinity, using 9999 prevents reverting to 1
-        isGmAction: true,
-        value: finalValue
+        isGmAction: true
     };
 
     if (type === 'damage') {
         payload.damageType = subtype;
-        payload.isPercMode = isPercentage;
+        if (isPercentage) payload.valuePerc = finalValue;
+        else payload.value = finalValue;
     } else if (type === 'heal') {
         payload.healType = subtype;
+        if (isPercentage) payload.valuePerc = finalValue;
+        else payload.value = finalValue;
     } else if (type === 'armor') {
-        payload.armorType = subtype;
-        payload.isPercentage = isPercentage;
+        // Funnel to distinct properties strictly matching armor specifications
+        if (subtype === 'phys') {
+            if (isPercentage) payload.physArmorValuePerc = finalValue;
+            else payload.physArmorValue = finalValue;
+        } else if (subtype === 'mag') {
+            if (isPercentage) payload.magArmorValuePerc = finalValue;
+            else payload.magArmorValue = finalValue;
+        }
     }
 
     // Dummy identity wrapper for pipeline logs representing the Game Master purely

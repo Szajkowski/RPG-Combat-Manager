@@ -156,8 +156,8 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         }
 
         // Build ability content
-        // Parse description using the newly generated composite string
-        const parsedDesc = parseDescription(descString, combatant, ability.difficulty);
+        // Parse description using the newly generated composite string passing the full ability object for dynamic mathematical resolution
+        const parsedDesc = parseDescription(descString, combatant, ability);
 
         let cardInner = `
             <div class="char-extra-card-title">
@@ -169,7 +169,11 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         `;
 
         // Optional attributes
-        if (ability.roll) cardInner += `<span>${t('ability_roll')} <strong class="stat-bonus">${t(ability.roll)}</strong></span>`;
+        if (ability.roll) {
+            // Properly format multiple stats if chained with a plus sign
+            const displayRollStr = ability.roll.split('+').map(s => `<strong class="stat-bonus">${t(s.trim())}</strong>`).join(' + ');
+            cardInner += `<span>${t('ability_roll')} ${displayRollStr}</span>`;
+        }
 
         if (ability.roll && ability.difficulty) cardInner += `<span>${t('ability_difficulty')} <strong class="stat-bonus">${ability.difficulty}</strong></span>`;
 
@@ -330,28 +334,65 @@ function fillEquipmentPanel(equipment, combatant, container) {
     }
 }
 
+// Simulates combination of multiple dice mathematically evaluating exact permutations to determine UI success rate
 function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) {
-    const statValue = parseInt(combatant.stats[abilityRoll]) || 0;
-    const modValue = parseInt(combatant.stats[`${abilityRoll}Mod`]) || 0;
+    if (abilityDifficulty === "X") return 100;
 
-    if (statValue <= 0) {
-        return 0; // No stat
+    const stats = abilityRoll.split('+').map(s => s.trim());
+    let dice = [];
+    let totalMod = 0;
+
+    for (let stat of stats) {
+        const base = parseInt(combatant.stats[stat]) || 0;
+        const mod = parseInt(combatant.stats[`${stat}Mod`]) || 0;
+        
+        if (base <= 0) return 0; // If any of the required stats is missing completely (0 or undefined), the roll is guaranteed to fail
+        
+        dice.push(base);
+        totalMod += mod;
     }
 
-    const successThreshold = abilityDifficulty - modValue;
+    const targetSum = parseInt(abilityDifficulty) - totalMod;
+    
+    // Automatic success if target sum drops to or below the minimum dice throw limits (1 per die)
+    if (targetSum <= dice.length) return 100;
 
-    if (successThreshold <= 1) {
-        return 100; // Automatic success
+    // Automatic failure if the target sum is higher than the absolute maximum possible roll
+    let maxSum = dice.reduce((a, b) => a + b, 0);
+    if (targetSum > maxSum) return 0;
+
+    // Dynamic Programming solver for EXACT permutations of ANY amount of dice combinations
+    // dp[i] stores the exact number of ways to roll a sum of 'i'
+    let dp = [1]; 
+    let currentMaxSum = 0;
+
+    for (let faces of dice) {
+        let nextDp = new Array(currentMaxSum + faces + 1).fill(0);
+        for (let s = 0; s <= currentMaxSum; s++) {
+            if (dp[s] > 0) {
+                // For each possible result of the current die, add the combinations to the next step
+                for (let roll = 1; roll <= faces; roll++) {
+                    nextDp[s + roll] += dp[s];
+                }
+            }
+        }
+        dp = nextDp;
+        currentMaxSum += faces;
     }
 
-    if (successThreshold > statValue) {
-        return 0; // Automatic failure
+    // Sum all combinations that meet or exceed the target difficulty
+    let successfulCombos = 0;
+    for (let s = targetSum; s <= currentMaxSum; s++) {
+        successfulCombos += dp[s];
     }
 
-    const successRolls = statValue - successThreshold + 1;
-    return Math.floor((successRolls / statValue) * 100);
+    // Total possible combinations across all dice (e.g. 20 * 20 * 10)
+    let totalCombos = dice.reduce((acc, val) => acc * val, 1);
+
+    return Math.floor((successfulCombos / totalCombos) * 100);
 }
 
+// Routes abilities, resolves multi-dice arrays securely and prepares sequence pipelines
 function useAbility(combatantId, ability, event) {
     // Fetch fresh combatant from memory based on ID
     const combatant = activeCombatants.find(c => c.id === combatantId);
@@ -361,15 +402,29 @@ function useAbility(combatantId, ability, event) {
     if (!abilityState || abilityState.currentCooldown !== 0) return;
 
     let success = true; 
-    let initialRollData = null;
+    let initialRollsData = null; // Changed to array structure to support combined multiple stat executions
 
     if (ability.roll) { 
-        initialRollData = rollDice(combatant.id, ability.roll, ability.difficulty);
-        
-        if (initialRollData) {
-            success = ability.difficulty === "X" ? true : initialRollData.result >= ability.difficulty;
+        initialRollsData = [];
+        const stats = ability.roll.split('+').map(s => s.trim());
+        let totalResult = 0;
+
+        stats.forEach(stat => {
+            const rollData = rollDice(combatant.id, stat, "X"); // Bypass standard single-die color check to evaluate final array compound sum later
+            if (rollData) {
+                initialRollsData.push(rollData);
+                totalResult += rollData.result;
+            }
+        });
+
+        if (initialRollsData.length > 0) {
+            success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
+            
+            // Adjust visual colors uniformly across the array block mapped directly to compound success condition
+            const groupColor = success ? '#50fa7b' : '#ff5555';
+            initialRollsData.forEach(r => r.color = ability.difficulty === "X" ? 'white' : groupColor);
         } else {
-            success = false;
+            success = false; // Failing strictly due to stats missing entirely
         }
     }
 
@@ -383,12 +438,12 @@ function useAbility(combatantId, ability, event) {
         // IMMEDIATELY sync the combatant to secure the cooldown block across all clients globally before any manual targeting delays
         syncUpdateCombatant(combatant);
 
-        // Check if the ability utilizes the new Action Pipeline system
+        // Check if the ability utilizes the Action Pipeline system
         if (ability.actions && ability.actions.length > 0) {
             let shouldBroadcastInitRollImmediately = false;
             
             // Determine if the initial roll should be broadcasted immediately as a standalone row
-            if (initialRollData) {
+            if (initialRollsData && initialRollsData.length > 0) {
                 const firstAction = ability.actions[0];
                 const requiresTargeting = ['single', 'multi'].includes(firstAction.target);
                 
@@ -406,25 +461,24 @@ function useAbility(combatantId, ability, event) {
                     combatantId: combatant.id,
                     combatantName: combatant.uniqueName,
                     combatantTeam: combatant.team,
-                    rolls: [ initialRollData ]
+                    rolls: initialRollsData
                 });
-                initialRollData = null; // Consume the roll so the pipeline doesn't attach it to other actions downstream
             }
 
             if (typeof startActionPipeline === 'function') {
-                // Pass the initial roll (or null if already consumed) to the pipeline
-                startActionPipeline(combatant, ability.actions, ability, initialRollData, event);
+                // Pass the initial rolls array and broadcast flag to the pipeline so math continues resolving accurately
+                startActionPipeline(combatant, ability.actions, ability, initialRollsData, event, shouldBroadcastInitRollImmediately);
             }
         } else {
             // Legacy fallback for simple abilities without pipeline
-            if (initialRollData) {
+            if (initialRollsData && initialRollsData.length > 0) {
                 syncAddRollEvent({
                     id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
                     isTargeted: false,
                     combatantId: combatant.id,
                     combatantName: combatant.uniqueName,
                     combatantTeam: combatant.team,
-                    rolls: [ initialRollData ]
+                    rolls: initialRollsData
                 });
             }
             processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
@@ -437,14 +491,14 @@ function useAbility(combatantId, ability, event) {
         }
         
         // Always broadcast failures immediately as normal, non-targeted standalone logs (No arrow)
-        if (initialRollData) {
+        if (initialRollsData && initialRollsData.length > 0) {
             syncAddRollEvent({
                 id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
                 isTargeted: false,
                 combatantId: combatant.id,
                 combatantName: combatant.uniqueName,
                 combatantTeam: combatant.team,
-                rolls: [ initialRollData ]
+                rolls: initialRollsData
             });
         }
         
@@ -492,20 +546,33 @@ function useAbility(combatantId, ability, event) {
 // MATH & TRANSLATION CORE (Used by both Gear and Abilities)
 
 /**
- * Extracts the final numerical result of a gear stat, whether it's flat or a formula.
- * Example Input 1: 15 (Number) -> Returns: 15
- * Example Input 2: "[-10 + 0.5 * vitality]" (String) -> Returns: 5 (Number), assuming vitality is 30
+ * Extracts the final numerical result of a stat dynamically evaluating arbitrary nested equations.
+ * Supports execution injections (rollData parameter) substituting active ability roll contexts inside equations safely.
  */
- function getFormulaValue(statValue, combatant) {
+function getFormulaValue(statValue, evalContext, rollData = null) {
     if (typeof statValue === "number") return statValue;
     
-    if (typeof statValue === "string" && statValue.includes('[')) {
-        const formula = statValue.replace(/[\[\]]/g, '');
-        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => getStatValue(combatant, stat));
+    if (typeof statValue === "string") {
+        let formula = statValue.replace(/[\[\]]/g, '');
+        
+        // Contextually substitute `roll` and `over` if present strictly inside calculation scopes
+        if (/roll|over/i.test(formula)) {
+            if (!rollData || rollData.total === undefined) {
+                console.error("Formula requested dynamic 'roll' variables but context lacked pipeline data:", statValue);
+                return 0; // Safety measure for undefined roll contexts
+            }
+            const r = rollData.total;
+            const o = rollData.diff ? Math.max(0, r - rollData.diff) : 0;
+            
+            formula = formula.replace(/\b(roll)\b/gi, r).replace(/\b(over)\b/gi, o);
+        }
+
+        const evaluatedFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => getStatValue(evalContext, stat));
         
         if (!/^[0-9+\-*/().\s]+$/.test(evaluatedFormula)) {
-            console.error("Formula contains invalid characters:", evaluatedFormula);
-            return 0;
+            // Fallback for simple numbers disguised as strings that didn't match the regex replacements correctly
+            const parsed = parseFloat(statValue.replace(/[\[\]]/g, ''));
+            return isNaN(parsed) ? 0 : parsed;
         }
         
         return Math.round(new Function('return ' + evaluatedFormula)());
@@ -517,16 +584,14 @@ function useAbility(combatantId, ability, event) {
 
 /**
  * Generates the readable formula breakdown for the UI. Returns empty string if not applicable.
- * Example Input 1: "[10 + 0.5 * vitality]" -> Returns: "10 + 0.5 * żywotność"
- * Example Input 2: 15 -> Returns: "" (No formula to display)
- * Example Input 3: "[15]" -> Returns: "" (No formula to display)
+ * Translates explicit stat words to their respective description cases dynamically.
  */
 function getFormulaBreakdown(statValue) {
-    if (typeof statValue !== "string" || !statValue.includes('[')) return "";
+    if (typeof statValue !== "string") return "";
     
     const formula = statValue.replace(/[\[\]]/g, '');
     const displayFormula = formula.replace(/\b([a-zA-Z_]\w*)\b/g, (stat) => {
-        return t(stat.toLowerCase()).toLowerCase();
+        return t(stat.toLowerCase());
     });
     
     // Ignore formulas that are just plain numbers wrapped in brackets (e.g., "[-15]")
@@ -537,105 +602,80 @@ function getFormulaBreakdown(statValue) {
 
 // ABILITY SPECIFIC PARSERS (Used only for Ability Descriptions)
 
-// Handles dynamic range calculations parsing complex math patterns and explicit stat names.
-// Example Input 1 (X * roll stat): "2 * roll vitality"
-// Example Input 2 (Base - X * roll stat): "100 - 4 * roll agility"
-// Example Input 3 (X ^ over stat): "1.5 ^ over resilience"
-function evaluateDynamicAbilityRoll(formula, combatant, rollDifficulty) {
-    // Regex parsing structure: (Optional Base +/- ) Mult (* or ^) (roll or over) StatName
-    const match = formula.match(/^\s*(?:(\d+(?:\.\d+)?)\s*([+-])\s*)?(\d+(?:\.\d+)?)\s*([*^])\s*(roll|over)\s+([a-zA-Z_]+)\s*$/i);
-    if (!match) return null;
-
-    const hasBase = match[1] !== undefined;
-    const baseConst = hasBase ? parseFloat(match[1]) : 0;
-    const baseOp = match[2] || '+';
-    const factor = parseFloat(match[3]);
-    const mathOp = match[4];
-    const type = match[5].toLowerCase();
-    const stat = match[6].toLowerCase();
-
-    const statValue = getStatValue(combatant, stat);
-    const modValue = getModValue(combatant, stat);
-
-    let minParam, maxParam;
-
-    // Calculate absolute roll spectrum boundaries based on dice properties clamped to 1
-    const minRollResult = Math.max(1, 1 + modValue);
-    const maxRollResult = Math.max(1, statValue + modValue);
-
-    if (type === 'roll') {
-        minParam = minRollResult;
-        maxParam = maxRollResult;
-    } else if (type === 'over') {
-        const diff = (rollDifficulty && rollDifficulty !== "X") ? parseInt(rollDifficulty) : 0;
-        minParam = minRollResult > diff ? (minRollResult - diff) : 1;
-        maxParam = maxRollResult > diff ? (maxRollResult - diff) : 1;
-    }
-
-    // Mathematical formula runner execution closure
-    const compute = (param) => {
-        let v = 0;
-        if (mathOp === '*') v = factor * param;
-        else if (mathOp === '^') v = Math.pow(factor, param);
-        
-        if (hasBase) {
-            if (baseOp === '+') return baseConst + v;
-            if (baseOp === '-') return baseConst - v;
-        }
-        return v;
-    };
-
-    const val1 = Math.round(compute(minParam));
-    const val2 = Math.round(compute(maxParam));
-
-    // Sort bounds to return correct min-max layout sequence even with negative multipliers
-    return { 
-        min: Math.min(val1, val2), 
-        max: Math.max(val1, val2), 
-        formulaData: { hasBase, baseConst, baseOp, factor, mathOp, type, stat } 
-    };
-}
-
 /**
- * Specifically parses formulas embedded inside text blocks (e.g. descriptions).
- * Wraps calculated results in clickable HTML tags.
- * Example Input 1: "Deals [2 * roll strength] damage and [10 + 1 * vitality] frost damage."
- * Example Output 1: "Deals <strong ...>2-24</strong> <span ...>(2 * wynik siły)</span> damage and <strong ...>20</strong> <span ...>(10 + 1 * żywotności)</span> frost damage."
- * Example Input 2: "Deals [100 - 4 * roll agility] damage."
- * Example Output 2: "Deals <strong ...>56</strong> - <strong ...>92</strong> <span ...>(100 - 4 * wynik na zwinność)</span> damage."
+ * Extracts comprehensive math structures supporting infinite sums/subtractions directly replacing roll/over bounds.
+ * Wraps dynamic results (e.g., Min - Max) sequentially in fully functional format.
  */
-function parseFormulaTags(description, combatant, rollDifficulty) {
+ function parseFormulaTags(description, combatant, ability = null) {
     return description.replace(/\[(.*?)\]/g, (match, formula) => {
         try {
-            if (/roll|over/i.test(formula)) {
-                const resultData = evaluateDynamicAbilityRoll(formula, combatant, rollDifficulty);
-                
-                if (resultData) {
-                    const { min, max, formulaData } = resultData;
-                    
-                    let formulaText = '';
-                    // Fetch appropriate grammatical cases for placeholders
-                    const translatedRollStat = t('roll_' + formulaData.stat); 
-                    const translatedDescStat = t('desc_' + formulaData.stat);
-                    
-                    const prefix = formulaData.hasBase ? `${formulaData.baseConst} ${formulaData.baseOp} ` : '';
-                    
-                    // Format output syntax template linearly using localized translations and placeholders
-                    if (formulaData.type === 'roll') {
-                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ` + t('result_for').replace('{stat}', translatedRollStat);
-                    } else {
-                        formulaText = `${prefix}${formulaData.factor} ${formulaData.mathOp} ` + t('margin_of').replace('{stat}', translatedDescStat);
-                    }
+            const cleanFormula = formula.replace(/\s+/g, ' ').trim();
 
-                    return `<strong class="copyable-value" onclick="copyValue(${min}, event)">${min}</strong> - <strong class="copyable-value" onclick="copyValue(${max}, event)">${max}</strong> <span class="formula-display">(${formulaText})</span>`;
-                } else {
-                    return `<strong class="calculated-value">0</strong> - <strong class="calculated-value">0</strong>`;
+            // Intercept complex dynamically structured ability elements heavily depending on multiple parameters
+            if (/roll|over/i.test(cleanFormula)) {
+                if (!ability || !ability.roll) {
+                    alert(`Critical Parser Error: 'roll' or 'over' was passed inside brackets, but ability configuration lacks the mandatory 'roll' property parameter!`);
+                    throw new Error("Missing 'roll' property on requested ability formula resolution.");
                 }
+                if (/over/i.test(cleanFormula) && (!ability.difficulty || ability.difficulty === "X")) {
+                    alert(`Critical Parser Error: 'over' margin multiplier used, but ability configuration lacks a numeric 'difficulty' to cross-reference margin calculations.`);
+                    throw new Error("Missing 'difficulty' property parsing margin offset 'over' calculation.");
+                }
+
+                // Extrapolate bounds across potential multi-stat array inputs natively
+                let minRollSum = 0, maxRollSum = 0;
+                const statsArray = ability.roll.split('+').map(s => s.trim());
+                
+                statsArray.forEach(stat => {
+                    const base = getStatValue(combatant, stat);
+                    const mod = getModValue(combatant, stat);
+                    minRollSum += Math.max(1, 1 + mod); // Minimum physical dice boundary strictly defined per component
+                    maxRollSum += Math.max(1, base + mod); // Maximum boundary mapping
+                });
+                
+                const diff = parseInt(ability.difficulty) || 0;
+                const minOverSum = Math.max(0, minRollSum - diff);
+                const maxOverSum = Math.max(0, maxRollSum - diff);
+
+                // Math execution closure supporting deeply nested formulas replacing variables sequentially
+                const computeBound = (rVal, oVal) => {
+                    let ev = cleanFormula.replace(/\b(roll)\b/gi, rVal).replace(/\b(over)\b/gi, oVal);
+                    ev = ev.replace(/\b([a-zA-Z_]\w*)\b/g, (statName) => getStatValue(combatant, statName));
+                    if (!/^[0-9+\-*/().\s]+$/.test(ev)) return 0;
+                    return Math.round(new Function('return ' + ev)());
+                };
+
+                const val1 = computeBound(minRollSum, minOverSum);
+                const val2 = computeBound(maxRollSum, maxOverSum);
+                
+                let minFinal = Math.min(val1, val2);
+                let maxFinal = Math.max(val1, val2);
+
+                // Evaluate the vertex point (difficulty kink) for piecewise linearity to guarantee absolute extremes
+                if (diff > minRollSum && diff < maxRollSum) {
+                    const val3 = computeBound(diff, 0);
+                    minFinal = Math.min(minFinal, val3);
+                    maxFinal = Math.max(maxFinal, val3);
+                }
+
+                // Reconstruct breakdown utilizing abstract generic variables instead of explicitly mapped dynamic stats to prevent multi-dice clutter
+                const displayFormula = cleanFormula.replace(/\b([a-zA-Z_]\w*)\b/g, (term) => {
+                    const lTerm = term.toLowerCase();
+                    if (lTerm === 'roll') {
+                        return t('roll_result');
+                    } else if (lTerm === 'over') {
+                        return t('success_margin');
+                    } else {
+                        return t(lTerm);
+                    }
+                });
+
+                return `<strong class="copyable-value" onclick="copyValue(${minFinal}, event)">${minFinal}</strong> - <strong class="copyable-value" onclick="copyValue(${maxFinal}, event)">${maxFinal}</strong> <span class="formula-display">(${displayFormula})</span>`;
             }
 
-            // Standard fallback parsing engine block for flat mathematical expressions
-            const result = getFormulaValue(match, combatant);
-            const breakdown = getFormulaBreakdown(match);
+            // Standard fallback parsing engine block for flat mathematical static expressions without 'roll'/'over' elements
+            const result = getFormulaValue(cleanFormula, combatant);
+            const breakdown = getFormulaBreakdown(cleanFormula);
             
             let displayHtml = '';
             if (breakdown) {
@@ -644,7 +684,7 @@ function parseFormulaTags(description, combatant, rollDifficulty) {
 
             return `<strong class="copyable-value" onclick="copyValue(${result}, event)">${result}</strong>${displayHtml}`;
         } catch (e) {
-            console.error(`Cannot calculate formula: ${match}`, e);
+            console.error(`Cannot calculate formula block correctly: ${match}`, e);
             return match; 
         }
     });
@@ -654,25 +694,25 @@ function parseFormulaTags(description, combatant, rollDifficulty) {
 
 /**
  * Master wrapper used strictly for formatting text blocks (e.g., item or ability descriptions).
- * Sequentially applies property highlights, stat highlights, and formula calculations.
+ * Sequentially applies property highlights, stat highlights, and formula calculations passing active ability structures dynamically.
  */
-function parseDescription(description, combatant, rollDifficulty = null) {
+function parseDescription(description, combatant, ability = null) {
     if (typeof description === "number") return description;
 
     let processedDescription = parsePropertyTags(String(description));
     processedDescription = parseStatTags(processedDescription);
-    processedDescription = parseFormulaTags(processedDescription, combatant, rollDifficulty);
+    processedDescription = parseFormulaTags(processedDescription, combatant, ability);
 
     return processedDescription;
 }
 
-// Retrieves only the value of the statistic itself, without counting the additional bonus. Roll bonuses shouldn't affect ability damage in the [number * stat] convention
+// Retrieves only the value of the statistic itself, without counting the additional bonus.
 function getStatValue(combatant, stat) {
     if (!combatant || !combatant.stats) return 0;
     return parseInt(combatant.stats[stat]) || 0; 
 }
 
-// Retrieves the value of the stat bonus. Useful when calculating things dependent on the height of the roll or margin points
+// Retrieves the value of the stat bonus.
 function getModValue(combatant, stat) {
     if (!combatant || !combatant.stats) return 0;
     return parseInt(combatant.stats[`${stat}Mod`]) || 0; 

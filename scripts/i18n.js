@@ -124,8 +124,8 @@ const i18n = {
         'roll_reflex': 'refleks',
         'roll_resilience': 'nieustępliwość',
 
-        'result_for': 'rzut na {stat}',
-        'margin_of': 'przewaga {stat}',
+        'roll_result': 'wynik rzutu',
+        'success_margin': 'przewaga rzutu',
         'to_result': 'do wyniku {stat}',
 
         // --- COMBAT AND DAMAGE ---
@@ -190,6 +190,7 @@ const i18n = {
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
         'success_chance': 'Szansa na powodzenie:',
+        'condition_apply_chance': 'Szansa na nałożenie stanu:',
         'vs': 'VS',
         'action': 'Akcja',
         'action_dmg_mag': 'Zadanie obrażeń magicznych',
@@ -328,8 +329,8 @@ const i18n = {
         'roll_reflex': 'reflex',
         'roll_resilience': 'resilience',
 
-        'result_for': '{stat} roll',
-        'margin_of': '{stat} success margin',
+        'roll_result': 'roll result',
+        'success_margin': 'success margin',
         'to_result': 'to {stat} result',
 
         // --- COMBAT AND DAMAGE ---
@@ -367,6 +368,7 @@ const i18n = {
         'ability_difficulty': 'Difficulty:',
         'ability_cooldown': 'Cooldown:',
         'ability_success_chance': 'Success chance:',
+        'condition_apply_chance': 'Condition apply chance:',
         'gear': 'Gear',
         'other_items': 'Other items',
         'quantity': 'Quantity:',

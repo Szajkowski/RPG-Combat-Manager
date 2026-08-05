@@ -10,15 +10,15 @@ let lastMouseY = window.innerHeight / 2;
 let actionPipelineQueue = [];
 let currentPipelineContext = null;
 let currentActionTargets = []; // Stores IDs of targets clicked in the current action step to prevent multi-target duplicates
-let initialPipelineRoll = null; // Holds the ability initiation roll to be attached to the first log
+let initialPipelineRoll = null; // Holds the ability initiation roll block mapped array to be attached to the first log
 
 // Helper for asynchronous pauses between repeated actions. Used to block pipeline progression during WS sequences.
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // --- ACTION PIPELINE CORE ENGINE ---
 
-// Initializes the action queue and starts processing the first step
-function startActionPipeline(abilityUser, actions, ability, initialRollData = null, originEvent = null) {
+// Initializes the action queue, maps compound roll values globally, and starts processing the first step dynamically
+function startActionPipeline(abilityUser, actions, ability, initialRollData = null, originEvent = null, alreadyBroadcasted = false) {
     actionPipelineQueue = JSON.parse(JSON.stringify(actions));
     
     const startX = originEvent ? originEvent.clientX : window.innerWidth / 2;
@@ -29,13 +29,29 @@ function startActionPipeline(abilityUser, actions, ability, initialRollData = nu
         lastMouseY = startY;
     }
 
-    currentPipelineContext = { abilityUser, ability, startX, startY };
-    initialPipelineRoll = initialRollData;
+    // Capture the mathematical aggregate of the initial roll (if it exists) to dynamically substitute variables in downstream action formulas safely
+    let rollTotal = 0;
+    if (initialRollData && Array.isArray(initialRollData)) {
+        rollTotal = initialRollData.reduce((sum, r) => sum + r.result, 0);
+    } else if (initialRollData && initialRollData.result !== undefined) {
+        rollTotal = initialRollData.result;
+    }
+
+    currentPipelineContext = { 
+        abilityUser, 
+        ability, 
+        startX, 
+        startY,
+        rollTotal,
+        difficulty: ability ? (parseInt(ability.difficulty) || null) : null
+    };
+    
+    initialPipelineRoll = alreadyBroadcasted ? null : initialRollData;
     
     processNextPipelineAction();
 }
 
-// Consumes the initial roll exactly once so it doesn't duplicate in subsequent actions
+// Consumes the initial roll structure exactly once so it doesn't duplicate visually or mathematically in subsequent independent actions
 function consumeInitialRoll() {
     if (initialPipelineRoll) {
         const roll = initialPipelineRoll;
@@ -333,12 +349,20 @@ function handleTargetingHoverEnter(e, targetId) {
     const tooltipText = document.querySelector('#targeting-tooltip .chance-text');
     if (!tooltipText) return;
 
-    const chance = calculateActionSuccessChance(targetingData.attacker, target, targetingData.payload);
-    if (chance !== 100 || targetingData.payload.type === 'damage') {
-        tooltipText.textContent = `${t('success_chance')} ${chance}%`;
-    } else {
-        tooltipText.textContent = target.uniqueName;
+    const chances = calculateActionSuccessChance(targetingData.attacker, target, targetingData.payload);
+    let text = '';
+    
+    if (chances.main !== 100 || targetingData.payload.type === 'damage') {
+        text += `${t('success_chance')} ${chances.main}%<br>`;
     }
+    if (chances.condition !== undefined) {
+        text += `${t('condition_apply_chance')} ${chances.condition}%<br>`;
+    }
+
+    if (text === '') text = target.uniqueName;
+    else text = text.replace(/<br>$/, ''); // Remove trailing line break
+
+    tooltipText.innerHTML = text;
 }
 
 function handleTargetingHoverLeave(e) {
@@ -427,8 +451,8 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
         }
         
         if (evalRes.success) {
-            if (payload.type === 'heal') await resolveHealAction(target, payload.healType, payload.value, payload.repeat, attacker, skipSync, payload.stepId);
-            else if (payload.type === 'armor') await resolveArmorAction(target, payload.armorType, payload.value, String(payload.value).includes('%'), payload.repeat, attacker, skipSync, payload.stepId);
+            if (payload.type === 'heal') await resolveHealAction(target, payload, attacker, skipSync);
+            else if (payload.type === 'armor') await resolveArmorAction(target, payload, attacker, skipSync);
             
             // Attach explicitly linked target conditions
             if (payload.conditions) {

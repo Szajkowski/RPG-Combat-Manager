@@ -3,30 +3,69 @@
 // Helper explicitly evaluating whether an armor action is globally beneficial 
 // (Throws an explicit error preventing silent failures if logic implies mixed stats without manual isBeneficial flag)
 function getArmorActionBeneficialState(payload, attacker) {
+    let hasPositive = false;
+    let hasNegative = false;
+    let hasAny = false;
+
+    // Fetch pipeline context to calculate dynamic roll-based formula values accurately
+    let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
+        ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
+
+    const checkVal = (valStr) => {
+        if (valStr !== undefined && valStr !== null && valStr !== '') {
+            hasAny = true;
+            let val = getFormulaValue(String(valStr).replace(/%/g, ''), attacker, rollData);
+            if (val > 0) hasPositive = true;
+            if (val < 0) hasNegative = true;
+        }
+    };
+
+    checkVal(payload.physArmorValue);
+    checkVal(payload.physArmorValuePerc);
+    checkVal(payload.magArmorValue);
+    checkVal(payload.magArmorValuePerc);
+
+    // This validation MUST run before the early return
+    if (!hasAny) {
+        alert("Critical error: Armor action requires at least one value field (physArmorValue, physArmorValuePerc, magArmorValue, magArmorValuePerc).");
+        throw new Error("Missing armor value fields.");
+    }
+
     if (payload.isBeneficial !== undefined) return payload.isBeneficial;
-    
+
+    if (hasPositive && hasNegative) {
+        alert("Critical logic error: Armor action applies mixed stats (+ and -). Requires isBeneficial flag!");
+        throw new Error("Armor action applies mixed stats (+ and -). Requires isBeneficial flag!");
+    }
+    if (!hasPositive && !hasNegative) {
+        alert("Critical logic error: Armor action evaluates to zero. Requires isBeneficial flag!");
+        throw new Error("Armor action evaluates to zero. Requires isBeneficial flag!");
+    }
+
+    return hasPositive;
+}
+
+// Helper explicitly evaluating whether a condition action is globally beneficial 
+function getConditionActionBeneficialState(payload) {
+    if (payload.isBeneficial !== undefined) return payload.isBeneficial;
+
+    if (!payload.conditions || payload.conditions.length === 0) return true; // Default to true without error if empty
+
     let hasPositive = false;
     let hasNegative = false;
 
-    // Iterate over keys to cover standard 'value' and possible future extensions like 'valueFlat', 'valuePerc'
-    Object.keys(payload).forEach(key => {
-        if (key.toLowerCase().includes('value') || key.toLowerCase().includes('armor')) {
-            const valStr = String(payload[key]).replace(/%/g, '');
-            if (valStr && valStr !== 'undefined' && valStr !== 'null') {
-                let val = getFormulaValue(valStr, attacker);
-                if (val > 0) hasPositive = true;
-                if (val < 0) hasNegative = true;
-            }
-        }
+    payload.conditions.forEach(cond => {
+        if (cond.isBeneficial === true) hasPositive = true;
+        if (cond.isBeneficial === false) hasNegative = true;
     });
 
     if (hasPositive && hasNegative) {
-        alert("Błąd krytyczny logiki: Akcja Armor aplikuje mieszane statystyki (+ i -). Wymagana jest flaga isBeneficial!");
-        throw new Error("Akcja Armor aplikuje mieszane statystyki (+ i -). Wymagana jest flaga isBeneficial!");
+        alert("Critical logic error: Condition action has mixed conditions (good and bad). Requires isBeneficial flag on the action!");
+        throw new Error("Condition action has mixed conditions. Requires isBeneficial flag.");
     }
     if (!hasPositive && !hasNegative) {
-        alert("Błąd krytyczny logiki: Akcja Armor wychodzi na zerowe wartości bazowe. Wymagana flaga isBeneficial!");
-        throw new Error("Akcja Armor nie zmieniła statystyk na plus ani minus (0). Wymagana flaga isBeneficial!");
+        alert("Critical logic error: Condition action conditions lack isBeneficial flags. Requires isBeneficial flag on the action!");
+        throw new Error("Condition action conditions lack isBeneficial flags. Requires isBeneficial flag on the action.");
     }
 
     return hasPositive;
@@ -34,7 +73,7 @@ function getArmorActionBeneficialState(payload, attacker) {
 
 // Dynamically calculates compound success probability combining Base Hit + Defenses/Checks (forceRoll & forceRollVS)
 function calculateActionSuccessChance(attacker, target, payload) {
-    if (payload.isGmAction) return 100; // Directly skip logical bounds for GM actions
+    if (payload.isGmAction) return { main: 100 }; // Directly skip logical bounds for GM actions
 
     // 1. Base Success Probability (Only relevant for Damage Types)
     let baseSuccessChance = 1.0;
@@ -77,73 +116,44 @@ function calculateActionSuccessChance(attacker, target, payload) {
         else if (hasForceRollVS) targetPassChance = pPassVS;
     }
 
-    // 3. Calculate Final Success Chance
-    let finalSuccessChance = 1.0;
+    // 3. Calculate Final Success Chances (Split into Main Action and Conditional Riders)
+    let result = { main: Math.round(baseSuccessChance * 100) };
+
     if (hasForceRoll || hasForceRollVS) {
-        if (payload.type === 'damage' || payload.type === 'condition') {
-            // For damage/condition, the action fires solely based on base chance. Forced rolls only dictate specific riders.
-            finalSuccessChance = baseSuccessChance;
-        } else {
-            let isBeneficial = false;
-            if (payload.type === 'heal') {
-                isBeneficial = true;
-            } else if (payload.type === 'armor') {
-                isBeneficial = getArmorActionBeneficialState(payload, attacker);
+        if (payload.type === 'damage') {
+            // Main damage ignores forced rolls for execution chance
+            if (payload.conditions && payload.conditions.length > 0) {
+                let isBeneficial = getConditionActionBeneficialState(payload);
+                let condChance = isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance);
+                result.condition = Math.round(condChance * 100);
             }
+        } else if (payload.type === 'heal') {
+            result.main = 100; // Heal always hits
+            if (payload.conditions && payload.conditions.length > 0) {
+                let isBeneficial = getConditionActionBeneficialState(payload);
+                let condChance = isBeneficial ? targetPassChance : (1.0 - targetPassChance);
+                result.condition = Math.round(condChance * 100);
+            }
+        } else if (payload.type === 'armor') {
+            let isBeneficial = getArmorActionBeneficialState(payload, attacker);
+            result.main = Math.round((isBeneficial ? targetPassChance : (1.0 - targetPassChance)) * 100);
             
-            if (isBeneficial) {
-                // Beneficial actions require target to PASS the checks to receive the effect
-                finalSuccessChance = targetPassChance;
-            } else {
-                // Offensive actions require target to FAIL the checks to receive the negative effect
-                finalSuccessChance = baseSuccessChance * (1.0 - targetPassChance);
+            if (payload.conditions && payload.conditions.length > 0) {
+                let isCondBeneficial = getConditionActionBeneficialState(payload);
+                result.condition = Math.round((isCondBeneficial ? targetPassChance : (1.0 - targetPassChance)) * 100);
             }
+        } else if (payload.type === 'condition') {
+            // For pure condition actions, main chance reflects the tooltip condition success chance
+            let isBeneficial = getConditionActionBeneficialState(payload);
+            result.main = Math.round((isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance)) * 100);
         }
     } else {
-        // No extra checks, just base success chance (which is inherently 1.0 for non-damage)
-        finalSuccessChance = baseSuccessChance;
-    }
-
-    return Math.round(finalSuccessChance * 100);
-}
-
-// Evaluates mathematical percentage of Attacker strictly beating or tying Defender
-function calculateOpposedChance(attacker, defender, attStatName, defStatName) {
-    const attStat = parseInt(attacker.stats[attStatName]) || 0;
-    const attMod = parseInt(attacker.stats[`${attStatName}Mod`]) || 0;
-    const defStat = parseInt(defender.stats[defStatName]) || 0;
-    const defMod = parseInt(defender.stats[`${defStatName}Mod`]) || 0;
-
-    if (attStat <= 0) return 0;
-    if (defStat <= 0) return 100;
-
-    let wins = 0;
-    let total = attStat * defStat;
-
-    for (let a = 1; a <= attStat; a++) {
-        let aRes = Math.max(1, a + attMod);
-        for (let d = 1; d <= defStat; d++) {
-            let dRes = Math.max(1, d + defMod);
-            // Tie breaks go to the initiator
-            if (aRes >= dRes) wins++;
+        if (payload.type === 'heal' || payload.type === 'armor' || payload.type === 'condition') {
+            result.main = 100;
         }
     }
-    return Math.round((wins / total) * 100);
-}
 
-// Evaluates mathematical percentage of an entity rolling over a static threshold
-function calculateStaticChance(defender, statName, difficulty) {
-    const statBase = parseInt(defender.stats[statName]) || 0;
-    const statMod = parseInt(defender.stats[`${statName}Mod`]) || 0;
-
-    if (statBase <= 0) return 0;
-
-    let wins = 0;
-    for (let d = 1; d <= statBase; d++) {
-        let res = Math.max(1, d + statMod);
-        if (res >= difficulty) wins++;
-    }
-    return Math.round((wins / statBase) * 100);
+    return result;
 }
 
 // Universal dice engine bundling Base Attacks and Defense/Requirement checks
@@ -154,9 +164,13 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     
     if (!payload.cachedAttackerRolls) payload.cachedAttackerRolls = {};
 
-    // Safely insert the main ability roll at the beginning of the FIRST executed action's log block
+    // Safely insert the main ability roll(s) at the beginning of the FIRST executed action's log block
     let initRoll = consumeRollFn ? consumeRollFn() : null;
-    if (initRoll) attackerSingleRolls.push(initRoll);
+    if (initRoll) {
+        // Handle array of rolls natively if it was a multi-stat ability roll
+        if (Array.isArray(initRoll)) attackerSingleRolls.push(...initRoll);
+        else attackerSingleRolls.push(initRoll);
+    }
 
     // GM Action explicitly overrides and skips the Hit vs Dodge Phase and Forced Rolls entirely
     if (payload.isGmAction) {
@@ -237,17 +251,14 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     let subTypeFinal = null;
 
     if (hasForceRoll || hasForceRollVS) {
-        if (payload.type === 'damage') {
+        // Damage, heal, and condition main action execution depends purely on base hit (100% for non-damage).
+        // The forced rolls will be handled by processAndSendConditions for individual states.
+        if (payload.type === 'damage' || payload.type === 'heal' || payload.type === 'condition') {
             actionSuccess = isBaseSuccess; 
-        } else if (payload.type === 'heal') {
-            actionSuccess = targetPassedChecks;
-            if (!actionSuccess) subTypeFinal = 'miss'; // e.g., failed to catch the heal
         } else if (payload.type === 'armor') {
             let isArmorBeneficial = getArmorActionBeneficialState(payload, attacker);
             actionSuccess = (isArmorBeneficial === targetPassedChecks);
             if (!actionSuccess) subTypeFinal = isArmorBeneficial ? 'miss' : 'resist';
-        } else if (payload.type === 'condition') {
-            actionSuccess = isBaseSuccess; 
         }
     } else {
         actionSuccess = isBaseSuccess;
@@ -266,9 +277,12 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
 // Specific logic block evaluating attack payload execution post-roll processing
 async function resolveDamageAction(attacker, target, payload, evalRes, skipSync = false) {
-    const { value: damageStr, type, isPercMode } = payload;
     const repeats = payload.repeat || 1;
     let finalDamageType = payload.damageType; 
+
+    // Retrieve active pipeline logic variables containing roll data to evaluate formulas securely
+    let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
+        ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
 
     if (evalRes.success) {
         let stepValues = [];
@@ -281,13 +295,13 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         for (let i = 0; i < repeats; i++) {
             // Original damage computation & mitigation
             let damage = 0;
-            let effectiveDamageStr = String(damageStr);
             
-            if (isPercMode || effectiveDamageStr.endsWith('%')) { 
-                const percent = parseInt(effectiveDamageStr.replace('%', ''));
+            if (payload.valuePerc !== undefined) { 
+                const percent = parseInt(payload.valuePerc); 
                 damage = Math.ceil((target.stats.maxHp * percent) / 100); 
-            } else {
-                damage = getFormulaValue(effectiveDamageStr, attacker);
+            } else if (payload.value !== undefined) {
+                // Injects rollData into equation evaluation
+                damage = getFormulaValue(payload.value, attacker, rollData);
             }
 
             let damageAfterArmor = damage;
@@ -376,30 +390,33 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
 }
 
 // Core function preparing heal steps and compiling payload for remote network playback
-// Utilizes attacker context if provided, otherwise falls back to the target combatant's stats
-async function resolveHealAction(combatant, type, healValueStr, repeats = 1, attacker = null, skipSync = false, stepId = null) {
+async function resolveHealAction(combatant, payload, attacker = null, skipSync = false) {
     // Absolute prohibition of healing dead characters until a specific resurrect mechanic is added
     if (combatant.isDead) return;
 
+    let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
+        ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
+
+    const type = payload.healType || 'normal';
     let stepValues = [];
     let tempHp = combatant.stats.hp;
     let evalContext = attacker || combatant;
+    let repeats = payload.repeat || 1;
+    let stepId = payload.stepId;
 
     for (let i = 0; i < repeats; i++) {
         let healAmount = 0;
-        let effectiveHealStr = String(healValueStr);
-        let isPerc = effectiveHealStr.endsWith('%'); 
         
-        if (isPerc) {
-            const percent = parseInt(effectiveHealStr.replace('%', ''));
+        if (payload.valuePerc !== undefined) {
+            const percent = parseInt(payload.valuePerc);
             healAmount = Math.ceil((combatant.stats.maxHp * percent) / 100);
-        } else {
-            healAmount = getFormulaValue(effectiveHealStr, evalContext);
+        } else if (payload.value !== undefined) {
+            healAmount = getFormulaValue(payload.value, evalContext, rollData);
         }
 
         if (type === 'threshold') {
-            if (isPerc) { 
-                const percent = parseInt(effectiveHealStr.replace('%', ''));
+            if (payload.valuePerc !== undefined) { 
+                const percent = parseInt(payload.valuePerc);
                 const thresholdHp = Math.floor((combatant.stats.maxHp * percent) / 100);
                 if (tempHp < thresholdHp) tempHp = thresholdHp;
                 else break; 
@@ -433,62 +450,106 @@ async function resolveHealAction(combatant, type, healValueStr, repeats = 1, att
     }
 }
 
-// Prepares armor modifications steps and delegates network playback execution
-// Utilizes attacker context if provided, otherwise falls back to the target combatant's stats
-async function resolveArmorAction(combatant, type, parsedValue, isPercentage, repeats = 1, attacker = null, skipSync = false, stepId = null) {
-    let cleanValStr = String(parsedValue);
-    let stepValues = [];
+// Prepares armor modifications steps and delegates network playback execution sequentially bridging multiple target properties 
+async function resolveArmorAction(combatant, payload, attacker = null, skipSync = false) {
     let evalContext = attacker || combatant;
-    
-    let initialEval = isPercentage ? parseInt(cleanValStr.replace('%', '')) : getFormulaValue(cleanValStr, evalContext);
-    let isAdding = initialEval > 0;
-    
-    let tempFlat = parseInt(type === 'phys' ? combatant.stats.physArmor : combatant.stats.magArmor) || 0;
-    let tempPercent = parseInt(type === 'phys' ? combatant.stats.physArmorMod : combatant.stats.magArmorMod) || 0;
+    let freshCombatant = activeCombatants.find(c => c.id === combatant.id);
+    if (!freshCombatant) return;
 
+    let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
+        ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
+
+    let isAdding = getArmorActionBeneficialState(payload, evalContext);
+    let repeats = payload.repeat || 1;
+    let stepValues = []; 
+    
+    // Dynamic map to process flat and percentage changes without code duplication
+    const armorConfigs = [
+        { payloadKey: 'physArmorValue', stepKey: 'physFlat', stat: 'physArmor', isPerc: false, isPhys: true },
+        { payloadKey: 'physArmorValuePerc', stepKey: 'physPerc', stat: 'physArmorMod', isPerc: true, isPhys: true },
+        { payloadKey: 'magArmorValue', stepKey: 'magFlat', stat: 'magArmor', isPerc: false, isPhys: false },
+        { payloadKey: 'magArmorValuePerc', stepKey: 'magPerc', stat: 'magArmorMod', isPerc: true, isPhys: false }
+    ];
+
+    // Filter down to only the properties that were actually passed in the payload
+    const activeConfigs = armorConfigs.filter(cfg => 
+        payload[cfg.payloadKey] !== undefined && payload[cfg.payloadKey] !== null && payload[cfg.payloadKey] !== ''
+    );
+
+    if (activeConfigs.length === 0) return;
+
+    // Extract current base values once
+    let currentVals = {
+        physArmor: parseInt(freshCombatant.stats.physArmor) || 0,
+        physArmorMod: parseInt(freshCombatant.stats.physArmorMod) || 0,
+        magArmor: parseInt(freshCombatant.stats.magArmor) || 0,
+        magArmorMod: parseInt(freshCombatant.stats.magArmorMod) || 0
+    };
+
+    // Determine if we need the mixed sound (evaluating across all active configs)
+    let hasPhys = activeConfigs.some(cfg => cfg.isPhys);
+    let hasMag = activeConfigs.some(cfg => !cfg.isPhys);
+    let hasPositive = false;
+    let hasNegative = false;
+
+    activeConfigs.forEach(cfg => {
+        let val = getFormulaValue(String(payload[cfg.payloadKey]).replace(/%/g, ''), evalContext, rollData);
+        if (val > 0) hasPositive = true;
+        if (val < 0) hasNegative = true;
+    });
+
+    let isMixedSound = (hasPhys && hasMag) || (hasPositive && hasNegative);
+
+    // Run the primary compound math loop for any active repeats
     for (let i = 0; i < repeats; i++) {
-        let finalValue = isPercentage ? parseInt(cleanValStr.replace('%', '')) : getFormulaValue(cleanValStr, evalContext);
-
-        // Apply changes linearly for flat, and exponentially/multiplicatively for percentage states
-        if (isPercentage) { 
-            let damageMult = 1 - (tempPercent / 100);
+        let stepState = {};
+        
+        activeConfigs.forEach(cfg => {
+            let formulaVal = getFormulaValue(String(payload[cfg.payloadKey]).replace(/%/g, ''), evalContext, rollData);
             
-            // Apply dynamic shift matching the compound logic from calculateAdditionalStatsBonuses
-            const factor = finalValue > 0 ? (1 - finalValue / 100) : (1 + Math.abs(finalValue) / 100);
-            damageMult *= factor;
-
-            let finalPercent = Math.round((1 - damageMult) * 100);
-            // Apply an upper boundary cap of 100% to percentage armor mitigation values
-            if (finalPercent > 100) finalPercent = 100;
-
-            tempPercent = finalPercent;
-            stepValues.push(`${tempPercent}%`);
-        } else {
-            // Handle flat value (remains fully linear and unconstrained)
-            tempFlat += finalValue;
-            stepValues.push(tempFlat);
-        }
+            if (cfg.isPerc) {
+                let damageMult = 1 - (currentVals[cfg.stat] / 100);
+                const factor = formulaVal > 0 ? (1 - formulaVal / 100) : (1 + Math.abs(formulaVal) / 100);
+                damageMult *= factor;
+                currentVals[cfg.stat] = Math.min(Math.round((1 - damageMult) * 100), 100);
+            } else {
+                currentVals[cfg.stat] += formulaVal;
+            }
+            
+            // Map the calculated value directly to the key expected by the visual sequencer
+            stepState[cfg.stepKey] = currentVals[cfg.stat];
+        });
+        
+        stepValues.push(stepState);
     }
 
     if (typeof syncPlayActionSequence === 'function') {
-        syncPlayActionSequence({ targetId: combatant.id, actionType: 'armor', subType: type, repeats: repeats, isAdding: isAdding, stepValues: stepValues, stepId: stepId, isAuto: skipSync });
+        syncPlayActionSequence({ 
+            targetId: freshCombatant.id, 
+            actionType: 'armor', 
+            repeats: repeats, 
+            isAdding: isAdding, 
+            stepValues: stepValues, 
+            stepId: payload.stepId, 
+            isAuto: skipSync,
+            hasPhysFlat: payload.physArmorValue !== undefined,
+            hasPhysPerc: payload.physArmorValuePerc !== undefined,
+            hasMagFlat: payload.magArmorValue !== undefined,
+            hasMagPerc: payload.magArmorValuePerc !== undefined,
+            isMixedSound 
+        });
         await delay((repeats * 300) + 100);
     }
-    
-    // Ensure state is perfectly finalized locally
+
+    // Finalize state locally mapping back from the last step state
     if (stepValues.length > 0) {
-        // FIX: Pull fresh reference
-        const freshCombatant = activeCombatants.find(c => c.id === combatant.id);
-        if (freshCombatant) {
-            const finalVal = stepValues[stepValues.length - 1];
-            if (type === 'phys') {
-                if (isPercentage) freshCombatant.stats.physArmorMod = finalVal;
-                else freshCombatant.stats.physArmor = finalVal;
-            } else {
-                if (isPercentage) freshCombatant.stats.magArmorMod = finalVal;
-                else freshCombatant.stats.magArmor = finalVal;
-            }
-            if (!skipSync) syncUpdateCombatant(freshCombatant); 
-        }
+        let finalVal = stepValues[stepValues.length - 1];
+        
+        if (finalVal.physFlat !== undefined) freshCombatant.stats.physArmor = finalVal.physFlat;
+        if (finalVal.physPerc !== undefined) freshCombatant.stats.physArmorMod = `${finalVal.physPerc}%`;
+        if (finalVal.magFlat !== undefined) freshCombatant.stats.magArmor = finalVal.magFlat;
+        if (finalVal.magPerc !== undefined) freshCombatant.stats.magArmorMod = `${finalVal.magPerc}%`;
+        
+        if (!skipSync) syncUpdateCombatant(freshCombatant);
     }
 }

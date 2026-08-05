@@ -160,7 +160,7 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
 
     if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
         sourceData.conditions.forEach(cond => {
-            // STRICT REQUIREMENT FOR ISBENEFICIAL FLAG (ONLY IF ACTION FORCES DEFENSIVE ROLLS)
+            // STRICT REQUIREMENT FOR ISBENEFICIAL FLAG (ONLY IF ACTION FORCES ROLLS)
             if (actionHasForcedRolls && cond.isBeneficial === undefined) {
                 alert(`Critical Error: Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag (required for actions with forced rolls)!`);
                 throw new Error(`Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag!`);
