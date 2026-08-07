@@ -156,17 +156,9 @@ function buildConditionObject(invoker, target, name, description, duration, sour
 // Centralized helper to process, batch, and broadcast conditions from either the new array format or legacy single format
 function processAndSendConditions(invoker, target, sourceData, fallbackName, defaultSource = "self", evalData = null) {
     let newConditions = [];
-    const actionHasForcedRolls = !!(sourceData.forceRoll || sourceData.forceRollVS);
 
     if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
         for (const cond of sourceData.conditions) {
-            // STRICT REQUIREMENT FOR ISBENEFICIAL FLAG (ONLY IF ACTION FORCES ROLLS)
-            if (actionHasForcedRolls && cond.isBeneficial === undefined) {
-                showAlertDialog(t('error_condition_missing_flag').replace('{name}', cond.conditionName || cond.name || fallbackName));
-                console.error(`Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag!`);
-                return; // Gracefully abort processing this action entirely rather than crashing
-            }
-
             // Evaluates if this specific condition should apply based on its isBeneficial flag and force roll results
             if (evalData && evalData.hasForcedRolls) {
                 if (cond.isBeneficial !== evalData.targetPassedChecks) {
@@ -182,7 +174,7 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
             let condTarget = cond.target !== undefined ? cond.target : target;
             
             // Resolves "self" tags globally to explicitly clear the UI targeting parameter internally
-            if (condTarget === 'self' || sourceData.target === 'self') {
+            if (String(condTarget).toLowerCase() === 'self' || String(sourceData.target).toLowerCase() === 'self') {
                 condTarget = null; 
             }
             

@@ -71,6 +71,25 @@ async function processNextPipelineAction() {
     }
 
     const currentAction = actionPipelineQueue[0];
+    
+    // Validate the payload structurally before attempting to process logic
+    let rollData = currentPipelineContext ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
+    const validationError = validateActionPayload(currentAction, currentPipelineContext.abilityUser, rollData);
+    
+    if (validationError) {
+        console.error("Action validation failed:", validationError);
+        
+        // Wait for the user to confirm the error dialog before skipping the action
+        await showAlertDialog(validationError); 
+        
+        // Discard the initial roll if we skipped the first action entirely to prevent attaching it to later unrelated actions
+        consumeInitialRoll(); 
+        
+        // Skip the broken action and continue with the pipeline
+        actionPipelineQueue.shift(); 
+        return processNextPipelineAction(); 
+    }
+
     currentActionTargets = []; // Reset targets list for the new action block
     currentAction.stepId = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7); 
 

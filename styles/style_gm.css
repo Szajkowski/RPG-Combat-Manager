@@ -1152,6 +1152,7 @@ body.targeting-mode .character-token { transform: none !important; }
     margin-top: 4px;
 }
 
+/* --- CUSTOM MODALS --- */
 .custom-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(40, 42, 54, 0.85); z-index: 9999;
