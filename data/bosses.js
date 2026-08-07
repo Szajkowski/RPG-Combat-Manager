@@ -92,28 +92,33 @@ var bosses = {
         abilities: [
             {
                 name: "Orientuj się",
-                description: "[prop_reaction] [prop_undodgeable] Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
-                cooldown: 0
+                description: "Jeśli gracz będzie potrzebował więcej niż 8 sekund, aby zdecydować się co robi, zostanie postrzelony za [100] obrażeń",
+                properties: ["prop_reaction", "prop_undodgeable"],
+                cooldown: 0,
             },
             {
                 name: "Dodatkowa akcja",
-                description: "[prop_extra_turn] Postać porusza się dwa razy. Raz refleksem równym 100%, drugi raz z równym 50%.",
+                description: "",
+                properties: ["prop_extra_turn"],
             },
             {
                 name: "Niepokonany",
-                description: "[prop_reaction] Blokuje jedną udaną próbę ogłuszenia.",
+                description: "Blokuje jedną udaną próbę ogłuszenia.",
+                properties: ["prop_reaction"],
                 cooldown: 5
             },
             {
                 name: "Na dobitkę",
-                description: "[prop_undodgeable] Strzela dwa razy w tego samego przeciwnika.",
+                description: "Strzela dwa razy w tego samego przeciwnika.",
+                properties: ["prop_undodgeable"],
                 roll: "accuracy",
                 difficulty: 15,
                 cooldown: 1
             },
             {
                 name: "Rykoszet",
-                description: "[prop_undodgeable] Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika.",
+                description: "Strzela w przeciwnika. Jeśli trafi, pocisk odbija się i leci w najbliższego przeciwnika.",
+                properties: ["prop_undodgeable"],
                 roll: "accuracy",
                 difficulty: 10,
                 cooldown: 1

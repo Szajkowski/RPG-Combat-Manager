@@ -1,43 +1,70 @@
 // --- MATH & CHANCE CALCULATION ENGINES ---
 
-// Evaluates mathematical percentage of Attacker strictly beating or tying Defender
-function calculateOpposedChance(attacker, defender, attStatName, defStatName) {
-    const attBase = parseInt(attacker.stats[attStatName]) || 0;
-    const defBase = parseInt(defender.stats[defStatName]) || 0;
-    
-    if (attBase <= 0) return 0;
-    if (defBase <= 0) return 100;
+// Helper to calculate the exact mathematical probability distribution of multiple combined dice
+function getDiceDistribution(combatant, statString) {
+    const stats = parseRollStats(statString);
+    let dp = { 0: 1 }; // Map of sum -> combinations
+    let totalCombos = 1;
 
-    const attMod = parseInt(attacker.stats[`${attStatName}Mod`]) || 0;
-    const defMod = parseInt(defender.stats[`${defStatName}Mod`]) || 0;
-    
+    for (let stat of stats) {
+        const base = parseInt(combatant.stats[stat]) || 0;
+        if (base <= 0) return null; // If any stat is missing, the roll is invalid
+        const mod = parseInt(combatant.stats[`${stat}Mod`]) || 0;
+        totalCombos *= base;
+
+        let nextDp = {};
+        for (let s in dp) {
+            const currentSum = parseInt(s);
+            const combos = dp[s];
+
+            for (let roll = 1; roll <= base; roll++) {
+                // Minimum value of 1 applied strictly per die
+                const finalDieResult = Math.max(1, roll + mod);
+                const newSum = currentSum + finalDieResult;
+                nextDp[newSum] = (nextDp[newSum] || 0) + combos;
+            }
+        }
+        dp = nextDp;
+    }
+    return { dp, totalCombos };
+}
+
+// Evaluates mathematical percentage of Attacker strictly beating or tying Defender (calculating exact mathematical permutations)
+function calculateOpposedChance(attacker, defender, attStatString, defStatString) {
+    const attDist = getDiceDistribution(attacker, attStatString);
+    if (!attDist) return 0; // Attacker auto fails if missing stat
+    const defDist = getDiceDistribution(defender, defStatString);
+    if (!defDist) return 100; // Defender auto fails (attacker wins) if missing stat
+
     let wins = 0;
-    let total = attBase * defBase;
-    
-    for (let a = 1; a <= attBase; a++) {
-        let attRes = Math.max(1, a + attMod);
-        for (let d = 1; d <= defBase; d++) {
-            let defRes = Math.max(1, d + defMod);
-            // Tie goes to the attacker
-            if (attRes >= defRes) wins++;
+    for (let aSum in attDist.dp) {
+        const aVal = parseInt(aSum);
+        const aCombos = attDist.dp[aSum];
+        for (let dSum in defDist.dp) {
+            const dVal = parseInt(dSum);
+            const dCombos = defDist.dp[dSum];
+            
+            if (aVal >= dVal) { // Tie goes to attacker
+                wins += (aCombos * dCombos);
+            }
         }
     }
-    
-    return Math.floor((wins / total) * 100);
+    const totalPossible = attDist.totalCombos * defDist.totalCombos;
+    return Math.floor((wins / totalPossible) * 100);
 }
 
 // Evaluates mathematical percentage of an entity rolling over a static threshold
-function calculateStaticChance(target, statName, difficulty) {
-    const base = parseInt(target.stats[statName]) || 0;
-    if (base <= 0) return 0;
-    const mod = parseInt(target.stats[`${statName}Mod`]) || 0;
-    
+function calculateStaticChance(target, statString, difficulty) {
+    const dist = getDiceDistribution(target, statString);
+    if (!dist) return 0;
+
     let wins = 0;
-    for (let i = 1; i <= base; i++) {
-        let res = Math.max(1, i + mod);
-        if (res >= difficulty) wins++;
+    for (let sum in dist.dp) {
+        if (parseInt(sum) >= difficulty) {
+            wins += dist.dp[sum];
+        }
     }
-    return Math.floor((wins / base) * 100);
+    return Math.floor((wins / dist.totalCombos) * 100);
 }
 
 // Unified validation function checking for all critical logic errors in an action payload before execution
@@ -71,7 +98,7 @@ function validateActionPayload(payload, attacker, rollData) {
 
         if (!hasAny) return t('error_armor_missing_vals');
         
-        if (payload.isBeneficial === undefined) {
+        if (payload.isActionBeneficial === undefined) {
             if (hasPositive && hasNegative) return t('error_armor_mixed_stats');
             if (!hasPositive && !hasNegative) return t('error_armor_zero_stats');
         }
@@ -89,16 +116,17 @@ function validateActionPayload(payload, attacker, rollData) {
 
         for (const cond of payload.conditions) {
             // Forced rolls require conditions to explicitly declare if they are beneficial
-            if (actionHasForcedRolls && cond.isBeneficial === undefined) {
+            if (actionHasForcedRolls && cond.conditionIsBeneficial === undefined) {
                 let fallbackName = cond.conditionName || 'Condition';
                 return t('error_condition_missing_flag').replace('{name}', fallbackName);
             }
-            if (cond.isBeneficial === true) hasPositive = true;
-            if (cond.isBeneficial === false) hasNegative = true;
+            if (cond.conditionIsBeneficial === true) hasPositive = true;
+            if (cond.conditionIsBeneficial === false) hasNegative = true;
         }
 
-        if (payload.isBeneficial === undefined) {
-            if (hasPositive && hasNegative) return t('error_condition_mixed');
+        // Require the new clarifying flag if there are forced rolls AND mixed conditions
+        if (actionHasForcedRolls && hasPositive && hasNegative && payload.isConditionSuccessBeneficial === undefined) {
+            return t('error_condition_mixed');
         }
     }
 
@@ -108,7 +136,7 @@ function validateActionPayload(payload, attacker, rollData) {
 // Helper explicitly evaluating whether an armor action is globally beneficial 
 // Mathematical evaluation relies on payload validity guaranteed by validateActionPayload
 function getArmorActionBeneficialState(payload, attacker) {
-    if (payload.isBeneficial !== undefined) return payload.isBeneficial;
+    if (payload.isActionBeneficial !== undefined) return payload.isActionBeneficial;
 
     // Fetch pipeline context to calculate dynamic roll-based formula values accurately
     let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
@@ -130,20 +158,15 @@ function getArmorActionBeneficialState(payload, attacker) {
     return hasPositive;
 }
 
-// Helper explicitly evaluating whether a condition action is globally beneficial 
-// Mathematical evaluation relies on payload validity guaranteed by validateActionPayload
-function getConditionsBeneficialState(payload) {
-    if (payload.isBeneficial !== undefined) return payload.isBeneficial;
-
-    // If there are no forced rolls to dictate outcome, the flag is not necessary
-    if (!payload.forceRoll && !payload.forceRollVS) {
-        return true; 
-    }
+// Determines which chance to show on the tooltip when calculating condition outcomes
+// No need to check if they are all strictly positive or negative since if they are, that situation is already handled in validateActionPayload
+function getConditionSuccessFocus(payload) {
+    if (payload.isConditionSuccessBeneficial !== undefined) return payload.isConditionSuccessBeneficial;
 
     let hasPositive = false;
     if (payload.conditions) {
         payload.conditions.forEach(cond => {
-            if (cond.isBeneficial === true) hasPositive = true;
+            if (cond.conditionIsBeneficial === true) hasPositive = true;
         });
     }
 
@@ -198,20 +221,19 @@ function calculateActionSuccessChance(attacker, target, payload) {
     if (payload.type === 'damage') {
         result.hit = Math.round(baseSuccessChance * 100);
         if (payload.conditions && payload.conditions.length > 0) {
-            let condChance = baseSuccessChance;
+            let condChance = baseSuccessChance; // Conditions on damage require the attack to hit first
             if (hasForceRoll || hasForceRollVS) {
-                let isBeneficial = getConditionsBeneficialState(payload);
-                condChance = isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance);
+                let focusBeneficial = getConditionSuccessFocus(payload);
+                condChance = focusBeneficial ? (baseSuccessChance * targetPassChance) : (baseSuccessChance * (1.0 - targetPassChance));
             }
             result.condition = Math.round(condChance * 100);
         }
     } else if (payload.type === 'heal') {
-        // Heal does not have hit/success chances shown, strictly condition apply chances
         if (payload.conditions && payload.conditions.length > 0) {
             let condChance = 1.0;
             if (hasForceRoll || hasForceRollVS) {
-                let isBeneficial = getConditionsBeneficialState(payload);
-                condChance = isBeneficial ? targetPassChance : (1.0 - targetPassChance);
+                let focusBeneficial = getConditionSuccessFocus(payload);
+                condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
             }
             result.condition = Math.round(condChance * 100);
         }
@@ -222,13 +244,22 @@ function calculateActionSuccessChance(attacker, target, payload) {
             successChance = isBeneficial ? targetPassChance : (1.0 - targetPassChance);
         }
         result.success = Math.round(successChance * 100);
-    } else if (payload.type === 'condition') {
-        let successChance = baseSuccessChance;
-        if (hasForceRoll || hasForceRollVS) {
-            let isBeneficial = getConditionsBeneficialState(payload);
-            successChance = isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance);
+        
+        if (payload.conditions && payload.conditions.length > 0) {
+            let condChance = 1.0;
+            if (hasForceRoll || hasForceRollVS) {
+                let focusBeneficial = getConditionSuccessFocus(payload);
+                condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
+            }
+            result.condition = Math.round(condChance * 100);
         }
-        result.success = Math.round(successChance * 100);
+    } else if (payload.type === 'condition') {
+        let condChance = 1.0; // condition action base is 100% unless forced rolls apply
+        if (hasForceRoll || hasForceRollVS) {
+            let focusBeneficial = getConditionSuccessFocus(payload);
+            condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
+        }
+        result.condition = Math.round(condChance * 100);
     }
 
     return result;
@@ -288,27 +319,35 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
     if (payload.forceRoll) {
         hasForceRoll = true;
-        const stat = payload.forceRoll.trim(); 
+        const statString = payload.forceRoll; 
         const diff = parseInt(payload.forceRollDifficulty);
 
-        const statBase = parseInt(target.stats[stat]) || 0;
-        const statMod = parseInt(target.stats[`${stat}Mod`]) || 0;
+        const stats = parseRollStats(statString);
         let rollRes = 0;
-        if (statBase > 0) rollRes = Math.max(1, Math.floor(Math.random() * statBase) + 1 + statMod);
+        let hasBase = false;
+        
+        for (let stat of stats) {
+            const statBase = parseInt(target.stats[stat]) || 0;
+            if (statBase > 0) {
+                hasBase = true;
+                const statMod = parseInt(target.stats[`${stat}Mod`]) || 0;
+                rollRes += Math.max(1, Math.floor(Math.random() * statBase) + 1 + statMod);
+            }
+        }
         
         passedForceRoll = rollRes >= diff;
-        defenderSingleRolls.push({ stat: stat, result: statBase > 0 ? rollRes : "X", color: passedForceRoll ? '#50fa7b' : '#ff5555' });
+        defenderSingleRolls.push({ stat: statString, result: hasBase ? rollRes : "X", color: passedForceRoll ? '#50fa7b' : '#ff5555' });
     }
 
     if (payload.forceRollVS) {
         hasForceRollVS = true;
         const parts = payload.forceRollVS.split(' vs '); 
-        const attStat = parts[0].trim();
-        const defStat = parts[1].trim();
+        const attStatString = parts[0].trim();
+        const defStatString = parts[1].trim();
 
-        const opposed = performOpposedRoll(attacker, target, attStat, defStat, payload.cachedAttackerRolls[attStat]);
-        if (payload.cachedAttackerRolls[attStat] === undefined) {
-            payload.cachedAttackerRolls[attStat] = opposed.actualAttRoll;
+        const opposed = performOpposedRoll(attacker, target, attStatString, defStatString, payload.cachedAttackerRolls[attStatString]);
+        if (payload.cachedAttackerRolls[attStatString] === undefined) {
+            payload.cachedAttackerRolls[attStatString] = opposed.actualAttRoll;
         }
         opposedRolls.push({ attRoll: opposed.attRoll, defRoll: opposed.defRoll });
         

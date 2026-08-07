@@ -159,9 +159,11 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
 
     if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
         for (const cond of sourceData.conditions) {
-            // Evaluates if this specific condition should apply based on its isBeneficial flag and force roll results
+            const isCondBeneficial = cond.conditionIsBeneficial;
+
+            // Evaluates if this specific condition should apply based on its beneficial flag and force roll results
             if (evalData && evalData.hasForcedRolls) {
-                if (cond.isBeneficial !== evalData.targetPassedChecks) {
+                if (isCondBeneficial !== evalData.targetPassedChecks) {
                     continue; // Skip pushing this condition if the target passed/failed the save appropriately
                 }
             }
@@ -169,11 +171,11 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
             const condName = cond.conditionName || cond.name || fallbackName;
             const condDesc = cond.conditionDescription || cond.description || '';
             const condDuration = cond.conditionDuration || cond.duration || '-';
-            const condSource = cond.source || defaultSource;
+            const condSource = cond.conditionSource !== undefined ? cond.conditionSource : defaultSource;
             
             let condTarget = cond.target !== undefined ? cond.target : target;
             
-            // Resolves "self" tags globally to explicitly clear the UI targeting parameter internally
+            // Resolves "self" tags globally (case-insensitive) to explicitly clear the UI targeting parameter internally
             if (String(condTarget).toLowerCase() === 'self' || String(sourceData.target).toLowerCase() === 'self') {
                 condTarget = null; 
             }

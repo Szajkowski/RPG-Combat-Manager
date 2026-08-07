@@ -435,7 +435,7 @@ function handleTargetingHoverEnter(e, targetId) {
         text += `${t('success_chance')} ${chances.success}%<br>`;
     }
     if (chances.condition !== undefined) {
-        text += `${t('condition_apply_chance')} ${chances.condition}%<br>`;
+        text += `${t('condition_success_chance')} ${chances.condition}%<br>`;
     }
 
     // Explicitly avoids rendering raw string replacements if no chance applies to the targeted interaction

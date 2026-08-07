@@ -706,15 +706,15 @@ var ability = {
     },
 
 // Testy
-    "Test: extra turn": {
-        name: "Test: extra turn",
+    "Test: Extra Turn": {
+        name: "Test: Extra Turn",
         description: "",
         properties: ["prop_extra_turn"],
     },
-    "Test: multiple rolls": {
-        name: "Test: multiple rolls",
-        description: "Uderza do 2 celów za [1 * over]. A potem jeden cel za [1 * roll]",
-        roll: "vitality + strength",
+    "Test: Multiple Rolls": { // testuje rzucanie wiecej niz 1 kostka na raz
+        name: "Test: Multiple Rolls",
+        description: "Uderza do 2 celów za [2 * over] 3 razy. A potem jeden cel za [1 * roll]",
+        roll: "vitality + strength + intuition",
         difficulty: 14,
         cooldown: 0,
         actions: [
@@ -722,8 +722,9 @@ var ability = {
                 type: "damage",
                 target: "multi",
                 possibleTargets: 2,
+                repeat: 3,
                 damageType: "pierce",
-                value: "[1 * over]",
+                value: "[2 * over]",
             },
             {
                 type: "damage",
@@ -733,85 +734,99 @@ var ability = {
             },
         ]
     },
-    "Test: damage actions": {
-        name: "Test: damage actions",
+    "Test: Damage Actions": {
+        name: "Test: Damage Actions",
         description: "Uderza do 3 celów za [-3 * vitality + 4 * strength - 30 + 4 + reflex - 1 * roll + 1 * over]. Potem uderza cel za [1 * vitality] i wymusza roll na żywotność z trudnością 10. Daje stan jeśli się powiedzie. Potem uderza do 3 wybranych celów za [15 + 2 * attunement] obrażeń magicznych. Aby się obronić trzeba uniknąć tego ataku LUB wygrać rzut siła vs siła ORAZ wyrzucić chociaż [8] zwinności. Potem uderza 3 razy za [3 * attunement] obrażeń przebijącacych w cały team przeciwnika. Aby się obronić należy uniknąć + wyrzucić przynajmniej 9 siły.",
         roll: "reflex",
         difficulty: 5,
         cooldown: 0,
         actions: [
-            {
+            { // test skomplikowanych formuł i namierzania multi oraz typu damage pierce
                 type: "damage",
                 target: "multi",
                 possibleTargets: 3,
                 damageType: "pierce",
                 value: "[-3 * vitality + 4 * strength - 30 + 4 + reflex - 1 * roll + 1 * over]",
             },
-            {
+            { // test namierzania single, typu damage phys oraz aplikowania wiecej niz 1 stanu. Przy okazji testuje trwanie stanu w turach
                 type: "damage",
                 target: "single",
-                damageType: "pierce",
+                damageType: "phys",
                 value: "[1 * vitality]",
                 forceRoll: "vitality",
                 forceRollDifficulty: 10,
                 conditions: [
                     {
+                        conditionName: "Dobry stan po uderzeniu celu",
+                        conditionDescription: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
+                        conditionDuration: "2t",
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
+                    },
+                    {
                         conditionName: "Stan po beneficial uderzeniu celu",
-                        conditionDescription: "Powinien się pojawić tylko jeśli cel zaliczył roll na żywotność. To buff. +[2 * reflex] obrażeń.",
-                        conditionDuration: "2r",
-                        source: "self",
-                        isBeneficial: true,
+                        conditionDescription: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
+                        conditionDuration: "2t",
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
                     }
                 ]
             },
-            {
+            { // test namierzania self, typu obrazen mag i tego jak zachowuja sie stany oraz forcedRolls przy uderzaniu w siebie. Przy okazji testuje trwanie stanu w rundach
                 type: "damage",
-                target: "single",
-                damageType: "pierce",
+                target: "self",
+                damageType: "mag",
                 value: "[1 * vitality]",
                 forceRoll: "intuition",
                 forceRollDifficulty: 5,
+                forceRollVS: "vitality vs reflex",
                 conditions: [
                     {
-                        conditionName: "Stan po beneficial uderzeniu celu",
-                        conditionDescription: "Powinien się pojawić tylko jeśli cel zawalił roll na intuicję. Pomimo, że umiejętność ma isBeneficial: true to stanów nie powinno to obchodzić. A atak sam w sobie i tak jest zawsze false.",
+                        conditionName: "Pozytywny stan po uderzeniu siebie",
+                        conditionDescription: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
                         conditionDuration: "2r",
-                        source: "self",
-                        isBeneficial: false,
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
+                    },
+                    {
+                        conditionName: "Negatywny stan po uderzeniu siebie",
+                        conditionDescription: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
+                        conditionDuration: "2r",
+                        conditionSource: "self",
+                        conditionIsBeneficial: false,
                     }
                 ]
             },
-            {
+            { // testuje uderzanie, wyswietlania rolli i aplikowanie stanow u wszystkich, a takze zrodlo czerpania informacji o wyswielaniu ze stanu (domyslnie to cel)
                 type: "damage",
-                target: "multi",
-                possibleTargets: 3,
+                target: "all",
                 damageType: "mag",
-                value: "[15 + 2 * attunement]",
+                value: "[15]",
                 forceRoll: "agility",
                 forceRollDifficulty: 8,
                 forceRollVS: "strength vs strength",
                 conditions: [
                     {
                         conditionName: "Stan po uderzeniu celu",
-                        conditionDescription: "Powinien się pojawić tylko po zadaniu celowi obrazeń oraz zawaleniu przez niego rolla vs. Stan bierze dane od wywołującego. [1 * strength]",
+                        conditionDescription: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz wygraniu przez niego obu rolli. Stan bierze dane od wywołującego. [1 * strength]",
                         conditionDuration: "2t",
-                        source: "self",
-                        isBeneficial: false,
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
                     },
                     {
                         conditionName: "Stan po uderzeniu celu 2",
-                        conditionDescription: "Powinien się pojawić tylko sukcesie, czyli zadaniu celowi obrazeń i uwaleniu przez niego rolla. Stan bierze dane od celu. [1 * strength]",
+                        conditionDescription: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz zawaleniu przez niego obu rolli. Stan bierze dane od celu. [1 * strength]",
                         conditionDuration: "2t",
-                        source: "target",
-                        isBeneficial: false,
+                        conditionSource: "target",
+                        conditionIsBeneficial: false,
                     },
                 ]
             },
-            {
+            { // testuje celowanie w team przeciwnika (czyli przeciwny do tego, ktory ma uzywajacy umiejetnosci), repeat (powtarzanie akcji x razy, w tym wypadku zadawania obrazen)
                 type: "damage",
                 target: "team_enemy",
-                damageType: "phys",
-                value: "[3 * attunement]",
+                damageType: "pierce",
+                value: "[2 * attunement]",
                 repeat: 3,
                 forceRoll: "strength",
                 forceRollDifficulty: 9,
@@ -820,15 +835,23 @@ var ability = {
                         conditionName: "Stan po masowym uderzeniu",
                         conditionDescription: "Powinien się pojawić tylko na tych, którzy zostali trafieni i uwalili roll na siłę. Trwa 2 rundy.",
                         conditionDuration: "2r",
-                        source: "self",
-                        isBeneficial: false,
+                        conditionSource: "self",
+                        conditionIsBeneficial: false,
                     }
                 ]
             },
+            { // testuje wymuszania rolla na wiecej niz 1 rzecz (ktory to roll nic nie robi w zasadzie, bo i tak nie ma stanow)
+                type: "damage",
+                target: "single",
+                damageType: "pierce",
+                value: "[2 * attunement]",
+                forceRoll: "strength + agility",
+                forceRollDifficulty: 12,
+            },
         ]
     },
-    "Test: healing actions": {
-        name: "Test: healing actions",
+    "Test: Healing Actions": {
+        name: "Test: Healing Actions",
         description: "Leczy siebie do progu 500, leczy cel do progu 50, leczy do 3 celow za [3 * attunement] x2 jesli wyrzuca chociaz 4 intuicji, leczy cala sojusznicza druzyne za [2 * attunement] jesli wygraja rzut witalnosc vs witalnosc, leczy kazdego do progu 1, jesli wyrzuca chociaz 3 refleksu",
         cooldown: 0,
         actions: [
@@ -842,7 +865,7 @@ var ability = {
                         conditionName: "Stan po uleczeniu siebie",
                         conditionDescription: "Powinien się pojawić zawsze, jako że nie ma forced rolla. Powinien także nie mieć wgl celu, bo akcja ma target self.",
                         conditionDuration: "2t",
-                        source: "self",
+                        conditionSource: "self",
                     },
                 ]
             },
@@ -856,13 +879,13 @@ var ability = {
                         conditionName: "Stan po uleczeniu",
                         conditionDescription: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
                         conditionDuration: "2t",
-                        source: "target",
+                        conditionSource: "target",
                     },
                     {
                         conditionName: "Stan po uleczeniu 2",
                         conditionDescription: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
                         conditionDuration: "2t",
-                        source: "target",
+                        conditionSource: "target",
                     },
                 ]
             },
@@ -888,8 +911,8 @@ var ability = {
                         conditionName: "Stan po masowym leczeniu",
                         conditionDescription: "Powinien się pojawić tylko na tych, którzy wygrali roll żywotność vs żywotność. Trwa 2 rundy.",
                         conditionDuration: "2r",
-                        source: "self",
-                        isBeneficial: true,
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
                     }
                 ]
             },
@@ -903,8 +926,8 @@ var ability = {
             },
         ]
     },
-    "Test: condition actions": {
-        name: "Test: condition actions",
+    "Test: Condition Actions": {
+        name: "Test: Condition Actions",
         description: "Po użyciu przyspiesza siebie na 1 rundę jeśli uda się wyrzucić 5 lub więcej żywotności. Potem przyspiesza cel jeśli wyrzuci chociaż 4 żywotności i wygra roll siła vs siła.",
         roll: "reflex",
         difficulty: 5,
@@ -915,23 +938,23 @@ var ability = {
                 target: "self",
                 forceRoll: "vitality",
                 forceRollDifficulty: 5,
-                // testujemy czy flaga isBeneficial w akcji ma wplyw na aplikowanie stanow - nie powinna miec.
+                // testujemy czy flaga isConditionSuccessBeneficial w akcji ma wplyw na aplikowanie stanow - nie powinna miec.
                 // teoretycznie tutaj ta flaga jest useless bo target = self więc i tak nie liczymy szansy na powodzenie, 
                 // niemniej jednak chce dalej pokazywać blad gdyby tej szansy nie bylo. Bo w przyszlosci to bezwzgledne wymaganie tej flagi w sytuacji gdy stany sa mieszane moze sie przydac 
-                isBeneficial: false, 
+                isConditionSuccessBeneficial: false, 
                 conditions: [
                     { 
                         conditionName: "Przyspieszenie", 
                         conditionDescription: "Powinno się zawsze pokazać jeśli postać zaliczy wymuszone rolle.", 
                         conditionDuration: "1r",
                         conditionProperties: ["prop_extra_turn"],
-                        isBeneficial: true,
+                        conditionIsBeneficial: true,
                     },
                     { 
                         conditionName: "Nieudane przyspieszenie", 
                         conditionDescription: "Powinno się zawsze pokazać jeśli postać zawali wymuszone rolle.", 
                         conditionDuration: "1r",
-                        isBeneficial: false,
+                        conditionIsBeneficial: false,
                     }
                 ],
             },
@@ -944,144 +967,217 @@ var ability = {
                 // Póki co jedyne co tutaj robi ta flaga to sluzy do obliczania szansy powodzenia. 
                 // Jeśli true to liczymy i wyswietlamy szanse, że celowi uda się zaliczyć wymuszone rzuty
                 // jeśli false to liczymy odwrotnosc - że zawali.
-                isBeneficial: true,
+                isConditionSuccessBeneficial: true,
                 conditions: [
                     { 
                         conditionName: "Przyspieszenie", 
                         conditionDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
                         conditionDuration: "1r",
                         conditionProperties: ["prop_extra_turn"],
-                        isBeneficial: true,
+                        conditionIsBeneficial: true,
                     },
                     { 
                         conditionName: "Nieudane przyspieszenie", 
                         conditionDescription: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
                         conditionDuration: "1r",
-                        isBeneficial: false,
+                        conditionIsBeneficial: false,
                     }
                 ],
             },
         ]
     },
-    "Test: damage edge cases": {
-        name: "Test: damage edge cases",
-        description: "Weryfikuje wielokrotne rzuty kośćmi (z plusem) oraz przenoszenie wartości 'roll' i 'over' przez cały potok do każdej kolejnej akcji. Rzuca z sumy witalności i siły. Następnie wykonuje 3 ataki: uderza cel za [1 * roll], uderza wrogi team za [2 * over], i uderza cel ujemną wartością [-10 * roll] by sprawdzić poprawne matematyczne zerowanie zjawiska bez sypania errorami (Math.max(0) w kodzie).",
-        roll: "vitality + strength",
-        difficulty: 12,
+    "Test: Action Errors": {
+        name: "Test: Action Errors",
+        description: "Skill created specifically to intentionally trigger all possible logic errors within actions.",
         cooldown: 0,
         actions: [
             {
+                // 1. error_force_roll_missing: forceRoll exists, but forceRollDifficulty is missing
                 type: "damage",
                 target: "single",
                 damageType: "phys",
-                value: "[1 * roll]"
+                value: 10,
+                forceRoll: "agility" 
             },
             {
-                type: "damage",
-                target: "team_enemy",
-                damageType: "mag",
-                value: "[2 * over]"
+                // 2. error_armor_missing_vals: armor action with no declared armor values
+                type: "armor",
+                target: "single" 
             },
             {
-                type: "damage",
-                target: "single",
-                damageType: "pierce",
-                value: "[-10 * roll]"
-            }
-        ]
-    },
-
-    "Test: heal edge cases": {
-        name: "Test: heal edge cases",
-        description: "Weryfikuje zachowanie funkcji resolveHealAction przy skrajnych wartościach logicznych. Leczy 3-krotnie za [-1 * roll] (test na ujemne leczenie by sprawdzić, czy zrani, zignoruje czy wyrzuci błąd). Następnie leczy za potężne 1000 flat HP (test odcięcia nadwyżki do progu maxHp).",
-        roll: "attunement",
-        difficulty: 5,
-        cooldown: 0,
-        actions: [
-            {
-                type: "heal",
-                target: "single",
-                healType: "normal",
-                value: "[-1 * roll]",
-                repeat: 3
-            },
-            {
-                type: "heal",
-                target: "self",
-                healType: "normal",
-                value: 1000
-            }
-        ]
-    },
-
-    "Test: armor actions rigorous": {
-        name: "Test: armor actions rigorous",
-        description: "Weryfikuje działanie getArmorActionBeneficialState i kalkulację matematyczną. Pierwsza akcja ma tylko ujemne statystyki (auto isBeneficial = false, traktowane jak atak). Druga ma statystyki mieszane (-15 flat phys, +10 flat mag) i SZTYWNO ustawione isBeneficial: false (bez tej flagi system wymusiłby błąd z brakiem sprecyzowania). Weryfikuje poprawne załapanie defense rolla (targetPassChance).",
-        roll: "intuition",
-        difficulty: 5,
-        cooldown: 0,
-        actions: [
-            {
+                // 3. error_armor_mixed_stats: armor action provides buffs and debuffs simultaneously without isActionBeneficial flag
                 type: "armor",
                 target: "single",
-                physArmorValue: -5,
-                physArmorValuePerc: -10,
-                forceRollVS: "strength vs strength"
+                physArmorValue: 10,
+                magArmorValue: -5
             },
             {
+                // 4. error_armor_zero_stats: armor action evaluates to 0 without isActionBeneficial flag
                 type: "armor",
                 target: "single",
-                physArmorValue: -15,
-                magArmorValue: 10,
-                isBeneficial: false,
-                forceRollVS: "agility vs intuition"
-            }
-        ]
-    },
-
-    "Test: condition rigorous": {
-        name: "Test: condition rigorous",
-        description: "Weryfikuje getConditionActionBeneficialState i bindowanie źródła danych w locie. 1: Nakłada na cel akcję o wymuszonym isBeneficial: false zawierającą mieszane stany (buff i debuff w jednym ataku). W buffa wstrzykiwana jest pamięć z [1 * roll]. 2: Nakłada stan na odpalającego, ale z parametrem source: 'target', co testuje, czy poprawnie przeliczy i pobierze [+1 * strength] używając statystyk klikniętego wroga.",
-        roll: "reflex",
-        difficulty: 8,
-        cooldown: 0,
-        actions: [
+                physArmorValue: 0
+            },
             {
+                // 5. error_condition_empty: condition action with empty conditions array or missing array entirely
                 type: "condition",
                 target: "single",
-                forceRollVS: "strength vs agility",
-                isBeneficial: false,
+                conditions: [] 
+            },
+            {
+                // 6. error_condition_missing_flag: action with forced roll but the condition lacks conditionIsBeneficial flag
+                type: "damage",
+                target: "single",
+                damageType: "phys",
+                value: 10,
+                forceRoll: "agility",
+                forceRollDifficulty: 10,
                 conditions: [
                     {
-                        conditionName: "Osłabienie (Debuff)",
-                        conditionDescription: "Tracisz [-2 * strength] siły.",
-                        conditionDuration: "2r",
-                        isBeneficial: false
+                        conditionName: "Stan bez flagi",
+                        conditionDuration: "1t"
+                    }
+                ]
+            },
+            {
+                // 7. error_condition_mixed: heal type action has forced roll AND mixed condition types, missing isConditionSuccessBeneficial root flag
+                type: "heal",
+                target: "single",
+                forceRoll: "vitality",
+                forceRollDifficulty: 10,
+                conditions: [
+                    {
+                        conditionName: "Good Condition",
+                        conditionDuration: "1t",
+                        conditionIsBeneficial: true
                     },
                     {
-                        conditionName: "Odszkodowanie (Buff)",
-                        conditionDescription: "Zyskujesz [1 * roll] pancerza fizycznego.",
-                        conditionDuration: "2r",
-                        isBeneficial: true
-                    }
-                ]
-            },
-            {
-                // Akcja celuje w single, więc musisz kogoś kliknąć
-                type: "condition",
-                target: "single", 
-                conditions: [
-                    {
-                        conditionName: "Wyssana siła",
-                        conditionDescription: "Wyssał siłę z klikniętego celu: [+1 * strength]",
-                        conditionDuration: "1r",
-                        source: "target", // Test czy ten parametr prawidłowo wyląduje na tobie, licząc staty z tamtego combatanta.
-                        isBeneficial: true
+                        conditionName: "Bad Condition",
+                        conditionDuration: "1t",
+                        conditionIsBeneficial: false
                     }
                 ]
             }
         ]
     },
+    // "Test: damage edge cases": {
+    //     name: "Test: damage edge cases",
+    //     description: "Weryfikuje wielokrotne rzuty kośćmi (z plusem) oraz przenoszenie wartości 'roll' i 'over' przez cały potok do każdej kolejnej akcji. Rzuca z sumy witalności i siły. Następnie wykonuje 3 ataki: uderza cel za [1 * roll], uderza wrogi team za [2 * over], i uderza cel ujemną wartością [-10 * roll] by sprawdzić poprawne matematyczne zerowanie zjawiska bez sypania errorami (Math.max(0) w kodzie).",
+    //     roll: "vitality + strength",
+    //     difficulty: 12,
+    //     cooldown: 0,
+    //     actions: [
+    //         {
+    //             type: "damage",
+    //             target: "single",
+    //             damageType: "phys",
+    //             value: "[1 * roll]"
+    //         },
+    //         {
+    //             type: "damage",
+    //             target: "team_enemy",
+    //             damageType: "mag",
+    //             value: "[2 * over]"
+    //         },
+    //         {
+    //             type: "damage",
+    //             target: "single",
+    //             damageType: "pierce",
+    //             value: "[-10 * roll]"
+    //         }
+    //     ]
+    // },
+
+    // "Test: heal edge cases": {
+    //     name: "Test: heal edge cases",
+    //     description: "Weryfikuje zachowanie funkcji resolveHealAction przy skrajnych wartościach logicznych. Leczy 3-krotnie za [-1 * roll] (test na ujemne leczenie by sprawdzić, czy zrani, zignoruje czy wyrzuci błąd). Następnie leczy za potężne 1000 flat HP (test odcięcia nadwyżki do progu maxHp).",
+    //     roll: "attunement",
+    //     difficulty: 5,
+    //     cooldown: 0,
+    //     actions: [
+    //         {
+    //             type: "heal",
+    //             target: "single",
+    //             healType: "normal",
+    //             value: "[-1 * roll]",
+    //             repeat: 3
+    //         },
+    //         {
+    //             type: "heal",
+    //             target: "self",
+    //             healType: "normal",
+    //             value: 1000
+    //         }
+    //     ]
+    // },
+
+    // "Test: armor actions rigorous": {
+    //     name: "Test: armor actions rigorous",
+    //     description: "Weryfikuje działanie getArmorActionBeneficialState i kalkulację matematyczną. Pierwsza akcja ma tylko ujemne statystyki (auto isBeneficial = false, traktowane jak atak). Druga ma statystyki mieszane (-15 flat phys, +10 flat mag) i SZTYWNO ustawione isBeneficial: false (bez tej flagi system wymusiłby błąd z brakiem sprecyzowania). Weryfikuje poprawne załapanie defense rolla (targetPassChance).",
+    //     roll: "intuition",
+    //     difficulty: 5,
+    //     cooldown: 0,
+    //     actions: [
+    //         {
+    //             type: "armor",
+    //             target: "single",
+    //             physArmorValue: -5,
+    //             physArmorValuePerc: -10,
+    //             forceRollVS: "strength vs strength"
+    //         },
+    //         {
+    //             type: "armor",
+    //             target: "single",
+    //             physArmorValue: -15,
+    //             magArmorValue: 10,
+    //             isBeneficial: false,
+    //             forceRollVS: "agility vs intuition"
+    //         }
+    //     ]
+    // },
+
+    // "Test: condition rigorous": {
+    //     name: "Test: condition rigorous",
+    //     description: "Weryfikuje getConditionActionBeneficialState i bindowanie źródła danych w locie. 1: Nakłada na cel akcję o wymuszonym isBeneficial: false zawierającą mieszane stany (buff i debuff w jednym ataku). W buffa wstrzykiwana jest pamięć z [1 * roll]. 2: Nakłada stan na odpalającego, ale z parametrem conditionSource: 'target', co testuje, czy poprawnie przeliczy i pobierze [+1 * strength] używając statystyk klikniętego wroga.",
+    //     roll: "reflex",
+    //     difficulty: 8,
+    //     cooldown: 0,
+    //     actions: [
+    //         {
+    //             type: "condition",
+    //             target: "single",
+    //             forceRollVS: "strength vs agility",
+    //             isBeneficial: false,
+    //             conditions: [
+    //                 {
+    //                     conditionName: "Osłabienie (Debuff)",
+    //                     conditionDescription: "Tracisz [-2 * strength] siły.",
+    //                     conditionDuration: "2r",
+    //                     isBeneficial: false
+    //                 },
+    //                 {
+    //                     conditionName: "Odszkodowanie (Buff)",
+    //                     conditionDescription: "Zyskujesz [1 * roll] pancerza fizycznego.",
+    //                     conditionDuration: "2r",
+    //                     isBeneficial: true
+    //                 }
+    //             ]
+    //         },
+    //         {
+    //             // Akcja celuje w single, więc musisz kogoś kliknąć
+    //             type: "condition",
+    //             target: "single", 
+    //             conditions: [
+    //                 {
+    //                     conditionName: "Wyssana siła",
+    //                     conditionDescription: "Wyssał siłę z klikniętego celu: [+1 * strength]",
+    //                     conditionDuration: "1r",
+    //                     conditionSource: "target", // Test czy ten parametr prawidłowo wyląduje na tobie, licząc staty z tamtego combatanta.
+    //                     isBeneficial: true
+    //                 }
+    //             ]
+    //         }
+    //     ]
+    // },
     "Test: All at once": {
         name: "Test: Wszystko Wszędzie Naraz",
         description: "[prop_stuns] Epicki sprawdzian silnika. Uderza 2 cele za [5 * attunement] obrażeń magicznych, leczy 1 cel za [10 + 2 * attunement], opancerza 3 cele za [10 + strength] pancerza fizycznego, uderza 1 cel trzykrotnie za [2 * agility] obrażeń przebijających, debuffuje całą drużynę wroga i leczy siebie do progu 50.",
@@ -1100,7 +1196,7 @@ var ability = {
                         conditionName: "Dziura po uderzeniu",
                         conditionDescription: "Ałć. [-0.5 * agility] pancerza magicznego.",
                         conditionDuration: "2r",
-                        source: "target",
+                        conditionSource: "target",
                     }
                 ]
             },
@@ -1114,13 +1210,13 @@ var ability = {
                         conditionName: "Healowy stan",
                         conditionDescription: "Tyle refleksu ma invoker: [1 * reflex]",
                         conditionDuration: "2r",
-                        source: "self",
+                        conditionSource: "self",
                     },
                     {
                         conditionName: "Healowy stan",
                         conditionDescription: "Tyle refleksu ma cel: [1 * reflex]",
                         conditionDuration: "2r",
-                        source: "target",
+                        conditionSource: "target",
                     }
                 ]
             },
@@ -1146,7 +1242,7 @@ var ability = {
                         conditionName: "Totalny Chaos",
                         conditionDescription: "Przeciwnik traci zmysły. Otrzymuje [2 * agility] obrażeń na koniec tury i jego pancerz spada o [-15].",
                         conditionDuration: "2r",
-                        source: "self",
+                        conditionSource: "self",
                     }
                 ]
             },
