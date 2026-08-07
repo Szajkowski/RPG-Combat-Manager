@@ -194,17 +194,11 @@ function updateTargetingTooltip() {
 
     if (targetingData && targetingData.isPipeline) {
         const action = targetingData.payload;
+        const attacker = targetingData.attacker;
+        // Retrieve active pipeline logic variables containing roll data to evaluate formulas securely
+        const rollData = currentPipelineContext ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
         
-        let actionName = action.type;
-        if (action.type === 'damage') {
-            actionName = action.damageType === 'mag' ? (t('action_dmg_mag')) : (action.damageType === 'pierce' ? (t('action_dmg_pierce')) : (t('action_dmg_phys')));
-        } else if (action.type === 'heal') {
-            actionName = action.healType === 'threshold' ? (t('action_heal_threshold')) : (t('action_heal'));
-        } else if (action.type === 'armor') {
-            actionName = action.armorType === 'mag' ? (t('action_armor_mag')) : (t('action_armor_phys'));
-        } else if (action.type === 'condition') {
-            actionName = t('action_condition');
-        }
+        let actionName = buildActionTooltipText(action, attacker, rollData);
 
         let targetsText = '';
         if (action.target === 'multi') {
@@ -231,6 +225,68 @@ function updateTargetingTooltip() {
     } else {
         cancelHint.textContent = t('targeting_cancel_hint'); // Regular cancellation hint
     }
+}
+
+// Helper function to build dynamic action description strings mapping numerical values directly to the tooltip
+function buildActionTooltipText(action, attacker, rollData) {
+    let text = '';
+    
+    if (action.type === 'damage') {
+        if (action.valuePerc !== undefined) {
+            text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+        } else if (action.value !== undefined) {
+            let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
+        } else {
+            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
+        }
+    } else if (action.type === 'heal') {
+        if (action.healType === 'threshold') {
+            if (action.valuePerc !== undefined) {
+                text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+            } else if (action.value !== undefined) {
+                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                text = t('action_heal_thresh_flat').replace('{val}', `<strong>${val}</strong>`);
+            }
+        } else {
+            if (action.valuePerc !== undefined) {
+                text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+            } else if (action.value !== undefined) {
+                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);
+            }
+        }
+    } else if (action.type === 'armor') {
+        let parts = [];
+        // Check all possible armor value properties mapped to translations
+        const checkArmor = (key, isPerc, typeName) => {
+            if (action[key] !== undefined && action[key] !== null && action[key] !== '') {
+                let valStr = String(action[key]).replace(/%/g, '');
+                let val = typeof getFormulaValue === 'function' ? getFormulaValue(valStr, attacker, rollData) : parseInt(valStr) || 0;
+                let verb = val >= 0 ? t('armor_add') : t('armor_sub');
+                let absVal = Math.abs(val);
+                let symbol = isPerc ? '%' : '';
+                parts.push(`${verb} <strong>${absVal}${symbol}</strong> ${typeName}`);
+            }
+        };
+        
+        checkArmor('physArmorValue', false, t('desc_phys_armor'));
+        checkArmor('physArmorValuePerc', true, t('desc_phys_armor'));
+        checkArmor('magArmorValue', false, t('desc_mag_armor'));
+        checkArmor('magArmorValuePerc', true, t('desc_mag_armor'));
+        
+        if (parts.length > 0) text = parts.join(', ');
+        else text = t('action_armor_phys').replace('{val}', '...'); // Fallback empty
+    } else if (action.type === 'condition') {
+        text = t('action_condition');
+    }
+
+    // Append repeat count logically to the tooltip if it exceeds standard bounds
+    if (text && action.repeat && action.repeat > 1) {
+        text += ` <strong>x${action.repeat}</strong>`;
+    }
+
+    return text;
 }
 
 // Cleanly removes all DOM manipulations and restores original layout
@@ -352,16 +408,19 @@ function handleTargetingHoverEnter(e, targetId) {
     const chances = calculateActionSuccessChance(targetingData.attacker, target, targetingData.payload);
     let text = '';
     
-    if (chances.main !== 100 || targetingData.payload.type === 'damage') {
+    // Evaluate if the action utilizes chance mechanics explicitly
+    if (targetingData.payload.type === 'damage') {
+        text += `${t('success_chance')} ${chances.main}%<br>`;
+    } else if (chances.main !== 100) {
         text += `${t('success_chance')} ${chances.main}%<br>`;
     }
+    
     if (chances.condition !== undefined) {
         text += `${t('condition_apply_chance')} ${chances.condition}%<br>`;
     }
 
-    if (text === '') text = target.uniqueName;
-    else text = text.replace(/<br>$/, ''); // Remove trailing line break
-
+    // Explicitly avoids rendering raw string replacements if no chance applies to the targeted interaction
+    text = text.replace(/<br>$/, ''); 
     tooltipText.innerHTML = text;
 }
 

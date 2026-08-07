@@ -1,5 +1,45 @@
 // --- MATH & CHANCE CALCULATION ENGINES ---
 
+// Evaluates mathematical percentage of Attacker strictly beating or tying Defender
+function calculateOpposedChance(attacker, defender, attStatName, defStatName) {
+    const attBase = parseInt(attacker.stats[attStatName]) || 0;
+    const defBase = parseInt(defender.stats[defStatName]) || 0;
+    
+    if (attBase <= 0) return 0;
+    if (defBase <= 0) return 100;
+
+    const attMod = parseInt(attacker.stats[`${attStatName}Mod`]) || 0;
+    const defMod = parseInt(defender.stats[`${defStatName}Mod`]) || 0;
+    
+    let wins = 0;
+    let total = attBase * defBase;
+    
+    for (let a = 1; a <= attBase; a++) {
+        let attRes = Math.max(1, a + attMod);
+        for (let d = 1; d <= defBase; d++) {
+            let defRes = Math.max(1, d + defMod);
+            // Tie goes to the attacker
+            if (attRes >= defRes) wins++;
+        }
+    }
+    
+    return Math.floor((wins / total) * 100);
+}
+
+// Evaluates mathematical percentage of an entity rolling over a static threshold
+function calculateStaticChance(target, statName, difficulty) {
+    const base = parseInt(target.stats[statName]) || 0;
+    if (base <= 0) return 0;
+    const mod = parseInt(target.stats[`${statName}Mod`]) || 0;
+    
+    let wins = 0;
+    for (let i = 1; i <= base; i++) {
+        let res = Math.max(1, i + mod);
+        if (res >= difficulty) wins++;
+    }
+    return Math.floor((wins / base) * 100);
+}
+
 // Helper explicitly evaluating whether an armor action is globally beneficial 
 // (Throws an explicit error preventing silent failures if logic implies mixed stats without manual isBeneficial flag)
 function getArmorActionBeneficialState(payload, attacker) {
@@ -148,8 +188,16 @@ function calculateActionSuccessChance(attacker, target, payload) {
             result.main = Math.round((isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance)) * 100);
         }
     } else {
+        // No extra checks, condition chance scales directly with the base success chance
         if (payload.type === 'heal' || payload.type === 'armor' || payload.type === 'condition') {
             result.main = 100;
+            if (payload.conditions && payload.conditions.length > 0) {
+                result.condition = 100;
+            }
+        } else if (payload.type === 'damage') {
+            if (payload.conditions && payload.conditions.length > 0) {
+                result.condition = Math.round(baseSuccessChance * 100);
+            }
         }
     }
 
@@ -370,6 +418,10 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                 if (targetKilled) {
                     freshTarget.isDead = true;
                     freshTarget.isStunned = false;
+                    // Clean up conditions targeting this dead character
+                    if (typeof removeConditionsForTarget === 'function') {
+                        removeConditionsForTarget(freshTarget.uniqueName);
+                    }
                 }
                 if (!skipSync) syncUpdateCombatant(freshTarget); 
             }

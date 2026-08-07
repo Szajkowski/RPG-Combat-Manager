@@ -180,8 +180,8 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
             
             let condTarget = cond.target !== undefined ? cond.target : target;
             
-            // Resolves "self" tags to explicitly clear the UI targeting parameter internally
-            if (condTarget === 'self' || condTarget === invoker) {
+            // Resolves "self" tags globally to explicitly clear the UI targeting parameter internally
+            if (condTarget === 'self' || sourceData.target === 'self') {
                 condTarget = null; 
             }
             
@@ -204,4 +204,19 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
 function removeCondition(id) {
     const filteredConditions = activeConditions.filter(cond => cond.id !== id);
     if (typeof updateServerConditions === 'function') updateServerConditions(filteredConditions);
+}
+
+// Universal function to completely remove all conditions targeting a specific character
+function removeConditionsForTarget(targetName) {
+    if (!activeConditions || activeConditions.length === 0) return;
+    
+    const initialLength = activeConditions.length;
+    const filteredConditions = activeConditions.filter(cond => cond.target !== targetName);
+    
+    if (filteredConditions.length !== initialLength) {
+        activeConditions = filteredConditions;
+        if (typeof updateServerConditions === 'function') {
+            updateServerConditions(activeConditions);
+        }
+    }
 }

@@ -275,8 +275,9 @@ async function playActionSequence(payload) {
         // Contextual routing for multi-layered armor modifications to choose which sound is dominant 
         const soundSubType = (hasPhysFlat || hasPhysPerc) ? 'phys' : 'mag';
         
-        // Define soundKey using 'mixed' if appropriate to ensure proper deduplication arrays
-        const activeKeyIdentifier = isMixedSound ? 'mixed' : soundSubType;
+        // Improved deduplication: for damage, strictly use the actual resolved subType to prevent different outcomes 
+        // (like dodge/block vs hit) from muting each other, which also ensures the full sound sequence plays if targets survive longer than others.
+        const activeKeyIdentifier = isMixedSound ? 'mixed' : (actionType === 'damage' ? subType : soundSubType);
         const soundKey = stepId ? `${stepId}-${actionType}-${activeKeyIdentifier}-${i}` : null;
         
         let shouldPlaySound = true;
