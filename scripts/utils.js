@@ -89,3 +89,97 @@ function showNotification(message, event = null) {
         notification.remove();
     }, 1200);
 }
+
+// Injects dynamic CSS for the custom modal dialogs to avoid missing styles
+function injectModalStylesIfNeeded() {
+    if (document.getElementById('custom-modal-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'custom-modal-styles';
+    style.innerHTML = `
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(40, 42, 54, 0.85); z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .custom-modal-box {
+            background: #282a36; border: 2px solid #bd93f9; border-radius: 8px;
+            padding: 20px; max-width: 400px; text-align: center; color: #f8f8f2;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-family: sans-serif;
+        }
+        .custom-modal-text { margin-bottom: 20px; line-height: 1.5; font-size: 1rem; }
+        .custom-modal-actions { display: flex; justify-content: center; gap: 15px; }
+        .custom-modal-btn {
+            background: #44475a; color: #f8f8f2; border: 1px solid #6272a4;
+            padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .custom-modal-btn:hover { background: #6272a4; }
+        .custom-modal-btn.confirm { background: #bd93f9; color: #282a36; border-color: #bd93f9; font-weight: bold; }
+        .custom-modal-btn.confirm:hover { background: #d6b4ff; }
+    `;
+    document.head.appendChild(style);
+}
+
+// Replaces standard window.alert() with a custom non-blocking UI modal
+function showAlertDialog(message) {
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-modal-overlay';
+    
+    const box = document.createElement('div');
+    box.className = 'custom-modal-box';
+    
+    const text = document.createElement('div');
+    text.className = 'custom-modal-text';
+    text.innerHTML = message;
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'custom-modal-actions';
+    
+    const btn = document.createElement('button');
+    btn.className = 'custom-modal-btn confirm';
+    btn.textContent = t('btn_ok') || 'OK';
+    btn.onclick = () => overlay.remove();
+    
+    btnContainer.appendChild(btn);
+    box.appendChild(text);
+    box.appendChild(btnContainer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+
+// Replaces standard window.confirm() with a custom callback-driven UI modal
+function showConfirmDialog(message, onConfirmCallback) {    
+    const overlay = document.createElement('div');
+    overlay.className = 'custom-modal-overlay';
+    
+    const box = document.createElement('div');
+    box.className = 'custom-modal-box';
+    
+    const text = document.createElement('div');
+    text.className = 'custom-modal-text';
+    text.innerHTML = message;
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'custom-modal-actions';
+    
+    const btnYes = document.createElement('button');
+    btnYes.className = 'custom-modal-btn confirm';
+    btnYes.textContent = t('btn_yes') || 'Yes';
+    btnYes.onclick = () => {
+        overlay.remove();
+        if (onConfirmCallback) onConfirmCallback();
+    };
+
+    const btnNo = document.createElement('button');
+    btnNo.className = 'custom-modal-btn';
+    btnNo.textContent = t('btn_no') || 'No';
+    btnNo.onclick = () => overlay.remove();
+    
+    btnContainer.appendChild(btnYes);
+    btnContainer.appendChild(btnNo);
+    box.appendChild(text);
+    box.appendChild(btnContainer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}

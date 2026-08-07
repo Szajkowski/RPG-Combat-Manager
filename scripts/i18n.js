@@ -177,20 +177,12 @@ const i18n = {
         'prop_reaction': 'Reakcja.',
         'prop_non_combat': 'Nie do walki.',
         'prop_stuns': 'Ogłuszające.',
-        
-        // --- NOTIFICATIONS AND ERRORS ---
-        'copied': 'Skopiowano:',
-        'pasted': 'Wklejono:',
-        'copy_error': 'Błąd kopiowania!',
-        'paste_error': 'Błąd wklejania z domyślnego schowka!',
-        'no_stats_error': 'Brak wymaganych pól statystyki!',
-        'invalid_url': 'Brak poprawnych graczy w URL!',
-        'connection_error': 'Błąd połączenia (zapewne serwer nie jest włączony)',
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
         'success_chance': 'Szansa na powodzenie:',
-        'condition_apply_chance': 'Szansa na nałożenie stanu(ów):',
+        'condition_apply_chance': 'Szansa na nałożenie stanu/ów:',
+        'hit_chance': 'Szansa na trafienie:',
         'vs': 'VS',
         'action_dmg_mag': 'Uderz za {val} obrażeń magicznych',
         'action_dmg_pierce': 'Uderz za {val} obrażeń przebijających',
@@ -207,6 +199,28 @@ const i18n = {
         'action_condition': 'Nałożenie stanu',
         'selected_targets': 'Wybrane cele',
         'targeting_skip_hint': 'PPM aby pominąć',
+
+        // --- NOTIFICATIONS AND ERRORS ---
+        'copied': 'Skopiowano:',
+        'pasted': 'Wklejono:',
+        'copy_error': 'Błąd kopiowania!',
+        'paste_error': 'Błąd wklejania z domyślnego schowka!',
+        'no_stats_error': 'Brak wymaganych pól statystyki!',
+        'invalid_url': 'Brak poprawnych graczy w URL!',
+        'connection_error': 'Błąd połączenia (zapewne serwer nie jest włączony)',
+
+        'btn_ok': 'OK',
+        'btn_yes': 'Tak',
+        'btn_no': 'Nie',
+        'error_force_roll_missing': 'Błąd krytyczny: Akcja wymaga "forceRoll", ale brakuje parametru "forceRollDifficulty"!',
+        'error_armor_missing_vals': 'Błąd krytyczny: Akcja pancerza wymaga przynajmniej jednej wartości (physArmorValue, physArmorValuePerc, itp.).',
+        'error_armor_mixed_stats': 'Błąd logiki: Akcja pancerza dodaje i odejmuje statystyki naraz. Wymagana flaga "isBeneficial"!',
+        'error_armor_zero_stats': 'Błąd logiki: Akcja pancerza ma wartość zerową. Wymagana flaga "isBeneficial"!',
+        'error_condition_mixed': 'Błąd logiki: Akcja posiada zarówno dobre, jak i złe stany. Wymagana flaga "isBeneficial" na samej akcji!',
+        'error_condition_missing_flag': 'Błąd: Stan "{name}" nie posiada wymaganej flagi "isBeneficial" (wymaganej przy akcjach z wymuszonym rzutem)!',
+        'error_ability_roll_missing': 'Błąd parsera: Przekazano "roll" lub "over", ale umiejętnosć nie ma zdefiniowanego parametru "roll"!',
+        'error_ability_diff_missing': 'Błąd parsera: Przekazano "over", ale umiejętnosć nie ma zdefiniowanej trudności liczbowej!',
+        'error_gm_negative_val': 'Błąd Mistrza Gry: Nie można zadawać obrażeń ani leczyć wartościami ujemnymi!',
     },
     'EN': {
         // --- INTERFACE / UI ---
@@ -388,20 +402,12 @@ const i18n = {
         'prop_reaction': 'Reaction.',
         'prop_non_combat': 'Non combat.',
         'prop_stuns': 'Stuns target.',
-        
-        // --- NOTIFICATIONS AND ERRORS ---
-        'copied': 'Copied:',
-        'pasted': 'Pasted:',
-        'copy_error': 'Copy error!',
-        'paste_error': 'Paste error from clipboard!',
-        'no_stats_error': 'Required stat fields missing!',
-        'invalid_url': 'No valid players in URL!',
-        'connection_error': 'Connection error (it probably means server is down)',  
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'RMB to cancel',
         'success_chance': 'Success chance:',
         'condition_apply_chance': 'Condition apply chance:',
+        'hit_chance': 'Hit chance:',
         'vs': 'VS',
 
         'action_dmg_mag': 'Deal {val} magical damage',
@@ -418,7 +424,29 @@ const i18n = {
         'action_armor_sub': 'Subtract',
         'action_condition': 'Applying condition',
         'selected_targets': 'Selected targets',
-        'targeting_skip_hint': 'RMB to skip'
+        'targeting_skip_hint': 'RMB to skip',
+
+        // --- NOTIFICATIONS AND ERRORS ---
+        'copied': 'Copied:',
+        'pasted': 'Pasted:',
+        'copy_error': 'Copy error!',
+        'paste_error': 'Paste error from clipboard!',
+        'no_stats_error': 'Required stat fields missing!',
+        'invalid_url': 'No valid players in URL!',
+        'connection_error': 'Connection error (it probably means server is down)', 
+        
+        'btn_ok': 'OK',
+        'btn_yes': 'Yes',
+        'btn_no': 'No',
+        'error_force_roll_missing': 'Critical Error: Action requires "forceRoll" but "forceRollDifficulty" is missing!',
+        'error_armor_missing_vals': 'Critical Error: Armor action requires at least one value field (physArmorValue, physArmorValuePerc, etc.).',
+        'error_armor_mixed_stats': 'Logic Error: Armor action applies mixed stats (+ and -). Requires "isBeneficial" flag!',
+        'error_armor_zero_stats': 'Logic Error: Armor action evaluates to zero. Requires "isBeneficial" flag!',
+        'error_condition_mixed': 'Logic Error: Condition action has mixed conditions (good and bad). Requires "isBeneficial" flag on the action!',
+        'error_condition_missing_flag': 'Error: Condition "{name}" is missing the required "isBeneficial" flag (required for actions with forced rolls)!',
+        'error_ability_roll_missing': 'Parser Error: "roll" or "over" was requested, but ability lacks the "roll" property!',
+        'error_ability_diff_missing': 'Parser Error: "over" margin calculation used, but ability lacks a numeric "difficulty" property!',
+        'error_gm_negative_val': 'Game Master Error: Cannot heal or deal damage with negative values!',
     }
 };
 

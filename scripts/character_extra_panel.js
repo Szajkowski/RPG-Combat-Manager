@@ -118,6 +118,12 @@ function renderExtraPanel(combatantId) {
     }
 }
 
+// Helper to safely parse string stat structures combined with a plus sign
+function parseRollStats(rollString) {
+    if (!rollString || typeof rollString !== 'string') return [];
+    return rollString.split('+').map(s => s.trim());
+}
+
 function fillAbilitiesPanel(abilities, combatant, container) {
     abilities.forEach(ability => {
         const abilityName = ability.name;
@@ -171,7 +177,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         // Optional attributes
         if (ability.roll) {
             // Properly format multiple stats if chained with a plus sign
-            const displayRollStr = ability.roll.split('+').map(s => `<strong class="stat-bonus">${t(s.trim())}</strong>`).join(' + ');
+            const displayRollStr = parseRollStats(ability.roll).map(s => `<strong class="stat-bonus">${t(s.trim())}</strong>`).join(' + ');
             cardInner += `<span>${t('ability_roll')} ${displayRollStr}</span>`;
         }
 
@@ -338,7 +344,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
 function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) {
     if (abilityDifficulty === "X") return 100;
 
-    const stats = abilityRoll.split('+').map(s => s.trim());
+    const stats = parseRollStats(abilityRoll);
     let dice = [];
     let totalMod = 0;
 
@@ -406,7 +412,7 @@ function useAbility(combatantId, ability, event) {
 
     if (ability.roll) { 
         initialRollsData = [];
-        const stats = ability.roll.split('+').map(s => s.trim());
+        const stats = parseRollStats(ability.roll);
         let totalResult = 0;
 
         stats.forEach(stat => {
@@ -606,7 +612,7 @@ function getFormulaBreakdown(statValue) {
  * Extracts comprehensive math structures supporting infinite sums/subtractions directly replacing roll/over bounds.
  * Wraps dynamic results (e.g., Min - Max) sequentially in fully functional format.
  */
- function parseFormulaTags(description, combatant, ability = null) {
+function parseFormulaTags(description, combatant, ability = null) {
     return description.replace(/\[(.*?)\]/g, (match, formula) => {
         try {
             const cleanFormula = formula.replace(/\s+/g, ' ').trim();
@@ -614,17 +620,19 @@ function getFormulaBreakdown(statValue) {
             // Intercept complex dynamically structured ability elements heavily depending on multiple parameters
             if (/roll|over/i.test(cleanFormula)) {
                 if (!ability || !ability.roll) {
-                    alert(`Critical Parser Error: 'roll' or 'over' was passed inside brackets, but ability configuration lacks the mandatory 'roll' property parameter!`);
-                    throw new Error("Missing 'roll' property on requested ability formula resolution.");
+                    showAlertDialog(t('error_ability_roll_missing'));
+                    console.error("Missing 'roll' property on requested ability formula resolution.");
+                    return match;
                 }
                 if (/over/i.test(cleanFormula) && (!ability.difficulty || ability.difficulty === "X")) {
-                    alert(`Critical Parser Error: 'over' margin multiplier used, but ability configuration lacks a numeric 'difficulty' to cross-reference margin calculations.`);
-                    throw new Error("Missing 'difficulty' property parsing margin offset 'over' calculation.");
+                    showAlertDialog(t('error_ability_diff_missing'));
+                    console.error("Missing 'difficulty' property parsing margin offset 'over' calculation.");
+                    return match;
                 }
 
                 // Extrapolate bounds across potential multi-stat array inputs natively
                 let minRollSum = 0, maxRollSum = 0;
-                const statsArray = ability.roll.split('+').map(s => s.trim());
+                const statsArray = parseRollStats(ability.roll);
                 
                 statsArray.forEach(stat => {
                     const base = getStatValue(combatant, stat);

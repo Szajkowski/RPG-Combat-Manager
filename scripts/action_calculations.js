@@ -41,7 +41,7 @@ function calculateStaticChance(target, statName, difficulty) {
 }
 
 // Helper explicitly evaluating whether an armor action is globally beneficial 
-// (Throws an explicit error preventing silent failures if logic implies mixed stats without manual isBeneficial flag)
+// Avoids fatal crashes by cleanly logging errors and returning null to gracefully abort
 function getArmorActionBeneficialState(payload, attacker) {
     let hasPositive = false;
     let hasNegative = false;
@@ -67,19 +67,22 @@ function getArmorActionBeneficialState(payload, attacker) {
 
     // This validation MUST run before the early return
     if (!hasAny) {
-        alert("Critical error: Armor action requires at least one value field (physArmorValue, physArmorValuePerc, magArmorValue, magArmorValuePerc).");
-        throw new Error("Missing armor value fields.");
+        showAlertDialog(t('error_armor_missing_vals'));
+        console.error("Missing armor value fields.");
+        return null;
     }
 
     if (payload.isBeneficial !== undefined) return payload.isBeneficial;
 
     if (hasPositive && hasNegative) {
-        alert("Critical logic error: Armor action applies mixed stats (+ and -). Requires isBeneficial flag!");
-        throw new Error("Armor action applies mixed stats (+ and -). Requires isBeneficial flag!");
+        showAlertDialog(t('error_armor_mixed_stats'));
+        console.error("Armor action applies mixed stats (+ and -). Requires isBeneficial flag!");
+        return null;
     }
     if (!hasPositive && !hasNegative) {
-        alert("Critical logic error: Armor action evaluates to zero. Requires isBeneficial flag!");
-        throw new Error("Armor action evaluates to zero. Requires isBeneficial flag!");
+        showAlertDialog(t('error_armor_zero_stats'));
+        console.error("Armor action evaluates to zero. Requires isBeneficial flag!");
+        return null;
     }
 
     return hasPositive;
@@ -100,20 +103,23 @@ function getConditionActionBeneficialState(payload) {
     });
 
     if (hasPositive && hasNegative) {
-        alert("Critical logic error: Condition action has mixed conditions (good and bad). Requires isBeneficial flag on the action!");
-        throw new Error("Condition action has mixed conditions. Requires isBeneficial flag.");
+        showAlertDialog(t('error_condition_mixed'));
+        console.error("Condition action has mixed conditions. Requires isBeneficial flag.");
+        return null;
     }
     if (!hasPositive && !hasNegative) {
-        alert("Critical logic error: Condition action conditions lack isBeneficial flags. Requires isBeneficial flag on the action!");
-        throw new Error("Condition action conditions lack isBeneficial flags. Requires isBeneficial flag on the action.");
+        showAlertDialog(t('error_condition_missing_flag').replace('{name}', 'Action'));
+        console.error("Condition action conditions lack isBeneficial flags. Requires isBeneficial flag on the action.");
+        return null;
     }
 
     return hasPositive;
 }
 
 // Dynamically calculates compound success probability combining Base Hit + Defenses/Checks (forceRoll & forceRollVS)
+// Returns tailored objects mapped strictly to the action type to render exact UI tooltip chances
 function calculateActionSuccessChance(attacker, target, payload) {
-    if (payload.isGmAction) return { main: 100 }; // Directly skip logical bounds for GM actions
+    if (payload.isGmAction) return {}; // Directly skip logical bounds for GM actions, GM actions shouldn't display tooltip stats anyway
 
     // 1. Base Success Probability (Only relevant for Damage Types)
     let baseSuccessChance = 1.0;
@@ -130,10 +136,7 @@ function calculateActionSuccessChance(attacker, target, payload) {
     if (payload.forceRoll || payload.forceRollVS) {
         let pPassForce = 0.0;
         if (payload.forceRoll) {
-            if (!payload.forceRollDifficulty) {
-                alert("Critical Error: Action requires 'forceRoll' but 'forceRollDifficulty' is missing!");
-                throw new Error("Missing 'forceRollDifficulty' for the defined 'forceRoll'.");
-            }
+            if (!payload.forceRollDifficulty) return {}; // Graceful UI handling if it errors out
             hasForceRoll = true;
             const stat = payload.forceRoll.trim(); 
             pPassForce = calculateStaticChance(target, stat, parseInt(payload.forceRollDifficulty)) / 100;
@@ -156,49 +159,51 @@ function calculateActionSuccessChance(attacker, target, payload) {
         else if (hasForceRollVS) targetPassChance = pPassVS;
     }
 
-    // 3. Calculate Final Success Chances (Split into Main Action and Conditional Riders)
-    let result = { main: Math.round(baseSuccessChance * 100) };
+    // 3. Calculate Final Success Chances strictly separated by action type properties
+    let result = {};
 
-    if (hasForceRoll || hasForceRollVS) {
-        if (payload.type === 'damage') {
-            // Main damage ignores forced rolls for execution chance
-            if (payload.conditions && payload.conditions.length > 0) {
-                let isBeneficial = getConditionActionBeneficialState(payload);
-                let condChance = isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance);
-                result.condition = Math.round(condChance * 100);
-            }
-        } else if (payload.type === 'heal') {
-            result.main = 100; // Heal always hits
-            if (payload.conditions && payload.conditions.length > 0) {
-                let isBeneficial = getConditionActionBeneficialState(payload);
-                let condChance = isBeneficial ? targetPassChance : (1.0 - targetPassChance);
-                result.condition = Math.round(condChance * 100);
-            }
-        } else if (payload.type === 'armor') {
-            let isBeneficial = getArmorActionBeneficialState(payload, attacker);
-            result.main = Math.round((isBeneficial ? targetPassChance : (1.0 - targetPassChance)) * 100);
-            
-            if (payload.conditions && payload.conditions.length > 0) {
-                let isCondBeneficial = getConditionActionBeneficialState(payload);
-                result.condition = Math.round((isCondBeneficial ? targetPassChance : (1.0 - targetPassChance)) * 100);
-            }
-        } else if (payload.type === 'condition') {
-            // For pure condition actions, main chance reflects the tooltip condition success chance
+    if (payload.type === 'damage') {
+        result.hit = Math.round(baseSuccessChance * 100);
+        if (payload.conditions && payload.conditions.length > 0) {
             let isBeneficial = getConditionActionBeneficialState(payload);
-            result.main = Math.round((isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance)) * 100);
+            if (isBeneficial === null) return {}; // Graceful abort if logic fails
+            
+            let condChance = hasForceRoll || hasForceRollVS 
+                ? (isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance)) 
+                : baseSuccessChance;
+            
+            result.condition = Math.round(condChance * 100);
         }
-    } else {
-        // No extra checks, condition chance scales directly with the base success chance
-        if (payload.type === 'heal' || payload.type === 'armor' || payload.type === 'condition') {
-            result.main = 100;
-            if (payload.conditions && payload.conditions.length > 0) {
-                result.condition = 100;
-            }
-        } else if (payload.type === 'damage') {
-            if (payload.conditions && payload.conditions.length > 0) {
-                result.condition = Math.round(baseSuccessChance * 100);
-            }
+    } else if (payload.type === 'heal') {
+        // Heal does not have hit/success chances shown, strictly condition apply chances
+        if (payload.conditions && payload.conditions.length > 0) {
+            let isBeneficial = getConditionActionBeneficialState(payload);
+            if (isBeneficial === null) return {}; 
+            
+            let condChance = hasForceRoll || hasForceRollVS 
+                ? (isBeneficial ? targetPassChance : (1.0 - targetPassChance)) 
+                : 1.0;
+                
+            result.condition = Math.round(condChance * 100);
         }
+    } else if (payload.type === 'armor') {
+        let isBeneficial = getArmorActionBeneficialState(payload, attacker);
+        if (isBeneficial === null) return {};
+        
+        let successChance = hasForceRoll || hasForceRollVS 
+            ? (isBeneficial ? targetPassChance : (1.0 - targetPassChance)) 
+            : 1.0;
+            
+        result.success = Math.round(successChance * 100);
+    } else if (payload.type === 'condition') {
+        let isBeneficial = getConditionActionBeneficialState(payload);
+        if (isBeneficial === null) return {};
+        
+        let successChance = hasForceRoll || hasForceRollVS 
+            ? (isBeneficial ? targetPassChance : baseSuccessChance * (1.0 - targetPassChance)) 
+            : 1.0;
+            
+        result.success = Math.round(successChance * 100);
     }
 
     return result;
@@ -258,8 +263,9 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
     if (payload.forceRoll) {
         if (!payload.forceRollDifficulty) {
-            alert("Critical Error: Action requires 'forceRoll' but 'forceRollDifficulty' is missing!");
-            throw new Error("Missing 'forceRollDifficulty' for the defined 'forceRoll'.");
+            showAlertDialog(t('error_force_roll_missing'));
+            console.error("Missing 'forceRollDifficulty' for the defined 'forceRoll'.");
+            return { success: false, hasForcedRolls: false, targetPassedChecks: false, rolls: { attackerSingleRolls, opposedRolls, defenderSingleRolls }, subType: 'error' };
         }
         hasForceRoll = true;
         const stat = payload.forceRoll.trim(); 
@@ -305,6 +311,9 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
             actionSuccess = isBaseSuccess; 
         } else if (payload.type === 'armor') {
             let isArmorBeneficial = getArmorActionBeneficialState(payload, attacker);
+            // If the beneficial state logic failed (e.g., missing data), gracefully fail execution
+            if (isArmorBeneficial === null) return { success: false, hasForcedRolls: false, targetPassedChecks: false, rolls: { attackerSingleRolls, opposedRolls, defenderSingleRolls }, subType: 'error' };
+
             actionSuccess = (isArmorBeneficial === targetPassedChecks);
             if (!actionSuccess) subTypeFinal = isArmorBeneficial ? 'miss' : 'resist';
         }

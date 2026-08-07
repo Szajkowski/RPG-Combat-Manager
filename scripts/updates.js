@@ -30,7 +30,11 @@ function connectSocket() {
     };
 
     socket.onerror = (error) => {
-        alert(t('connection_error'));
+        if (typeof showAlertDialog === 'function') {
+            showAlertDialog(t('connection_error'));
+        } else {
+            console.error('Connection error', error);
+        }
     };
 
     socket.onmessage = async (event) => {

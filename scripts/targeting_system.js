@@ -408,13 +408,13 @@ function handleTargetingHoverEnter(e, targetId) {
     const chances = calculateActionSuccessChance(targetingData.attacker, target, targetingData.payload);
     let text = '';
     
-    // Evaluate if the action utilizes chance mechanics explicitly
-    if (targetingData.payload.type === 'damage') {
-        text += `${t('success_chance')} ${chances.main}%<br>`;
-    } else if (chances.main !== 100) {
-        text += `${t('success_chance')} ${chances.main}%<br>`;
+    // Explicit condition checks utilizing the strict object keys to render the exact UI requirement
+    if (chances.hit !== undefined) {
+        text += `${t('hit_chance')} ${chances.hit}%<br>`;
     }
-    
+    if (chances.success !== undefined) {
+        text += `${t('success_chance')} ${chances.success}%<br>`;
+    }
     if (chances.condition !== undefined) {
         text += `${t('condition_apply_chance')} ${chances.condition}%<br>`;
     }

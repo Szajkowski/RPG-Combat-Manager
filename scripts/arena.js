@@ -174,7 +174,7 @@ function rollDice(combatantId, diceType, difficulty = null) {
 
     // Safely check if stat exists at all
     if (combatant.stats[diceType] === undefined && combatant.stats[`${diceType}Mod`] === undefined) {
-        alert(t('no_stats_error'));
+        showAlertDialog(t('no_stats_error'));
         return null;
     }
 

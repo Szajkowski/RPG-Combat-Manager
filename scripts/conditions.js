@@ -159,17 +159,18 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
     const actionHasForcedRolls = !!(sourceData.forceRoll || sourceData.forceRollVS);
 
     if (sourceData.conditions && Array.isArray(sourceData.conditions)) {
-        sourceData.conditions.forEach(cond => {
+        for (const cond of sourceData.conditions) {
             // STRICT REQUIREMENT FOR ISBENEFICIAL FLAG (ONLY IF ACTION FORCES ROLLS)
             if (actionHasForcedRolls && cond.isBeneficial === undefined) {
-                alert(`Critical Error: Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag (required for actions with forced rolls)!`);
-                throw new Error(`Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag!`);
+                showAlertDialog(t('error_condition_missing_flag').replace('{name}', cond.conditionName || cond.name || fallbackName));
+                console.error(`Condition "${cond.conditionName || cond.name || fallbackName}" is missing the required 'isBeneficial' flag!`);
+                return; // Gracefully abort processing this action entirely rather than crashing
             }
 
             // Evaluates if this specific condition should apply based on its isBeneficial flag and force roll results
             if (evalData && evalData.hasForcedRolls) {
                 if (cond.isBeneficial !== evalData.targetPassedChecks) {
-                    return; // Skip pushing this condition if the target passed/failed the save appropriately
+                    continue; // Skip pushing this condition if the target passed/failed the save appropriately
                 }
             }
 
@@ -188,7 +189,7 @@ function processAndSendConditions(invoker, target, sourceData, fallbackName, def
             const condProps = cond.conditionProperties || cond.properties || [];
             
             newConditions.push(buildConditionObject(invoker, condTarget, condName, condDesc, condDuration, condSource, condProps));
-        });
+        }
     }
 
     // Batch update to the server to prevent multiple UI re-renders and network spikes

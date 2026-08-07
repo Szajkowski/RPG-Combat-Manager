@@ -241,13 +241,13 @@ function saveCharacterStats(id) {
     }
 
     if (changeLogs.length === 0) {
-        alert(t('no_changes_detected') || "No stat changes detected from baseline.");
+        showAlertDialog(t('no_changes_detected'));
         return;
     }
 
-    const promptBody = `${t('confirm_save_stats_alert') || "Are you sure you want to save modifications to the base character template (.js data matrix)?"}\n\n${changeLogs.join('\n')}`;
+    const promptBody = `${t('confirm_save_stats_alert')}<br><br>${changeLogs.join('<br>')}`;
     
-    if (confirm(promptBody)) {
+    showConfirmDialog(promptBody, () => {
         // Send an async POST request to the backend server to permanently write changes to the source files
         fetch('/api/save-character-stats', {
             method: 'POST',
@@ -298,11 +298,11 @@ function saveCharacterStats(id) {
                 renderCharMainPanel(combatant.id);
             }
             
-            alert(t('save_success') || "Successfully saved.");
+            showAlertDialog(t('save_success'));
         })
         .catch(error => {
             console.error("Error saving character stats to file via API:", error);
-            alert(t('save_error') || "Error during save attempt.");
+            showAlertDialog(t('save_error'));
         });
-    }
+    });
 }

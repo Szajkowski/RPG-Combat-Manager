@@ -169,7 +169,7 @@ function executeGmAction(event) {
     // GM Action constraint: Prevent healing or damaging with explicitly negative values
     if (type === 'damage' || type === 'heal') {
         if (parsedVal < 0) {
-            alert("Game Master error: Cannot heal or deal damage with negative values!");
+            showAlertDialog(t('error_gm_negative_val'));
             return;
         }
     }
