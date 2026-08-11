@@ -718,7 +718,7 @@ var ability = {
         difficulty: 14,
         cooldown: 0,
         actions: [
-            {
+            { // test over
                 type: "damage",
                 target: "multi",
                 possibleTargets: 2,
@@ -726,17 +726,53 @@ var ability = {
                 damageType: "pierce",
                 value: "[2 * over]",
             },
-            {
+            { // test roll
                 type: "damage",
                 target: "single",
                 damageType: "pierce",
                 value: "[1 * roll]",
             },
+            { // test obliczania szansy oraz rzutu na pare rzeczy + multi bez possible targets (default 1)
+                type: "damage",
+                target: "multi",
+                damageType: "pierce",
+                value: "[1 * vitality + 1 * roll]",
+                forceRoll: "vitality + agility + accuracy",
+                forceRollDifficulty: 15,
+                conditions: [
+                    {
+                        conditionName: "Stan po rzucie na wiele rzeczy",
+                        conditionDescription: "Cel zaliczył rzut na żywotność, zwinność i celność z trudnością 15.",
+                        conditionDuration: "2t",
+                        conditionSource: "self",
+                        conditionIsBeneficial: true,
+                    },
+                ]
+            },
+            { // test forceRoll i forceRollVS z wieloma atrybutami na raz.
+                type: "damage",
+                target: "multi",
+                possibleTargets: 3,
+                damageType: "pierce",
+                value: "[1 * vitality + 1 * roll]",
+                forceRollVS: "vitality + agility + vitality vs accuracy + agility",
+                forceRoll: "strength + agility",
+                forceRollDifficulty: 10,
+                conditions: [
+                    {
+                        conditionName: "Stan po rzucie na wiele rzeczy vs",
+                        conditionDescription: "Cel przegrał rzut na vitality + agility + vitality vs accuracy + agility LUB rzut siła + zwinność z trudnością 10.",
+                        conditionDuration: "2t",
+                        conditionSource: "self",
+                        conditionIsBeneficial: false,
+                    },
+                ]
+            },
         ]
     },
     "Test: Damage Actions": {
         name: "Test: Damage Actions",
-        description: "Uderza do 3 celów za [-3 * vitality + 4 * strength - 30 + 4 + reflex - 1 * roll + 1 * over]. Potem uderza cel za [1 * vitality] i wymusza roll na żywotność z trudnością 10. Daje stan jeśli się powiedzie. Potem uderza do 3 wybranych celów za [15 + 2 * attunement] obrażeń magicznych. Aby się obronić trzeba uniknąć tego ataku LUB wygrać rzut siła vs siła ORAZ wyrzucić chociaż [8] zwinności. Potem uderza 3 razy za [3 * attunement] obrażeń przebijącacych w cały team przeciwnika. Aby się obronić należy uniknąć + wyrzucić przynajmniej 9 siły.",
+        description: "Uderza do 3 celów za [-3 * vitality + 4 * strength - 30 + 4 + reflex - 1 * roll + 1 * over]. Potem robi wiele innych rzeczy, których nie chce mi się opisywać.",
         roll: "reflex",
         difficulty: 5,
         cooldown: 0,

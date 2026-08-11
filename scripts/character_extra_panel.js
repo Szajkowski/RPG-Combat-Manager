@@ -344,58 +344,19 @@ function fillEquipmentPanel(equipment, combatant, container) {
 function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) {
     if (abilityDifficulty === "X") return 100;
 
-    const stats = parseRollStats(abilityRoll);
-    let dice = [];
-    let totalMod = 0;
+    const dist = getDiceDistribution(combatant, abilityRoll);
+    if (!dist) return 0;
 
-    for (let stat of stats) {
-        const base = parseInt(combatant.stats[stat]) || 0;
-        const mod = parseInt(combatant.stats[`${stat}Mod`]) || 0;
-        
-        if (base <= 0) return 0; // If any of the required stats is missing completely (0 or undefined), the roll is guaranteed to fail
-        
-        dice.push(base);
-        totalMod += mod;
-    }
-
-    const targetSum = parseInt(abilityDifficulty) - totalMod;
-    
-    // Automatic success if target sum drops to or below the minimum dice throw limits (1 per die)
-    if (targetSum <= dice.length) return 100;
-
-    // Automatic failure if the target sum is higher than the absolute maximum possible roll
-    let maxSum = dice.reduce((a, b) => a + b, 0);
-    if (targetSum > maxSum) return 0;
-
-    // Dynamic Programming solver for EXACT permutations of ANY amount of dice combinations
-    // dp[i] stores the exact number of ways to roll a sum of 'i'
-    let dp = [1]; 
-    let currentMaxSum = 0;
-
-    for (let faces of dice) {
-        let nextDp = new Array(currentMaxSum + faces + 1).fill(0);
-        for (let s = 0; s <= currentMaxSum; s++) {
-            if (dp[s] > 0) {
-                // For each possible result of the current die, add the combinations to the next step
-                for (let roll = 1; roll <= faces; roll++) {
-                    nextDp[s + roll] += dp[s];
-                }
-            }
-        }
-        dp = nextDp;
-        currentMaxSum += faces;
-    }
-
-    // Sum all combinations that meet or exceed the target difficulty
+    const difficulty = parseInt(abilityDifficulty);
     let successfulCombos = 0;
-    for (let s = targetSum; s <= currentMaxSum; s++) {
-        successfulCombos += dp[s];
+    
+    for (let sum in dist.dp) {
+        if (parseInt(sum) >= difficulty) {
+            successfulCombos += dist.dp[sum];
+        }
     }
 
-    // Total possible combinations across all dice (e.g. 20 * 20 * 10)
-    let totalCombos = dice.reduce((acc, val) => acc * val, 1);
-
-    return Math.floor((successfulCombos / totalCombos) * 100);
+    return Math.floor((successfulCombos / dist.totalCombos) * 100);
 }
 
 // Routes abilities, resolves multi-dice arrays securely and prepares sequence pipelines

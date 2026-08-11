@@ -43,7 +43,7 @@ async function startServer() {
     const credentials = { key: privateKey, cert: certificate };
 
     const app = express();
-    const PORT = 444;  // Standard HTTPS port
+    const PORT = 4444;  // Standard HTTPS port
 
     // Serve static files without caching
     app.use(express.static(path.join(__dirname), {

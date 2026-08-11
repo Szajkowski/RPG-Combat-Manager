@@ -236,36 +236,50 @@ function renderRollsFeed(history) {
 }
 
 // Performs actual randomized dice rolls resolving opposing interactions and supports caching the first roll across mass actions
-function performOpposedRoll(attacker, defender, attStatName, defStatName, cachedAttRoll = null, isHitVsDodge = false) {
-    const attBase = parseInt(attacker.stats[attStatName]) || 0;
-    const defBase = parseInt(defender.stats[defStatName]) || 0;
-
-    let attRes = 0, defRes = 0;
+function performOpposedRoll(attacker, defender, attStatString, defStatString, cachedAttRoll = null, isHitVsDodge = false) {
+    const attStats = parseRollStats(attStatString);
+    const defStats = parseRollStats(defStatString);
+    
+    let attRes = 0;
+    let hasAttBase = false;
 
     if (cachedAttRoll !== null && cachedAttRoll !== undefined) {
         attRes = cachedAttRoll;
-    } else if (attBase > 0) {
-        const attMod = parseInt(attacker.stats[`${attStatName}Mod`]) || 0;
-        attRes = Math.max(1, Math.floor(Math.random() * attBase) + 1 + attMod);
+        hasAttBase = true;
+    } else {
+        for (let stat of attStats) {
+            const base = parseInt(attacker.stats[stat]) || 0;
+            if (base > 0) {
+                hasAttBase = true;
+                const mod = parseInt(attacker.stats[`${stat}Mod`]) || 0;
+                attRes += Math.max(1, Math.floor(Math.random() * base) + 1 + mod);
+            }
+        }
     }
 
-    if (defBase > 0) {
-        const defMod = parseInt(defender.stats[`${defStatName}Mod`]) || 0;
-        defRes = Math.max(1, Math.floor(Math.random() * defBase) + 1 + defMod);
+    let defRes = 0;
+    let hasDefBase = false;
+    for (let stat of defStats) {
+        const base = parseInt(defender.stats[stat]) || 0;
+        if (base > 0) {
+            hasDefBase = true;
+            const mod = parseInt(defender.stats[`${stat}Mod`]) || 0;
+            defRes += Math.max(1, Math.floor(Math.random() * base) + 1 + mod);
+        }
     }
 
     // Tie goes to the attacker
     const isSuccess = attRes >= defRes;
     
     // Inject display names conditionally
-    const displayAttStat = isHitVsDodge ? 'roll_hit' : attStatName;
-    const displayDefStat = isHitVsDodge ? 'roll_dodge' : defStatName;
+    const displayAttStat = isHitVsDodge ? 'roll_hit' : attStatString;
+    const displayDefStat = isHitVsDodge ? 'roll_dodge' : defStatString;
 
     return {
         isSuccess: isSuccess,
         actualAttRoll: attRes, // Saved for potential external caching
-        attRoll: { stat: displayAttStat, result: attBase > 0 ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555' },
-        defRoll: { stat: displayDefStat, result: defBase > 0 ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b' }
+        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555' },
+        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b' }
     };
 }
 
@@ -311,15 +325,18 @@ function appendRollEvent(event, animate = true) {
     const placeholder = feed.querySelector('.rolls-placeholder');
     if (placeholder) placeholder.remove();
 
-    // Helper function to dynamically capitalize the first letter of the translated stat name
-    const capitalize = (str) => {
-        if (!str) return str;
-        return str.charAt(0).toUpperCase() + str.slice(1);
-    };
+    // Helper function to dynamically translate and capitalize potentially combined stats
+        const translateStat = (statStr) => {
+            if (!statStr) return statStr;
+            return parseRollStats(statStr).map(s => {
+                const translated = t(s);
+                return translated.charAt(0).toUpperCase() + translated.slice(1);
+            }).join(' + ');
+        };
 
     // Helper functions to build standard roll pill HTML
     const createDiceHtml = (r) => animate ? `<div class="mini-dice tumbling"></div>` : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
-    const createPillHtml = (r) => `<div class="roll-pill"><span class="roll-stat">${capitalize(t(r.stat))}</span>${createDiceHtml(r)}</div>`;
+    const createPillHtml = (r) => `<div class="roll-pill"><span class="roll-stat">${translateStat(r.stat)}</span>${createDiceHtml(r)}</div>`;
 
     // Helper functions to prevent multiple diceroll sounds in a single action
     const playDiceSoundDeduplicated = () => {

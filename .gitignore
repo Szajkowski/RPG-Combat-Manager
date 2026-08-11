@@ -7,3 +7,4 @@ server.key
 /music
 *.ps1
 monolit*.js
+*.sh
