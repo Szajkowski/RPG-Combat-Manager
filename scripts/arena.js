@@ -181,23 +181,21 @@ function rollDice(combatantId, diceType, difficulty = null) {
     const roll = Math.floor(Math.random() * baseStat) + 1;
     let result = Math.max(1, roll + modValue);
 
-    // Intuition bonus for Agility and Accuracy, dunno if I want to hardcode that. Let's leave it for now.
-    // if (diceType === 'agility' || diceType === 'accuracy') {
-    //     const intuitionValue = parseInt(combatant.stats.intuition) || 0;
-    //     if (intuitionValue >= 10) {
-    //         const intuitionBonus = Math.floor((intuitionValue - 10) / 4);
-    //         result += intuitionBonus;
-    //     }
-    // }
-
     // Determine color
     let resultColor = 'white';
+    let difficultyValue = null;
     if (difficulty && difficulty !== "X") {
-        difficulty = parseInt(difficulty);
-        resultColor = result >= difficulty ? '#50fa7b' : '#ff5555';
+        difficultyValue = parseInt(difficulty);
+        resultColor = result >= difficultyValue ? '#50fa7b' : '#ff5555';
     }
 
-    return { stat: diceType, result: result, color: resultColor };
+    return { 
+        stat: diceType, 
+        result: result, 
+        color: resultColor, 
+        breakdown: [{ stat: diceType, roll: roll, mod: modValue, total: result }],
+        difficulty: difficultyValue
+    };
 }
 
 // Wrapper to execute and broadcast a single roll directly from the character sheet
@@ -236,15 +234,17 @@ function renderRollsFeed(history) {
 }
 
 // Performs actual randomized dice rolls resolving opposing interactions and supports caching the first roll across mass actions
-function performOpposedRoll(attacker, defender, attStatString, defStatString, cachedAttRoll = null, isHitVsDodge = false) {
+function performOpposedRoll(attacker, defender, attStatString, defStatString, cachedAttData = null, isHitVsDodge = false) {
     const attStats = parseRollStats(attStatString);
     const defStats = parseRollStats(defStatString);
     
     let attRes = 0;
     let hasAttBase = false;
+    let attBreakdown = [];
 
-    if (cachedAttRoll !== null && cachedAttRoll !== undefined) {
-        attRes = cachedAttRoll;
+    if (cachedAttData !== null && cachedAttData !== undefined) {
+        attRes = cachedAttData.actualAttRoll;
+        attBreakdown = cachedAttData.breakdown;
         hasAttBase = true;
     } else {
         for (let stat of attStats) {
@@ -252,19 +252,27 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
             if (base > 0) {
                 hasAttBase = true;
                 const mod = parseInt(attacker.stats[`${stat}Mod`]) || 0;
-                attRes += Math.max(1, Math.floor(Math.random() * base) + 1 + mod);
+                const roll = Math.floor(Math.random() * base) + 1;
+                const total = Math.max(1, roll + mod);
+                attRes += total;
+                attBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
             }
         }
     }
 
     let defRes = 0;
     let hasDefBase = false;
+    let defBreakdown = [];
+    
     for (let stat of defStats) {
         const base = parseInt(defender.stats[stat]) || 0;
         if (base > 0) {
             hasDefBase = true;
             const mod = parseInt(defender.stats[`${stat}Mod`]) || 0;
-            defRes += Math.max(1, Math.floor(Math.random() * base) + 1 + mod);
+            const roll = Math.floor(Math.random() * base) + 1;
+            const total = Math.max(1, roll + mod);
+            defRes += total;
+            defBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
         }
     }
 
@@ -278,8 +286,9 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
     return {
         isSuccess: isSuccess,
         actualAttRoll: attRes, // Saved for potential external caching
-        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555' },
-        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b' }
+        attBreakdown: attBreakdown, // Save to pass to cache
+        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555', breakdown: attBreakdown },
+        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b', breakdown: defBreakdown }
     };
 }
 
@@ -313,8 +322,208 @@ function rollDeathsDoor(combatant) {
 
     return {
         survived: survived,
-        roll: { stat: "deaths_door", result: rollResult, color: survived ? '#50fa7b' : '#ff5555' }
+        roll: { 
+            stat: "deaths_door", 
+            result: rollResult, 
+            color: survived ? '#50fa7b' : '#ff5555',
+            breakdown: [{ stat: "deaths_door", roll: rollResult, mod: 0, total: rollResult }],
+            difficulty: survivalThreshold
+        }
     };
+}
+
+// Helper function to dynamically translate and capitalize potentially combined stats
+function translateStat(statStr) {
+    if (!statStr) return statStr;
+    return parseRollStats(statStr).map(s => {
+        const translated = t(s);
+        return translated.charAt(0).toUpperCase() + translated.slice(1);
+    }).join(' + ');
+}
+
+// Helper function to build standard roll pill HTML mapping breakdown values directly to the DOM
+function createRollPillHtml(r, animate) {
+    const breakdownAttr = r.breakdown ? `data-breakdown='${JSON.stringify(r.breakdown)}'` : '';
+    const diffAttr = r.difficulty ? `data-difficulty='${r.difficulty}'` : '';
+    
+    const diceHtml = animate 
+        ? `<div class="mini-dice tumbling" ${breakdownAttr} ${diffAttr}></div>` 
+        : `<div class="mini-dice" style="color: ${r.color};" ${breakdownAttr} ${diffAttr}>${r.result}</div>`;
+        
+    return `<div class="roll-pill"><span class="roll-stat">${translateStat(r.stat)}</span>${diceHtml}</div>`;
+}
+
+// Helper function to prevent multiple diceroll sounds in a single action
+function playDiceSoundDeduplicated(event) {
+    let shouldPlayDiceSound = true;
+    
+    // Deduplicate sound ONLY for auto-actions (e.g., group targets) to play once per group
+    // Manual actions (like multi-target clicks) will play sound for every individual target clicked
+    if (event.isAuto && event.groupId) {
+        const diceSoundKey = `dice-${event.groupId}`;
+        if (!window.playedStepSounds) window.playedStepSounds = new Set();
+        
+        if (window.playedStepSounds.has(diceSoundKey)) {
+            shouldPlayDiceSound = false; // A character from this group already triggered the diceroll sound
+        } else {
+            window.playedStepSounds.add(diceSoundKey);
+            setTimeout(() => window.playedStepSounds.delete(diceSoundKey), 5000);
+        }
+    }
+    
+    if (shouldPlayDiceSound) {
+        playSoundEffect('sound/diceroll.mp3');
+    }
+}
+
+// Tries to append a roll to an existing grouped roll row. Returns true if successful.
+function tryAppendToGroupedRoll(event, feed, animate) {
+    if (!event.isTargeted || !event.groupId) return false;
+    
+    const existingRow = feed.querySelector(`.roll-event-row[data-group-id="${event.groupId}"]`);
+    if (!existingRow) return false;
+
+    const container = existingRow.querySelector('.targeted-roll-container');
+    if (!container) return false;
+
+    const ampersand = document.createElement('div');
+    ampersand.className = 'targeted-arrow';
+    ampersand.innerHTML = '&amp;'; // Symbol of connection
+    
+    const defNameColor = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+    const defNameHtml = `<div class="roll-char-name" style="color: ${defNameColor};" title="${event.defenderName}">${event.defenderName}</div>`;
+    const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate)).join('');
+    
+    let clashPillarHtml = '';
+    if (event.opposedRolls && event.opposedRolls.length > 0) {
+        clashPillarHtml = event.opposedRolls.map(opp => `
+            <div class="vs-block">
+                ${createRollPillHtml(opp.attRoll, animate)}
+                <div class="vs-text" data-i18n="vs">${t('vs')}</div>
+                ${createRollPillHtml(opp.defRoll, animate)}
+            </div>
+        `).join('');
+    }
+
+    const defPillar = document.createElement('div');
+    defPillar.className = 'roll-pillar';
+    defPillar.innerHTML = defNameHtml + clashPillarHtml + defSingleHtml;
+    
+    container.appendChild(ampersand);
+    container.appendChild(defPillar);
+    
+    // Animate ONLY the newly appended dice
+    if (animate) {
+        playDiceSoundDeduplicated(event); 
+        setTimeout(() => {
+            const newDice = defPillar.querySelectorAll('.mini-dice');
+            let targetRolls = [];
+            if (event.opposedRolls) {
+                event.opposedRolls.forEach(opp => targetRolls.push(opp.attRoll, opp.defRoll));
+            }
+            if (event.defenderSingleRolls) targetRolls.push(...event.defenderSingleRolls);
+
+            newDice.forEach((diceEl, index) => {
+                const r = targetRolls[index];
+                if (r) {
+                    diceEl.classList.remove('tumbling');
+                    diceEl.style.color = r.color;
+                    diceEl.textContent = r.result;
+                }
+            });
+        }, 600);
+    }
+    
+    feed.scrollTop = feed.scrollHeight;
+    return true;
+}
+
+// Builds HTML for a targeted action (Three Pillars concept)
+function buildTargetedRollHtml(event, animate) {
+    const isSelf = event.attackerName === event.defenderName;
+
+    const nameColorAtt = event.attackerTeam === 'hero' ? '#8be9fd' : (event.attackerTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+    const nameColorDef = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+
+    // Attacker's Pillar (Name on the left + Standalone rolls on the right)
+    const attNameHtml = `<div class="roll-char-name" style="color: ${nameColorAtt};" title="${event.attackerName}">${event.attackerName}</div>`;
+    
+    const attRolls = [...(event.attackerSingleRolls || [])];
+    if (isSelf && event.defenderSingleRolls) {
+        // Merge defender rolls directly into attacker pillar if self-targeting
+        attRolls.push(...event.defenderSingleRolls);
+    }
+    
+    const attSingleHtml = attRolls.map(r => createRollPillHtml(r, animate)).join('');
+    const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
+
+    let flowElements = [attPillar];
+
+    // Only generate Defender pillar if it's NOT self-targeted
+    if (!isSelf) {
+        let clashHtml = '';
+        if (event.opposedRolls && event.opposedRolls.length > 0) {
+            clashHtml = event.opposedRolls.map(opp => `
+                <div class="vs-block">
+                    ${createRollPillHtml(opp.attRoll, animate)}
+                    <div class="vs-text" data-i18n="vs">${t('vs')}</div>
+                    ${createRollPillHtml(opp.defRoll, animate)}
+                </div>
+            `).join('');
+        }
+
+        const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
+        const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate)).join('');
+        const defPillar = `<div class="roll-pillar">${defNameHtml}${clashHtml}${defSingleHtml}</div>`;
+
+        flowElements.push(defPillar);
+    }
+
+    return `
+        <div class="targeted-roll-container">
+            ${flowElements.join('<div class="targeted-arrow">&#10132;</div>')}
+        </div>
+    `;
+}
+
+// Builds HTML for standalone rolls
+function buildStandaloneRollHtml(event, animate) {
+    const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+
+    let rollsHtml = '';
+    event.rolls.forEach(r => {
+        rollsHtml += createRollPillHtml(r, animate);
+    });
+
+    return `
+        <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
+        <div class="roll-results">
+            ${rollsHtml}
+        </div>
+    `;
+}
+
+// Retrieves a flat array of all roll objects mapped within the event structure
+function extractAllRollsFromEvent(event) {
+    let allRolls = [];
+    if (event.isTargeted) {
+        const isSelf = event.attackerName === event.defenderName;
+        if (event.attackerSingleRolls) allRolls.push(...event.attackerSingleRolls);
+        
+        if (!isSelf) {
+            if (event.opposedRolls) {
+                event.opposedRolls.forEach(opp => {
+                    allRolls.push(opp.attRoll, opp.defRoll);
+                });
+            }
+            if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
+        } else {
+            if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
+        }
+    } else {
+        allRolls = event.rolls;
+    }
+    return allRolls;
 }
 
 // Appends a single roll event visually and triggers animation if requested
@@ -325,100 +534,9 @@ function appendRollEvent(event, animate = true) {
     const placeholder = feed.querySelector('.rolls-placeholder');
     if (placeholder) placeholder.remove();
 
-    // Helper function to dynamically translate and capitalize potentially combined stats
-        const translateStat = (statStr) => {
-            if (!statStr) return statStr;
-            return parseRollStats(statStr).map(s => {
-                const translated = t(s);
-                return translated.charAt(0).toUpperCase() + translated.slice(1);
-            }).join(' + ');
-        };
-
-    // Helper functions to build standard roll pill HTML
-    const createDiceHtml = (r) => animate ? `<div class="mini-dice tumbling"></div>` : `<div class="mini-dice" style="color: ${r.color};">${r.result}</div>`;
-    const createPillHtml = (r) => `<div class="roll-pill"><span class="roll-stat">${translateStat(r.stat)}</span>${createDiceHtml(r)}</div>`;
-
-    // Helper functions to prevent multiple diceroll sounds in a single action
-    const playDiceSoundDeduplicated = () => {
-        let shouldPlayDiceSound = true;
-        
-        // Deduplicate sound ONLY for auto-actions (e.g., group targets) to play once per group
-        // Manual actions (like multi-target clicks) will play sound for every individual target clicked
-        if (event.isAuto && event.groupId) {
-            const diceSoundKey = `dice-${event.groupId}`;
-            if (!window.playedStepSounds) window.playedStepSounds = new Set();
-            
-            if (window.playedStepSounds.has(diceSoundKey)) {
-                shouldPlayDiceSound = false; // A character from this group did already trigger the diceroll sound
-            } else {
-                window.playedStepSounds.add(diceSoundKey);
-                setTimeout(() => window.playedStepSounds.delete(diceSoundKey), 5000);
-            }
-        }
-        
-        if (shouldPlayDiceSound) {
-            playSoundEffect('sound/diceroll.mp3');
-        }
-    };
-
-    // MULTI-TARGET GROUPING LOGIC: If this event belongs to a grouped action, append it to the existing row instead of making a new one
-    if (event.isTargeted && event.groupId) {
-        const existingRow = feed.querySelector(`.roll-event-row[data-group-id="${event.groupId}"]`);
-        if (existingRow) {
-            const container = existingRow.querySelector('.targeted-roll-container');
-            if (container) {
-                const ampersand = document.createElement('div');
-                ampersand.className = 'targeted-arrow';
-                ampersand.innerHTML = '&amp;'; // Symbol of connection
-                
-                const defNameColor = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-                const defNameHtml = `<div class="roll-char-name" style="color: ${defNameColor};" title="${event.defenderName}">${event.defenderName}</div>`;
-                const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
-                
-                let clashPillarHtml = '';
-                if (event.opposedRolls && event.opposedRolls.length > 0) {
-                    clashPillarHtml = event.opposedRolls.map(opp => `
-                        <div class="vs-block">
-                            ${createPillHtml(opp.attRoll)}
-                            <div class="vs-text" data-i18n="vs">${t('vs')}</div>
-                            ${createPillHtml(opp.defRoll)}
-                        </div>
-                    `).join('');
-                }
-
-                const defPillar = document.createElement('div');
-                defPillar.className = 'roll-pillar';
-                defPillar.innerHTML = defNameHtml + clashPillarHtml + defSingleHtml;
-                
-                container.appendChild(ampersand);
-                container.appendChild(defPillar);
-                
-                // Animate ONLY the newly appended dice
-                if (animate) {
-                    playDiceSoundDeduplicated(); 
-                    setTimeout(() => {
-                        const newDice = defPillar.querySelectorAll('.mini-dice');
-                        let targetRolls = [];
-                        if (event.opposedRolls) {
-                            event.opposedRolls.forEach(opp => targetRolls.push(opp.attRoll, opp.defRoll));
-                        }
-                        if (event.defenderSingleRolls) targetRolls.push(...event.defenderSingleRolls);
-
-                        newDice.forEach((diceEl, index) => {
-                            const r = targetRolls[index];
-                            if (r) {
-                                diceEl.classList.remove('tumbling');
-                                diceEl.style.color = r.color;
-                                diceEl.textContent = r.result;
-                            }
-                        });
-                    }, 600);
-                }
-                
-                feed.scrollTop = feed.scrollHeight;
-                return; // Stop execution here, we successfully appended to a group
-            }
-        }
+    // Try appending to an existing multi-target group first
+    if (tryAppendToGroupedRoll(event, feed, animate)) {
+        return;
     }
 
     const row = document.createElement('div');
@@ -426,98 +544,21 @@ function appendRollEvent(event, animate = true) {
     if (event.groupId) row.dataset.groupId = event.groupId; // Tag the row for future group appending
     if (!animate) row.style.animation = 'none';
 
-    // Dynamic Narrative Flow Rendering for targeted (combat) actions utilizing the Three Pillars concept
     if (event.isTargeted) {
-        const isSelf = event.attackerName === event.defenderName;
-
-        const nameColorAtt = event.attackerTeam === 'hero' ? '#8be9fd' : (event.attackerTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-        const nameColorDef = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-
-        // Attacker's Pillar (Name on the left + Standalone rolls on the right)
-        const attNameHtml = `<div class="roll-char-name" style="color: ${nameColorAtt};" title="${event.attackerName}">${event.attackerName}</div>`;
-        
-        const attRolls = [...(event.attackerSingleRolls || [])];
-        if (isSelf && event.defenderSingleRolls) {
-            // Merge defender rolls directly into attacker pillar if self-targeting
-            attRolls.push(...event.defenderSingleRolls);
-        }
-        
-        const attSingleHtml = attRolls.map(createPillHtml).join('');
-        const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
-
-        let flowElements = [attPillar];
-
-        // Only generate Defender pillar if it's NOT self-targeted
-        if (!isSelf) {
-            let clashHtml = '';
-            if (event.opposedRolls && event.opposedRolls.length > 0) {
-                clashHtml = event.opposedRolls.map(opp => `
-                    <div class="vs-block">
-                        ${createPillHtml(opp.attRoll)}
-                        <div class="vs-text" data-i18n="vs">${t('vs')}</div>
-                        ${createPillHtml(opp.defRoll)}
-                    </div>
-                `).join('');
-            }
-
-            const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
-            const defSingleHtml = (event.defenderSingleRolls || []).map(createPillHtml).join('');
-            const defPillar = `<div class="roll-pillar">${defNameHtml}${clashHtml}${defSingleHtml}</div>`;
-
-            flowElements.push(defPillar);
-        }
-
-        row.innerHTML = `
-            <div class="targeted-roll-container">
-                ${flowElements.join('<div class="targeted-arrow">&#10132;</div>')}
-            </div>
-        `;
-    } 
-    // Rendering for standard standalone rolls (e.g., purely clicking "ROLL" from UI)
-    else {
-        const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-
-        let rollsHtml = '';
-        event.rolls.forEach(r => {
-            rollsHtml += createPillHtml(r);
-        });
-
-        row.innerHTML = `
-            <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
-            <div class="roll-results">
-                ${rollsHtml}
-            </div>
-        `;
+        row.innerHTML = buildTargetedRollHtml(event, animate);
+    } else {
+        row.innerHTML = buildStandaloneRollHtml(event, animate);
     }
 
     feed.appendChild(row);
     feed.scrollTop = feed.scrollHeight;
 
     if (animate) {
-        playDiceSoundDeduplicated(); 
+        playDiceSoundDeduplicated(event); 
         // The CSS dice-tumble animation takes 0.6s. We reveal the numeric result immediately after.
         setTimeout(() => {
             const diceElements = row.querySelectorAll('.mini-dice');
-            
-            // Build a flat array of all rolls dynamically based on the event structure to map to the HTML elements
-            let allRolls = [];
-            if (event.isTargeted) {
-                const isSelf = event.attackerName === event.defenderName;
-                if (event.attackerSingleRolls) allRolls.push(...event.attackerSingleRolls);
-                
-                if (!isSelf) {
-                    if (event.opposedRolls) {
-                        event.opposedRolls.forEach(opp => {
-                            allRolls.push(opp.attRoll, opp.defRoll);
-                        });
-                    }
-                    if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
-                } else {
-                    if (event.defenderSingleRolls) allRolls.push(...event.defenderSingleRolls);
-                }
-            } else {
-                allRolls = event.rolls;
-            }
+            const allRolls = extractAllRollsFromEvent(event);
 
             diceElements.forEach((diceEl, index) => {
                 const r = allRolls[index];
@@ -530,3 +571,104 @@ function appendRollEvent(event, animate = true) {
         }, 600);
     }
 }
+
+// --- ROLL BREAKDOWN TOOLTIP LOGIC ---
+
+let breakdownHoverTimeout = null;
+
+function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
+    let tooltip = document.getElementById('roll-breakdown-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'roll-breakdown-tooltip';
+        document.body.appendChild(tooltip);
+    }
+
+    const diceColor = anchorEl.style.color || '#f8f8f2';
+
+    let html = `<div class="breakdown-title">${t('breakdown_title')}</div>`;
+    
+    // Wrap all rows in a single grid container to align columns globally
+    html += `<div class="breakdown-grid">`;
+    
+    breakdownData.forEach(item => {
+        const statName = t(item.stat).charAt(0).toUpperCase() + t(item.stat).slice(1);
+        const modPrefix = item.mod > 0 ? '+' : '';
+        const statColor = item.stat === 'deaths_door' ? '#ff5555' : '#8be9fd';
+        
+        html += `
+            <div class="breakdown-row">
+                <span class="breakdown-stat" style="color: ${statColor};">${statName}</span>
+                <span class="breakdown-math">
+                    ${item.roll} <span style="font-size: 0.7rem; color: #6272a4;">(${t('breakdown_roll')})</span> 
+                    ${item.mod !== 0 ? ` ${modPrefix}${item.mod} <span style="font-size: 0.7rem; color: #6272a4;">(${t('breakdown_mod')})</span>` : ''}
+                </span>
+                <span class="breakdown-total" style="color: ${diceColor};">= ${item.total}</span>
+            </div>
+        `;
+    });
+    
+    if (difficulty) {
+        html += `
+            <div style="grid-column: 1 / -1; height: 1px; background: #44475a; margin: 4px 0;"></div>
+            <div class="breakdown-row">
+                <span class="breakdown-stat" style="color: #ff79c6;">${t('breakdown_threshold')}</span>
+                <span></span>
+                <span class="breakdown-total" style="color: #ffffff;">${difficulty}</span>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'flex';
+
+    const rect = anchorEl.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+    let top = rect.top - tooltip.offsetHeight - 10;
+
+    // Boundary checks to keep the tooltip on screen
+    if (left < 10) left = 10;
+    if (left + tooltip.offsetWidth > window.innerWidth - 10) left = window.innerWidth - tooltip.offsetWidth - 10;
+    if (top < 10) top = rect.bottom + 10; // Flip below if it goes above the viewport
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function hideBreakdownTooltip() {
+    const tooltip = document.getElementById('roll-breakdown-tooltip');
+    if (tooltip) tooltip.style.display = 'none';
+}
+
+document.addEventListener('mouseover', (e) => {
+    const diceEl = e.target.closest('.mini-dice');
+    if (diceEl) {
+        const dataStr = diceEl.dataset.breakdown;
+        const diffStr = diceEl.dataset.difficulty;
+        
+        if (dataStr) {
+            breakdownHoverTimeout = setTimeout(() => {
+                showBreakdownTooltip(diceEl, JSON.parse(dataStr), diffStr);
+            }, 1000);
+        }
+    }
+});
+
+document.addEventListener('mouseout', (e) => {
+    const diceEl = e.target.closest('.mini-dice');
+    if (diceEl) {
+        // Ensure we are actually leaving the element entirely
+        if (!diceEl.contains(e.relatedTarget)) {
+            clearTimeout(breakdownHoverTimeout);
+            hideBreakdownTooltip();
+        }
+    }
+});
+
+// Force hide if user clicks anything to prevent tooltip lingering
+document.addEventListener('mousedown', () => {
+    clearTimeout(breakdownHoverTimeout);
+    hideBreakdownTooltip();
+});

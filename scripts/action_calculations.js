@@ -301,7 +301,7 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
         } else {
             const opposed = performOpposedRoll(attacker, target, 'accuracy', 'agility', payload.cachedAttackerRolls['accuracy'], true);
             if (payload.cachedAttackerRolls['accuracy'] === undefined) {
-                payload.cachedAttackerRolls['accuracy'] = opposed.actualAttRoll;
+                payload.cachedAttackerRolls['accuracy'] = { actualAttRoll: opposed.actualAttRoll, breakdown: opposed.attBreakdown };
             }
             isBaseSuccess = opposed.isSuccess;
             opposedRolls.push({ attRoll: opposed.attRoll, defRoll: opposed.defRoll });
@@ -319,24 +319,34 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
     if (payload.forceRoll) {
         hasForceRoll = true;
-        const statString = payload.forceRoll; 
+        const statString = payload.forceRoll.trim(); 
         const diff = parseInt(payload.forceRollDifficulty);
 
         const stats = parseRollStats(statString);
         let rollRes = 0;
         let hasBase = false;
+        let forceBreakdown = [];
         
         for (let stat of stats) {
             const statBase = parseInt(target.stats[stat]) || 0;
             if (statBase > 0) {
                 hasBase = true;
                 const statMod = parseInt(target.stats[`${stat}Mod`]) || 0;
-                rollRes += Math.max(1, Math.floor(Math.random() * statBase) + 1 + statMod);
+                const roll = Math.floor(Math.random() * statBase) + 1;
+                const total = Math.max(1, roll + statMod);
+                rollRes += total;
+                forceBreakdown.push({ stat: stat, roll: roll, mod: statMod, total: total });
             }
         }
         
         passedForceRoll = rollRes >= diff;
-        defenderSingleRolls.push({ stat: statString, result: hasBase ? rollRes : "X", color: passedForceRoll ? '#50fa7b' : '#ff5555' });
+        defenderSingleRolls.push({ 
+            stat: statString, 
+            result: hasBase ? rollRes : "X", 
+            color: passedForceRoll ? '#50fa7b' : '#ff5555', 
+            breakdown: forceBreakdown,
+            difficulty: diff
+        });
     }
 
     if (payload.forceRollVS) {
@@ -347,7 +357,7 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
         const opposed = performOpposedRoll(attacker, target, attStatString, defStatString, payload.cachedAttackerRolls[attStatString]);
         if (payload.cachedAttackerRolls[attStatString] === undefined) {
-            payload.cachedAttackerRolls[attStatString] = opposed.actualAttRoll;
+            payload.cachedAttackerRolls[attStatString] = { actualAttRoll: opposed.actualAttRoll, breakdown: opposed.attBreakdown };
         }
         opposedRolls.push({ attRoll: opposed.attRoll, defRoll: opposed.defRoll });
         

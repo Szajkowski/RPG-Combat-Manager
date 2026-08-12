@@ -375,21 +375,33 @@ function useAbility(combatantId, ability, event) {
         initialRollsData = [];
         const stats = parseRollStats(ability.roll);
         let totalResult = 0;
+        let combinedBreakdown = [];
+        let hasBase = false;
 
         stats.forEach(stat => {
-            const rollData = rollDice(combatant.id, stat, "X"); // Bypass standard single-die color check to evaluate final array compound sum later
-            if (rollData) {
-                initialRollsData.push(rollData);
-                totalResult += rollData.result;
+            const baseStat = parseInt(combatant.stats[stat]) || 0;
+            if (baseStat > 0) {
+                hasBase = true;
+                const modValue = parseInt(combatant.stats[`${stat}Mod`]) || 0;
+                const roll = Math.floor(Math.random() * baseStat) + 1;
+                const finalRes = Math.max(1, roll + modValue);
+                totalResult += finalRes;
+                combinedBreakdown.push({ stat: stat, roll: roll, mod: modValue, total: finalRes });
             }
         });
 
-        if (initialRollsData.length > 0) {
+        if (hasBase) {
             success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
             
             // Adjust visual colors uniformly across the array block mapped directly to compound success condition
             const groupColor = success ? '#50fa7b' : '#ff5555';
-            initialRollsData.forEach(r => r.color = ability.difficulty === "X" ? 'white' : groupColor);
+            initialRollsData.push({
+                stat: ability.roll,
+                result: totalResult,
+                color: ability.difficulty === "X" ? 'white' : groupColor,
+                breakdown: combinedBreakdown,
+                difficulty: ability.difficulty !== "X" ? parseInt(ability.difficulty) : null
+            });
         } else {
             success = false; // Failing strictly due to stats missing entirely
         }

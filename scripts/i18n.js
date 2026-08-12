@@ -140,9 +140,13 @@ const i18n = {
         'deaths_door': "Wrota śmierci",
         'roll': "RZUT",
 
-        // Damage Action Combat Flow names
+        // Roll feed
         'roll_hit': 'trafienie',
         'roll_dodge': 'unik',
+        'breakdown_title': 'Szczegóły rzutu',
+        'breakdown_roll': 'rzut',
+        'breakdown_mod': 'mod',
+        'breakdown_threshold': 'Próg:',
 
         // Function bar
         'remove_character': 'Usuń postać',
@@ -363,9 +367,14 @@ const i18n = {
         'deaths_door': "Death's door",
         'roll': "ROLL",
 
-        // Damage Action Combat Flow names
+        // Roll feed
         'roll_hit': 'hit',
         'roll_dodge': 'dodge',
+        
+        'breakdown_title': 'Roll Breakdown',
+        'breakdown_roll': 'roll',
+        'breakdown_mod': 'mod',
+        'breakdown_threshold': 'Threshold:',
 
         // Function bar
         'remove_character': 'Remove character',

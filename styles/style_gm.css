@@ -605,7 +605,7 @@ input[type=number] { -moz-appearance: textfield; }
     flex-shrink: 0;
     z-index: 10;
     height: 114px; 
-    width: 100%; /* Rozszerzenie na całą szerokość areny */
+    width: 100%; /* Expands to full arena width */
     box-sizing: border-box;
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
 }
@@ -656,11 +656,11 @@ input[type=number] { -moz-appearance: textfield; }
     text-transform: uppercase;
     letter-spacing: 1px;
     opacity: 0.6;
-    pointer-events: none; /* Zabezpiecza przed blokowaniem ewentualnych kliknięć pod spodem */
+    pointer-events: none; /* Prevents blocking potential clicks underneath */
 }
 
- /* Wpis w historii - teraz przypomina samodzielną "kartę" */
- .roll-event-row {
+/* Roll event row - visually resembles a standalone "card" */
+.roll-event-row {
     display: flex;
     align-items: center;
     background: #282a36;
@@ -715,13 +715,13 @@ input[type=number] { -moz-appearance: textfield; }
     color: #f8f8f2;
 }
 
-/* ANIMACJA RZUTU */
+/* ROLL ANIMATION */
 .mini-dice.tumbling {
     animation: dice-tumble 0.6s cubic-bezier(0.25, 1, 0.5, 1);
     color: transparent;
     position: relative;
     border-style: solid;
-    border-color: #bd93f9; /* Zmiana na fiolet zamiast zieleni */
+    border-color: #bd93f9; /* Changed to purple instead of green */
 }
 .mini-dice.tumbling::after {
     content: "🎲";
@@ -1175,3 +1175,60 @@ body.targeting-mode .character-token { transform: none !important; }
 .custom-modal-btn:hover { background: #6272a4; }
 .custom-modal-btn.confirm { background: #bd93f9; color: #282a36; border-color: #bd93f9; font-weight: bold; }
 .custom-modal-btn.confirm:hover { background: #d6b4ff; }
+
+/* --- ROLL BREAKDOWN TOOLTIP --- */
+#roll-breakdown-tooltip {
+    position: fixed;
+    background: #181922;
+    border: 1px solid #bd93f9;
+    border-radius: 6px;
+    padding: 10px;
+    color: #f8f8f2;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    z-index: 10000;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.breakdown-title {
+    font-size: 0.75rem;
+    color: #6272a4;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed #44475a;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: max-content max-content max-content;
+    column-gap: 15px;
+    row-gap: 6px;
+    align-items: center;
+}
+
+.breakdown-row {
+    display: contents; /* Makes children participate directly in the parent's grid, ensuring perfect alignment across all rows */
+}
+
+.breakdown-stat { 
+    color: #8be9fd; 
+    font-weight: bold; 
+    text-align: left;
+}
+
+.breakdown-math { 
+    color: #bfbfbf; 
+    font-size: 0.8rem; 
+    white-space: nowrap; 
+    text-align: left;
+}
+
+.breakdown-total { 
+    font-weight: bold; 
+    text-align: left;
+}
