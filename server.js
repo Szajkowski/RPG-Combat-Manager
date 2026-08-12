@@ -335,7 +335,8 @@ async function startServer() {
                                 client.send(JSON.stringify({
                                     type: 'BROADCASTupdateCombatant',
                                     combatant: data.combatant,
-                                    senderId: clientId // Pass the sender identity
+                                    senderId: clientId, // Pass the sender identity
+                                    systemSound: data.systemSound // Safely pass the optional sound parameter
                                 }));
                             }
                         });

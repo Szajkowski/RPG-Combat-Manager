@@ -86,6 +86,13 @@ function connectSocket() {
             case 'BROADCASTupdateCombatant': {
                 const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
                 if (index !== -1) {
+                    // Play associated system sound if the payload contains it
+                    if (data.systemSound) {
+                        if (typeof playSoundEffect === 'function') {
+                            playSoundEffect(`sound/${data.systemSound}.mp3`, 0.5);
+                        }
+                    }
+
                     activeCombatants[index] = data.combatant;
                     refreshCombatantDisplay(activeCombatants[index]);
                     if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
@@ -190,11 +197,13 @@ function syncAddCombatant(combatant) {
 }
 
 // Updates an existing combatant's state on the server
-function syncUpdateCombatant(combatant) {
+// Can optionally attach a systemSound to broadcast alongside the update (e.g. revive, stun)
+function syncUpdateCombatant(combatant, systemSound = null) {
     if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
             type: 'REQUESTupdateCombatant',
-            combatant: combatant
+            combatant: combatant,
+            systemSound: systemSound
         }));
     }
 }
@@ -239,14 +248,31 @@ function syncPlayActionSequence(payload) {
     }
 }
 
+// Helper to reliably deduplicate concurrent global sounds utilizing the action group ID
+function playDeduplicatedSound(soundPath, dedupeKey, isAuto, volume = 0.5) {
+    let shouldPlay = true;
+    if (isAuto && dedupeKey) {
+        if (!window.playedStepSounds) window.playedStepSounds = new Set();
+        if (window.playedStepSounds.has(dedupeKey)) {
+            shouldPlay = false;
+        } else {
+            window.playedStepSounds.add(dedupeKey);
+            setTimeout(() => window.playedStepSounds.delete(dedupeKey), 5000);
+        }
+    }
+    if (shouldPlay) {
+        playSoundEffect(soundPath, volume);
+    }
+}
+
 // Uniformly executes a visual/audio action sequence received from the server.
 // Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
 async function playActionSequence(payload) {
-    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, stepId, isAuto, hasPhysFlat, hasPhysPerc, hasMagFlat, hasMagPerc, isMixedSound } = payload;
+    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, ddSteps, stepId, isAuto, hasPhysFlat, hasPhysPerc, hasMagFlat, hasMagPerc, isMixedSound, isStunned } = payload;
     const target = activeCombatants.find(c => c.id === targetId);
     if (!target) return;
 
-    // We can't import delay directly if it's trapped in a separate scope, so we define a safe inline awaiter
+    // Define sequenceDelay inline to allow awaiting independent blocks smoothly
     const sequenceDelay = ms => new Promise(res => setTimeout(res, ms));
 
     for (let i = 0; i < repeats; i++) {
@@ -276,43 +302,49 @@ async function playActionSequence(payload) {
             token.classList.add('hit-animation');
         }
 
-        // Contextual routing for multi-layered armor modifications to choose which sound is dominant 
-        const soundSubType = (hasPhysFlat || hasPhysPerc) ? 'phys' : 'mag';
-        
-        // Improved deduplication: for damage, strictly use the actual resolved subType to prevent different outcomes 
-        // (like dodge/block vs hit) from muting each other, which also ensures the full sound sequence plays if targets survive longer than others.
-        const activeKeyIdentifier = isMixedSound ? 'mixed' : (actionType === 'damage' ? subType : soundSubType);
-        const soundKey = stepId ? `${stepId}-${actionType}-${activeKeyIdentifier}-${i}` : null;
-        
-        let shouldPlaySound = true;
-        
-        // Block consecutive exact match sounds ONLY if this was flagged as an automated block action
-        if (soundKey && isAuto) {
-            if (!window.playedStepSounds) window.playedStepSounds = new Set();
-            if (window.playedStepSounds.has(soundKey)) {
-                shouldPlaySound = false;
-            } else {
-                window.playedStepSounds.add(soundKey);
-                // Clear the key after 5 seconds to free memory and allow future identical attacks
-                setTimeout(() => window.playedStepSounds.delete(soundKey), 5000);
+        // Prevent playing main buff/debuff sounds if the target resisted the action entirely
+        let shouldPlayMainSound = true;
+        if ((actionType === 'armor' || actionType === 'heal' || actionType === 'condition') && (subType === 'miss' || subType === 'resist')) {
+            shouldPlayMainSound = false;
+        }
+
+        if (shouldPlayMainSound) {
+            const soundSubType = (hasPhysFlat || hasPhysPerc) ? 'phys' : 'mag';
+            const activeKeyIdentifier = isMixedSound ? 'mixed' : (actionType === 'damage' ? subType : soundSubType);
+            const mainSoundKey = stepId ? `${stepId}-${actionType}-${activeKeyIdentifier}-${i}` : null;
+            
+            let soundPath = '';
+            let volume = 0.5;
+
+            if (actionType === 'damage') {
+                if (subType === 'dodge') soundPath = 'sound/dodge.mp3';
+                else if (subType === 'no_dmg') soundPath = 'sound/no_dmg_hit.mp3';
+                else soundPath = `sound/${subType}_hit.mp3`;
+            } else if (actionType === 'heal') {
+                soundPath = `sound/heal_${subType}.mp3`;
+            } else if (actionType === 'armor') {
+                if (isMixedSound) {
+                    soundPath = 'sound/mixed_armor.mp3';
+                } else {
+                    soundPath = isAdding ? `sound/${soundSubType}_armor_up.mp3` : `sound/${soundSubType}_armor_down.mp3`;
+                }
+            }
+
+            if (soundPath) {
+                playDeduplicatedSound(soundPath, mainSoundKey, isAuto, volume);
             }
         }
 
-        // Play exact context-aware sound mimicking the sender's resolution
-        if (shouldPlaySound) {
-            if (actionType === 'damage') {
-                if (subType === 'dodge') playSoundEffect('sound/dodge.mp3');
-                else if (subType === 'no_dmg') playSoundEffect('sound/no_dmg_hit.mp3');
-                else playSoundEffect(`sound/${subType}_hit.mp3`);
-            } else if (actionType === 'heal') {
-                playSoundEffect(`sound/heal_${subType}.mp3`);
-            } else if (actionType === 'armor') {
-                if (isMixedSound) {
-                    playSoundEffect('sound/mixed_armor.mp3', 0.5);
-                } else {
-                    playSoundEffect(isAdding ? `sound/${soundSubType}_armor_up.mp3` : `sound/${soundSubType}_armor_down.mp3`, 0.5);
-                }
-            }
+        // Global Stun sound check
+        if (isStunned) {
+            const stunKey = stepId ? `stun-${stepId}-${i}` : null;
+            playDeduplicatedSound('sound/stun.mp3', stunKey, isAuto, 0.5);
+        }
+
+        // Global Death's Door sound check per active step
+        if (ddSteps && ddSteps[i]) {
+            const ddKey = stepId ? `dd-${stepId}-${i}` : null;
+            playDeduplicatedSound('sound/deaths_door.mp3', ddKey, isAuto, 0.5);
         }
 
         if (i < repeats - 1) await sequenceDelay(300);

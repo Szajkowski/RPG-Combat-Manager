@@ -282,7 +282,7 @@ function buildActionTooltipText(action, attacker, rollData) {
             if (action[key] !== undefined && action[key] !== null && action[key] !== '') {
                 let valStr = String(action[key]).replace(/%/g, '');
                 let val = typeof getFormulaValue === 'function' ? getFormulaValue(valStr, attacker, rollData) : parseInt(valStr) || 0;
-                let verb = val >= 0 ? t('armor_add') : t('armor_sub');
+                let verb = val >= 0 ? t('action_armor_add') : t('action_armor_sub');
                 let absVal = Math.abs(val);
                 let symbol = isPerc ? '%' : '';
                 parts.push(`${verb} <strong>${absVal}${symbol}</strong> ${typeName}`);
@@ -437,6 +437,9 @@ function handleTargetingHoverEnter(e, targetId) {
     if (chances.condition !== undefined) {
         text += `${t('condition_success_chance')} ${chances.condition}%<br>`;
     }
+    if (chances.stun !== undefined) {
+        text += `${t('stun_chance')} ${chances.stun}%<br>`;
+    }
 
     // Explicitly avoids rendering raw string replacements if no chance applies to the targeted interaction
     text = text.replace(/<br>$/, ''); 
@@ -515,6 +518,20 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
     let evalRes = evaluateActionSuccessAndResistance(attacker, target, payload, consumeInitialRoll);
     let evalData = { hasForcedRolls: evalRes.hasForcedRolls, targetPassedChecks: evalRes.targetPassedChecks };
     
+    // Evaluate stun for non-damage actions independently.
+    // Stun applies if there are no forced rolls, or if the target fails at least one forced roll.
+    // This must be checked outside the main success block because a hostile action "succeeds" when the target fails the roll,
+    // but a beneficial action "fails" when the target fails the roll. In both cases, failing the roll triggers the stun.
+    let shouldStunNonDamage = payload.type !== 'damage' && hasActiveProperty(payload, 'prop_stuns') && (!evalRes.hasForcedRolls || !evalRes.targetPassedChecks);
+
+    if (shouldStunNonDamage) {
+        const freshTarget = activeCombatants.find(c => c.id === target.id);
+        if (freshTarget && !freshTarget.isDead) {
+            freshTarget.isStunned = true;
+            if (!skipSync) syncUpdateCombatant(freshTarget);
+        }
+    }
+
     if (payload.type === 'damage') {
         // Damage handler natively appends Death's Door checks inside the same visual package block
         const hitSuccess = await resolveDamageAction(attacker, target, payload, evalRes, skipSync);
@@ -529,18 +546,26 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
         }
         
         if (evalRes.success) {
-            if (payload.type === 'heal') await resolveHealAction(target, payload, attacker, skipSync);
-            else if (payload.type === 'armor') await resolveArmorAction(target, payload, attacker, skipSync);
+            if (payload.type === 'heal') await resolveHealAction(target, payload, attacker, skipSync, shouldStunNonDamage);
+            else if (payload.type === 'armor') await resolveArmorAction(target, payload, attacker, skipSync, shouldStunNonDamage);
+            else if (payload.type === 'condition') {
+                // If it's a pure condition action that triggered a stun, broadcast the sequence purely for the sound and visuals
+                if (shouldStunNonDamage && typeof syncPlayActionSequence === 'function') {
+                    syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true });
+                    await delay(400);
+                }
+            }
             
             // Attach explicitly linked target conditions
             if (payload.conditions) {
                 processAndSendConditions(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
             }
+
             return true;
         } else {
             // Execution resisted, broadcast negative visual feedback and exit
             if (typeof syncPlayActionSequence === 'function') {
-                syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'dodge', repeats: 1, stepId: payload.stepId, isAuto: skipSync });
+                syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'resist', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStunNonDamage });
             }
             await delay(400);
             return false;

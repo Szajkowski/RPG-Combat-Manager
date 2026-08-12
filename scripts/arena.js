@@ -313,10 +313,10 @@ function buildRollEvent(attacker, target, rollsObj, payload = null, skipSync = f
 function rollDeathsDoor(combatant) {
     const resilience = parseInt(combatant.stats.resilience) || 0;
     
-    // Survival chance is strictly equal to resilience, clamped between 15% and 85%
-    const survivalChance = Math.max(15, Math.min(85, resilience));
+    // Survival chance is strictly equal to resilience, clamped between 20% and 80%
+    const survivalChance = Math.max(20, Math.min(80, resilience));
     
-    // Calculate threshold for a 1-100 roll (e.g., 15% chance means rolling 86-100)
+    // Calculate threshold for a 1-100 roll (e.g., 20% chance means rolling 81-100)
     const survivalThreshold = 100 - survivalChance + 1; 
 
     // Roll 1-100

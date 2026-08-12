@@ -42,13 +42,9 @@ function toggleStun() {
     if (!combatant || combatant.isDead) return;
     
     combatant.isStunned = !combatant.isStunned;
-
-    if (combatant.isStunned) {
-        playSoundEffect('sound/stun.mp3');
-    }
     
-    // Broadcast change to server
-    syncUpdateCombatant(combatant);
+    // Broadcast change to server, attaching the stun sound conditionally
+    syncUpdateCombatant(combatant, combatant.isStunned ? 'stun' : null);
 }
 
 // Resurrects the currently selected character to full HP and clears their dead state
@@ -60,12 +56,10 @@ function resurrectCharacter() {
 
     combatant.isDead = false;
     combatant.stats.hp = combatant.stats.maxHp || 10;
-
-    playSoundEffect('sound/revive.mp3');
     
-    // Send update to server to globally broadcast the resurrection
+    // Send update to server to globally broadcast the resurrection alongside the audio effect
     if (typeof syncUpdateCombatant === 'function') {
-        syncUpdateCombatant(combatant);
+        syncUpdateCombatant(combatant, 'revive');
     }
 }
 

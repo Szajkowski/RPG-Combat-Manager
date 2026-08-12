@@ -436,7 +436,7 @@ body {
 }
 
 /* SPECIFIC STYLES FOR EQUIPMENT AND SKILLS */
-.highlighted-property { font-weight: bold; color: #ff79c6; }
+.highlighted-property { font-weight: bold; color: #ff79c6; cursor: help; }
 .stat-bonus { font-weight: bold; color: #f8f8f2; }
 .formula-display { color: #6272a4; }
 
@@ -713,6 +713,7 @@ input[type=number] { -moz-appearance: textfield; }
     font-weight: bold;
     font-size: 0.85rem;
     color: #f8f8f2;
+    cursor: help;
 }
 
 /* ROLL ANIMATION */
@@ -1231,4 +1232,22 @@ body.targeting-mode .character-token { transform: none !important; }
 .breakdown-total { 
     font-weight: bold; 
     text-align: left;
+}
+
+/* --- PROPERTY TOOLTIP --- */
+#property-tooltip {
+    position: fixed;
+    background: #1a1b26;
+    border: 1px solid #ff79c6;
+    border-radius: 6px;
+    padding: 10px;
+    color: #f8f8f2;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    z-index: 10000;
+    pointer-events: none;
+    display: none;
+    max-width: 300px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    text-align: center;
 }

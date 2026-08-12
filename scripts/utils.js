@@ -1,3 +1,5 @@
+// --- COPYING AND PASTING ---
+
 async function copyInputValue(input, event) {
     // Prevent copying if the input is empty or just whitespaces
     if (!input.value || input.value.trim() === '') return;
@@ -42,6 +44,8 @@ function pasteValueToInput(input, event) {
         showNotification(`${t('pasted')} ${trimmed}`, event);
     }
 }
+
+// --- NOTIFICATIONS ---
 
 function showNotification(message, event = null) {
     const notification = document.createElement('div');
@@ -193,3 +197,59 @@ function showConfirmDialog(message, onConfirmCallback) {
     box.appendChild(btnContainer);
     overlay.appendChild(box);
 }
+
+// --- PROPERTY TOOLTIP LOGIC ---
+let propertyHoverTimeout = null;
+
+function showPropertyTooltip(anchorEl, propKey) {
+    let tooltip = document.getElementById('property-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'property-tooltip';
+        document.body.appendChild(tooltip);
+    }
+
+    tooltip.innerHTML = t('desc_' + propKey);
+    tooltip.style.display = 'block';
+
+    const rect = anchorEl.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+    let top = rect.top - tooltip.offsetHeight - 10;
+
+    // Boundary checks to keep it on screen
+    if (left < 10) left = 10;
+    if (left + tooltip.offsetWidth > window.innerWidth - 10) left = window.innerWidth - tooltip.offsetWidth - 10;
+    if (top < 10) top = rect.bottom + 10; // Flip below if it goes above the viewport
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function hidePropertyTooltip() {
+    const tooltip = document.getElementById('property-tooltip');
+    if (tooltip) tooltip.style.display = 'none';
+}
+
+document.addEventListener('mouseover', (e) => {
+    if (e.target.classList.contains('highlighted-property')) {
+        const propKey = e.target.dataset.prop;
+        if (propKey) {
+            propertyHoverTimeout = setTimeout(() => {
+                showPropertyTooltip(e.target, propKey);
+            }, 1000); // 1 second delay
+        }
+    }
+});
+
+document.addEventListener('mouseout', (e) => {
+    if (e.target.classList.contains('highlighted-property')) {
+        clearTimeout(propertyHoverTimeout);
+        hidePropertyTooltip();
+    }
+});
+
+// Force hide if user clicks anything to prevent tooltip lingering
+document.addEventListener('mousedown', () => {
+    clearTimeout(propertyHoverTimeout);
+    hidePropertyTooltip();
+});

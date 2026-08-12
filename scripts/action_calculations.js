@@ -81,11 +81,19 @@ function validateActionPayload(payload, attacker, rollData) {
         let hasPositive = false;
         let hasNegative = false;
         let hasAny = false;
+        let hasDynamicFormula = false;
 
-        const checkVal = (valStr) => {
-            if (valStr !== undefined && valStr !== null && valStr !== '') {
+        const checkVal = (valRaw) => {
+            if (valRaw !== undefined && valRaw !== null && valRaw !== '') {
                 hasAny = true;
-                let val = getFormulaValue(String(valStr).replace(/%/g, ''), attacker, rollData);
+                const valStr = String(valRaw);
+                
+                // If the formula explicitly relies on runtime dice rolls, the static evaluation is unpredictable
+                if (/roll|over/i.test(valStr)) {
+                    hasDynamicFormula = true;
+                }
+                
+                let val = getFormulaValue(valStr.replace(/%/g, ''), attacker, rollData);
                 if (val > 0) hasPositive = true;
                 if (val < 0) hasNegative = true;
             }
@@ -98,7 +106,9 @@ function validateActionPayload(payload, attacker, rollData) {
 
         if (!hasAny) return t('error_armor_missing_vals');
         
-        if (payload.isActionBeneficial === undefined) {
+        // isActionBeneficial flag is only required if the logic depends on passing forced rolls
+        if (payload.isActionBeneficial === undefined && actionHasForcedRolls) {
+            if (hasDynamicFormula) return t('error_armor_dynamic_stats');
             if (hasPositive && hasNegative) return t('error_armor_mixed_stats');
             if (!hasPositive && !hasNegative) return t('error_armor_zero_stats');
         }
@@ -117,7 +127,7 @@ function validateActionPayload(payload, attacker, rollData) {
         for (const cond of payload.conditions) {
             // Forced rolls require conditions to explicitly declare if they are beneficial
             if (actionHasForcedRolls && cond.conditionIsBeneficial === undefined) {
-                let fallbackName = cond.conditionName || 'Condition';
+                let fallbackName = cond.conditionName || cond.name || 'Condition';
                 return t('error_condition_missing_flag').replace('{name}', fallbackName);
             }
             if (cond.conditionIsBeneficial === true) hasPositive = true;
@@ -173,6 +183,19 @@ function getConditionSuccessFocus(payload) {
     return hasPositive;
 }
 
+// Helper to check if a specific property is present on the parent ability
+// Respects the ignoresAbilityProperties flag to allow specific actions to bypass ability traits
+function hasActiveProperty(payload, propName) {
+    if (payload && payload.ignoresAbilityProperties) return false;
+    
+    if (typeof currentPipelineContext !== 'undefined' && currentPipelineContext && currentPipelineContext.ability) {
+        if (currentPipelineContext.ability.properties && currentPipelineContext.ability.properties.includes(propName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Dynamically calculates compound success probability combining Base Hit + Defenses/Checks (forceRoll & forceRollVS)
 // Returns tailored objects mapped strictly to the action type to render exact UI tooltip chances
 function calculateActionSuccessChance(attacker, target, payload) {
@@ -181,8 +204,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
     // 1. Base Success Probability (Only relevant for Damage Types)
     let baseSuccessChance = 1.0;
     if (payload.type === 'damage') {
-        if (attacker.id === target.id || target.isStunned) baseSuccessChance = 1.0;
-        else baseSuccessChance = calculateOpposedChance(attacker, target, 'accuracy', 'agility') / 100;
+        if (attacker.id === target.id || target.isStunned || hasActiveProperty(payload, 'prop_undodgeable')) {
+            baseSuccessChance = 1.0;
+        } else {
+            baseSuccessChance = calculateOpposedChance(attacker, target, 'accuracy', 'agility') / 100;
+        }
     }
 
     // 2. Check Mechanics Probability
@@ -217,9 +243,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
 
     // 3. Calculate Final Success Chances strictly separated by action type properties
     let result = {};
+    const causesStun = hasActiveProperty(payload, 'prop_stuns');
 
     if (payload.type === 'damage') {
         result.hit = Math.round(baseSuccessChance * 100);
+        
         if (payload.conditions && payload.conditions.length > 0) {
             let condChance = baseSuccessChance; // Conditions on damage require the attack to hit first
             if (hasForceRoll || hasForceRollVS) {
@@ -227,6 +255,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
                 condChance = focusBeneficial ? (baseSuccessChance * targetPassChance) : (baseSuccessChance * (1.0 - targetPassChance));
             }
             result.condition = Math.round(condChance * 100);
+        }
+        
+        if (causesStun) {
+            let stunChance = baseSuccessChance * ((hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0);
+            result.stun = Math.round(stunChance * 100);
         }
     } else if (payload.type === 'heal') {
         if (payload.conditions && payload.conditions.length > 0) {
@@ -236,6 +269,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
                 condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
             }
             result.condition = Math.round(condChance * 100);
+        }
+        
+        if (causesStun) {
+            let stunChance = (hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0;
+            result.stun = Math.round(stunChance * 100);
         }
     } else if (payload.type === 'armor') {
         let successChance = 1.0;
@@ -253,6 +291,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
             }
             result.condition = Math.round(condChance * 100);
         }
+        
+        if (causesStun) {
+            let stunChance = (hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0;
+            result.stun = Math.round(stunChance * 100);
+        }
     } else if (payload.type === 'condition') {
         let condChance = 1.0; // condition action base is 100% unless forced rolls apply
         if (hasForceRoll || hasForceRollVS) {
@@ -260,6 +303,11 @@ function calculateActionSuccessChance(attacker, target, payload) {
             condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
         }
         result.condition = Math.round(condChance * 100);
+        
+        if (causesStun) {
+            let stunChance = (hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0;
+            result.stun = Math.round(stunChance * 100);
+        }
     }
 
     return result;
@@ -296,7 +344,7 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
     // Phase 1: Base Trajectory (Damage Only)
     if (payload.type === 'damage') {
-        if (attacker.id === target.id || target.isStunned) {
+        if (attacker.id === target.id || target.isStunned || hasActiveProperty(payload, 'prop_undodgeable')) {
             isBaseSuccess = true;
         } else {
             const opposed = performOpposedRoll(attacker, target, 'accuracy', 'agility', payload.cachedAttackerRolls['accuracy'], true);
@@ -410,14 +458,23 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
     if (evalRes.success) {
         let stepValues = [];
         let deadSteps = [];
+        let ddSteps = [];
         let actualRepeats = 0;
         let tempHp = target.stats.hp;
         let subTypeFinal = 'no_dmg';
         let targetKilled = false;
 
+        let isLethal = hasActiveProperty(payload, 'prop_lethal');
+        let causesStun = hasActiveProperty(payload, 'prop_stuns');
+        let shouldStun = causesStun && (!evalRes.hasForcedRolls || !evalRes.targetPassedChecks);
+
+        // Lethal attacks bypass Death's Door protections entirely
+        const targetHasDD = target.hasDeathsDoor && !isLethal;
+
         for (let i = 0; i < repeats; i++) {
             // Original damage computation & mitigation
             let damage = 0;
+            let survivedThisStep = false;
             
             if (payload.valuePerc !== undefined) { 
                 const percent = parseInt(payload.valuePerc); 
@@ -442,7 +499,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
 
             if (damage > 0) {
                 // Check Death's Door BEFORE subtracting HP if already at or below 0
-                if (target.hasDeathsDoor && tempHp <= 0 && damageAfterArmor > 0) {
+                if (targetHasDD && tempHp <= 0 && damageAfterArmor > 0) {
                     const ddResult = rollDeathsDoor(target);
                     // Add Death's Door roll directly to the defender's standalone pillar to broadcast uniformly with Hit checks
                     evalRes.rolls.defenderSingleRolls.push(ddResult.roll);
@@ -450,6 +507,8 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                     if (!ddResult.survived) {
                         tempHp = 0; 
                         targetKilled = true;
+                    } else {
+                        survivedThisStep = true;
                     }
                 } 
                 
@@ -457,7 +516,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                 if (!targetKilled) {
                     tempHp = Math.round(tempHp - damageAfterArmor); 
 
-                    if (!target.hasDeathsDoor && tempHp <= 0 && damageAfterArmor > 0) {
+                    if (!targetHasDD && tempHp <= 0 && damageAfterArmor > 0) {
                         tempHp = 0; 
                         targetKilled = true;
                     }
@@ -466,6 +525,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
             
             stepValues.push(tempHp);
             deadSteps.push(targetKilled);
+            ddSteps.push(survivedThisStep);
             actualRepeats++;
             
             if (targetKilled) break; // Break out of repeat loop immediately upon actual death
@@ -478,7 +538,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
 
         // Push the entire sequence calculation to all clients simultaneously to drive UI identically
         if (typeof syncPlayActionSequence === 'function') {
-            syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: subTypeFinal, repeats: actualRepeats, stepValues: stepValues, deadSteps: deadSteps, stepId: payload.stepId, isAuto: skipSync });
+            syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: subTypeFinal, repeats: actualRepeats, stepValues: stepValues, deadSteps: deadSteps, ddSteps: ddSteps, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStun });
         }
 
         // Wait exactly long enough for the broadcast sequence to finish visually before unlocking the pipeline
@@ -486,7 +546,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
 
         // Ensure state is perfectly finalized locally to prevent edge-case de-syncs if network lagged
         if (stepValues.length > 0) {
-            // FIX: Pull fresh reference to prevent overwriting updates that occurred during the delay
+            // Pull fresh reference to prevent overwriting updates that occurred during the delay
             const freshTarget = activeCombatants.find(c => c.id === target.id);
             if (freshTarget) {
                 freshTarget.stats.hp = stepValues[stepValues.length - 1];
@@ -497,6 +557,8 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                     if (typeof removeConditionsForTarget === 'function') {
                         removeConditionsForTarget(freshTarget.uniqueName);
                     }
+                } else if (shouldStun) {
+                    freshTarget.isStunned = true;
                 }
                 if (!skipSync) syncUpdateCombatant(freshTarget); 
             }
@@ -517,7 +579,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
 }
 
 // Core function preparing heal steps and compiling payload for remote network playback
-async function resolveHealAction(combatant, payload, attacker = null, skipSync = false) {
+async function resolveHealAction(combatant, payload, attacker = null, skipSync = false, isStunned = false) {
     // Absolute prohibition of healing dead characters until a specific resurrect mechanic is added
     if (combatant.isDead) return;
 
@@ -562,13 +624,13 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
     }
 
     if (stepValues.length > 0 && typeof syncPlayActionSequence === 'function') {
-        syncPlayActionSequence({ targetId: combatant.id, actionType: 'heal', subType: type, repeats: stepValues.length, stepValues: stepValues, stepId: stepId, isAuto: skipSync });
+        syncPlayActionSequence({ targetId: combatant.id, actionType: 'heal', subType: type, repeats: stepValues.length, stepValues: stepValues, stepId: stepId, isAuto: skipSync, isStunned: isStunned });
         await delay((stepValues.length * 300) + 100);
     }
 
     // Ensure state is perfectly finalized locally
     if (stepValues.length > 0) {
-        // FIX: Pull fresh reference
+        // Pull fresh reference
         const freshCombatant = activeCombatants.find(c => c.id === combatant.id);
         if (freshCombatant) {
             freshCombatant.stats.hp = stepValues[stepValues.length - 1];
@@ -578,7 +640,7 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
 }
 
 // Prepares armor modifications steps and delegates network playback execution sequentially bridging multiple target properties 
-async function resolveArmorAction(combatant, payload, attacker = null, skipSync = false) {
+async function resolveArmorAction(combatant, payload, attacker = null, skipSync = false, isStunned = false) {
     let evalContext = attacker || combatant;
     let freshCombatant = activeCombatants.find(c => c.id === combatant.id);
     if (!freshCombatant) return;
@@ -663,7 +725,8 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
             hasPhysPerc: payload.physArmorValuePerc !== undefined,
             hasMagFlat: payload.magArmorValue !== undefined,
             hasMagPerc: payload.magArmorValuePerc !== undefined,
-            isMixedSound 
+            isMixedSound,
+            isStunned: isStunned
         });
         await delay((repeats * 300) + 100);
     }

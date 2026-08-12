@@ -144,15 +144,8 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         const abilityCard = document.createElement('div');
         abilityCard.className = 'char-extra-card';
 
-        // Aggregate unique properties directly from ability properties arrays to append as prefixes
+        // Aggregate unique properties directly from ability properties array to append as prefixes
         let allProps = new Set(ability.properties || []);
-        if (ability.actions && Array.isArray(ability.actions)) {
-            ability.actions.forEach(act => {
-                if (act.properties && Array.isArray(act.properties)) {
-                    act.properties.forEach(p => allProps.add(p));
-                }
-            });
-        }
         
         let descString = ability.description || "";
         if (allProps.size > 0) {
@@ -489,13 +482,13 @@ function useAbility(combatantId, ability, event) {
 // TEXT REPLACEMENTS (Used only in text blocks like descriptions)
 
 /**
- * Replaces property tags with translated HTML spans.
+ * Replaces property tags with translated HTML spans. Appends data-prop attribute for tooltip hover tracking.
  * Example Input: "This attack is [prop_unavoidable]."
  * Example Output: "This attack is <span class="highlighted-property">Nieunikalne.</span>"
  */
- function parsePropertyTags(description) {
+function parsePropertyTags(description) {
     return description.replace(/\[(prop_[a-zA-Z0-9_]+)\]/gi, (match, tag) => {
-        return `<span class="highlighted-property">${t(tag.toLowerCase())}</span>`;
+        return `<span class="highlighted-property" data-prop="${tag.toLowerCase()}">${t(tag.toLowerCase())}</span>`;
     });
 }
 
