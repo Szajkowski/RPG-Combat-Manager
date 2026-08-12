@@ -146,7 +146,7 @@ const i18n = {
         'breakdown_title': 'Szczegóły rzutu',
         'breakdown_roll': 'rzut',
         'breakdown_mod': 'mod',
-        'breakdown_threshold': 'Próg:',
+        'breakdown_difficulty': 'Trudność:',
 
         // Function bar
         'remove_character': 'Usuń postać',
@@ -176,11 +176,11 @@ const i18n = {
         'wait': 'Czekaj',
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
-        'prop_undodgeable': 'Nieunikalne.',
+        'prop_undodgeable': 'Nieunikalna.',
         'prop_extra_turn': 'Daje dodatkową turę.',
         'prop_reaction': 'Reakcja.',
         'prop_non_combat': 'Nie do walki.',
-        'prop_stuns': 'Ogłuszające.',
+        'prop_stuns': 'Ogłuszająca.',
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
@@ -254,7 +254,7 @@ const i18n = {
         'target_enemies': 'Enemy Team',
 
         // Action Menu Details
-        'gm_action_menu': 'Actions menu',
+        'gm_action_menu': 'Action menu',
         'value': 'Value',
         'value_flat': 'Flat',
         'value_perc': 'Percentage',
@@ -374,7 +374,7 @@ const i18n = {
         'breakdown_title': 'Roll Breakdown',
         'breakdown_roll': 'roll',
         'breakdown_mod': 'mod',
-        'breakdown_threshold': 'Threshold:',
+        'breakdown_difficulty': 'Difficulty:',
 
         // Function bar
         'remove_character': 'Remove character',

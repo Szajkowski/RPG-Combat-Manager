@@ -312,9 +312,12 @@ function buildRollEvent(attacker, target, rollsObj, payload = null, skipSync = f
 // Rolls Death's Door chance for the combatant and returns the result object. DOES NOT broadcast to server independently!
 function rollDeathsDoor(combatant) {
     const resilience = parseInt(combatant.stats.resilience) || 0;
-    const baseSurvivalChance = 15; // Base survival chance
-    // cannot have more than 75% death resistance
-    const survivalThreshold = Math.max(100 - (baseSurvivalChance + resilience), 25); 
+    
+    // Survival chance is strictly equal to resilience, clamped between 15% and 85%
+    const survivalChance = Math.max(15, Math.min(85, resilience));
+    
+    // Calculate threshold for a 1-100 roll (e.g., 15% chance means rolling 86-100)
+    const survivalThreshold = 100 - survivalChance + 1; 
 
     // Roll 1-100
     const rollResult = Math.floor(Math.random() * 100) + 1;
@@ -612,7 +615,7 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
         html += `
             <div style="grid-column: 1 / -1; height: 1px; background: #44475a; margin: 4px 0;"></div>
             <div class="breakdown-row">
-                <span class="breakdown-stat" style="color: #ff79c6;">${t('breakdown_threshold')}</span>
+                <span class="breakdown-stat" style="color: #ffffff;">${t('breakdown_difficulty')}</span>
                 <span></span>
                 <span class="breakdown-total" style="color: #ffffff;">${difficulty}</span>
             </div>
