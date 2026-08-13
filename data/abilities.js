@@ -1243,17 +1243,20 @@ var ability = {
                 target: "single" 
             },
             {
-                // 3. error_armor_mixed_stats: armor action provides buffs and debuffs simultaneously without isActionBeneficial flag
+                // 3. error_armor_mixed_stats: armor action provides buffs and debuffs simultaneously without isActionBeneficial flag, while there's a forcedRoll present
                 type: "armor",
                 target: "single",
                 physArmorValue: 10,
-                magArmorValue: -5
+                magArmorValue: -5,
+                forceRollVS: "vitality vs vitality",
             },
             {
-                // 4. error_armor_zero_stats: armor action evaluates to 0 without isActionBeneficial flag
+                // 4. error_armor_zero_stats: armor action evaluates to 0 without isActionBeneficial flag while there's a forcedRoll present
                 type: "armor",
                 target: "single",
-                physArmorValue: 0
+                physArmorValue: 0,
+                forceRoll: "vitality",
+                forceRollDifficulty: 4,
             },
             {
                 // 5. error_condition_empty: condition action with empty conditions array or missing array entirely

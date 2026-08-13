@@ -51,7 +51,7 @@ function renderExtraPanel(combatantId) {
                                   (currentHasSkillsTab !== hasAbilities) ||
                                   (currentHasEquipTab !== hasEquipment);
 
-    const teamClass = combatant.team === 'enemy' ? 'enemy-tab' : '';
+    const teamClass = combatant.team === 'enemy' ? 'tab-enemy' : 'tab-hero';
 
     if (needsStructureRebuild) {
         let html = '';
@@ -94,10 +94,8 @@ function renderExtraPanel(combatantId) {
             else tab.classList.remove('active');
 
             // Update team class dynamically in case character team changed but layout remained the same
-            tab.classList.remove('enemy-tab');
-            if (combatant.team === 'enemy') {
-                tab.classList.add('enemy-tab');
-            }
+            tab.classList.remove('tab-enemy', 'tab-hero');
+            tab.classList.add(combatant.team === 'enemy' ? 'tab-enemy' : 'tab-hero');
         });
         [existingSkillsContainer, existingEquipContainer].forEach(c => {
             if (c) {
@@ -166,7 +164,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         // Parse description using the newly generated composite string passing the full ability object for dynamic mathematical resolution
         const parsedDesc = parseDescription(descString, combatant, ability);
         
-        const titleClass = combatant.team === 'enemy' ? 'card-title-enemy' : 'card-title-hero';
+        const titleClass = combatant.team === 'enemy' ? 'text-enemy' : 'text-hero';
 
         let cardInner = `
             <div class="char-extra-card-title ${titleClass}">
@@ -250,7 +248,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
     const gear = equipment.filter(item => item.type === 'gear');
     const other = equipment.filter(item => item.type !== 'gear');
     
-    const titleClass = combatant.team === 'enemy' ? 'card-title-enemy' : 'card-title-hero';
+    const titleClass = combatant.team === 'enemy' ? 'text-enemy' : 'text-hero';
 
     // Add gear section if it exists
     if (gear.length > 0) {

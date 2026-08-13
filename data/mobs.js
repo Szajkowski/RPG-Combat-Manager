@@ -214,7 +214,8 @@ var mobs = {
         abilities: [
             {
                 name: "Niepokonany",
-                description: "[prop_reaction] Blokuje jedną udaną próbę ogłuszenia.",
+                description: "Natychmiast zdejmuje ogłuszenie.",
+                properties: ["prop_reaction"],
                 cooldown: 5
             },
         ]

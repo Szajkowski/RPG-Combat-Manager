@@ -103,7 +103,7 @@ var bosses = {
             },
             {
                 name: "Niepokonany",
-                description: "Blokuje jedną udaną próbę ogłuszenia.",
+                description: "Natychmiast zdejmuje ogłuszenie.",
                 properties: ["prop_reaction"],
                 cooldown: 5
             },

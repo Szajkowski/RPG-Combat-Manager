@@ -370,7 +370,7 @@ function tryAppendToGroupedRoll(event, feed, animate) {
     ampersand.className = 'targeted-arrow';
     ampersand.innerHTML = '&amp;'; // Symbol of connection
     
-    const defNameClass = event.defenderTeam === 'hero' ? 'name-hero' : (event.defenderTeam === 'enemy' ? 'name-enemy' : 'name-other');
+    const defNameClass = event.defenderTeam === 'hero' ? 'text-hero' : (event.defenderTeam === 'enemy' ? 'text-enemy' : 'text-other');
     const defNameHtml = `<div class="roll-char-name ${defNameClass}" title="${event.defenderName}">${event.defenderName}</div>`;
     const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam)).join('');
     
@@ -422,8 +422,8 @@ function tryAppendToGroupedRoll(event, feed, animate) {
 function buildTargetedRollHtml(event, animate) {
     const isSelf = event.attackerName === event.defenderName;
 
-    const nameColorAtt = event.attackerTeam === 'hero' ? 'name-hero' : (event.attackerTeam === 'enemy' ? 'name-enemy' : 'name-other');
-    const nameColorDef = event.defenderTeam === 'hero' ? 'name-hero' : (event.defenderTeam === 'enemy' ? 'name-enemy' : 'name-other');
+    const nameColorAtt = event.attackerTeam === 'hero' ? 'text-hero' : (event.attackerTeam === 'enemy' ? 'text-enemy' : 'text-other');
+    const nameColorDef = event.defenderTeam === 'hero' ? 'text-hero' : (event.defenderTeam === 'enemy' ? 'text-enemy' : 'text-other');
 
     // Attacker's Pillar (Name on the left + Standalone rolls on the right)
     const attNameHtml = `<div class="roll-char-name ${nameColorAtt}" title="${event.attackerName}">${event.attackerName}</div>`;
@@ -468,7 +468,7 @@ function buildTargetedRollHtml(event, animate) {
 
 // Builds HTML for standalone rolls
 function buildStandaloneRollHtml(event, animate) {
-    const nameColorClass = event.combatantTeam === 'hero' ? 'name-hero' : (event.combatantTeam === 'enemy' ? 'name-enemy' : 'name-other');
+    const nameColorClass = event.combatantTeam === 'hero' ? 'text-hero' : (event.combatantTeam === 'enemy' ? 'text-enemy' : 'text-other');
 
     let rollsHtml = '';
     event.rolls.forEach(r => {
@@ -567,7 +567,7 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
     // Extract dynamic class colors natively applied from createRollPillHtml
     const diceColorClass = Array.from(anchorEl.classList).find(c => c.startsWith('text-')) || 'text-neutral';
     const team = anchorEl.dataset.team;
-    const defaultStatColorClass = team === 'enemy' ? 'name-enemy' : 'name-hero';
+    const defaultStatColorClass = team === 'enemy' ? 'text-enemy' : 'text-hero';
 
     let html = `<div class="breakdown-title">${t('breakdown_title')}</div>`;
     
