@@ -318,8 +318,7 @@ function clearTargetingState() {
     
     // Reset visually dimmed targets
     document.querySelectorAll('.character-token').forEach(t => {
-        t.style.opacity = '';
-        t.style.pointerEvents = '';
+        t.classList.remove('token-dimmed');
     });
     
     const overlay = document.getElementById('targeting-overlay');
@@ -347,8 +346,7 @@ function clearTargetingState() {
 function suspendTargetingState() {
     // Reset visually dimmed targets so next steps start with a clean board
     document.querySelectorAll('.character-token').forEach(t => {
-        t.style.opacity = '';
-        t.style.pointerEvents = '';
+        t.classList.remove('token-dimmed');
     });
 
     const svg = document.getElementById('targeting-svg');
@@ -476,8 +474,7 @@ async function executeTargetedAction(targetId) {
             // Visually dim the selected target so the user knows they can't click it again for this multi-step
             const token = document.querySelector(`.character-token[data-id="${targetId}"]`);
             if (token) {
-                token.style.opacity = '0.4';
-                token.style.pointerEvents = 'none';
+                token.classList.add('token-dimmed');
             }
             
             isLastMulti = currentActionTargets.length >= (payload.possibleTargets || 1);

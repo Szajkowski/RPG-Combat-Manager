@@ -30,7 +30,7 @@ function renderExtraPanel(combatantId) {
 
     // If character has neither skills nor equipment, render an empty state placeholder
     if (!hasAbilities && !hasEquipment) {
-        extraPanel.innerHTML = `<div class="right-panel-placeholder" style="font-size: 1rem; padding: 20px;" data-i18n="placeholder_no_extra_content">${t('placeholder_no_extra_content')}</div>`;
+        extraPanel.innerHTML = `<div class="right-panel-placeholder empty-list-placeholder" data-i18n="placeholder_no_extra_content">${t('placeholder_no_extra_content')}</div>`;
         return;
     }
 
@@ -51,17 +51,19 @@ function renderExtraPanel(combatantId) {
                                   (currentHasSkillsTab !== hasAbilities) ||
                                   (currentHasEquipTab !== hasEquipment);
 
+    const teamClass = combatant.team === 'enemy' ? 'enemy-tab' : '';
+
     if (needsStructureRebuild) {
         let html = '';
         // Always render the tabs container if there's at least one, to serve as a visual header
         html += `<div class="char-extra-tabs">`;
         if (hasAbilities) {
             const isSkillsActive = activeTabTarget === 'panel-skills' ? 'active' : '';
-            html += `<div class="char-extra-tab ${isSkillsActive}" data-target="panel-skills">${t('tab_skills')}</div>`;
+            html += `<div class="char-extra-tab ${isSkillsActive} ${teamClass}" data-target="panel-skills">${t('tab_skills')}</div>`;
         }
         if (hasEquipment) {
             const isEquipActive = activeTabTarget === 'panel-equip' ? 'active' : '';
-            html += `<div class="char-extra-tab ${isEquipActive}" data-target="panel-equip">${t('tab_equip')}</div>`;
+            html += `<div class="char-extra-tab ${isEquipActive} ${teamClass}" data-target="panel-equip">${t('tab_equip')}</div>`;
         }
         html += `</div>`;
 
@@ -90,6 +92,12 @@ function renderExtraPanel(combatantId) {
         extraPanel.querySelectorAll('.char-extra-tab').forEach(tab => {
             if (tab.dataset.target === activeTabTarget) tab.classList.add('active');
             else tab.classList.remove('active');
+
+            // Update team class dynamically in case character team changed but layout remained the same
+            tab.classList.remove('enemy-tab');
+            if (combatant.team === 'enemy') {
+                tab.classList.add('enemy-tab');
+            }
         });
         [existingSkillsContainer, existingEquipContainer].forEach(c => {
             if (c) {
@@ -157,9 +165,11 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         // Build ability content
         // Parse description using the newly generated composite string passing the full ability object for dynamic mathematical resolution
         const parsedDesc = parseDescription(descString, combatant, ability);
+        
+        const titleClass = combatant.team === 'enemy' ? 'card-title-enemy' : 'card-title-hero';
 
         let cardInner = `
-            <div class="char-extra-card-title">
+            <div class="char-extra-card-title ${titleClass}">
                 ${abilityName}
                 <div class="btn-container"></div>
             </div>
@@ -179,7 +189,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
         if (ability.cooldown !== undefined && ability.cooldown !== "[cooldown_once]") cardInner += `<span>${t('ability_cooldown')} <strong class="stat-bonus">${t(ability.cooldown)}</strong></span>`;
         else if (ability.cooldown !== undefined) cardInner += `<span>${t('ability_cooldown')} <strong class="stat-bonus">${t('cooldown_once')}</strong></span>`;
 
-        if (ability.roll && ability.difficulty && ability.difficulty !== "X") cardInner += `<span>${t('ability_success_chance')} <strong style="color: #bd93f9;">${calculateAbilitySuccessRate(combatant, ability.roll, ability.difficulty)}%</strong></span>`;
+        if (ability.roll && ability.difficulty && ability.difficulty !== "X") cardInner += `<span>${t('ability_success_chance')} <strong class="ability-success-rate">${calculateAbilitySuccessRate(combatant, ability.roll, ability.difficulty)}%</strong></span>`;
 
         cardInner += `</div>`;
         abilityCard.innerHTML = cardInner;
@@ -196,15 +206,13 @@ function fillAbilitiesPanel(abilities, combatant, container) {
 
             // Block ability if character is dead
             if (combatant.isDead) {
-                cooldownButton.style.background = '#ff5555';
-                cooldownButton.style.color = 'white';
+                cooldownButton.classList.add('btn-state-dead');
                 cooldownButton.textContent = t('dead');
                 cooldownButton.disabled = true;
             } 
             // Normal cooldowns block
             else if (abilityState.currentCooldown !== 0) {
-                cooldownButton.style.background = '#ff5555';
-                cooldownButton.style.color = 'white';
+                cooldownButton.classList.add('btn-state-cd');
                 let displayCooldown = abilityState.currentCooldown;
                 if (abilityState.currentCooldown === 'unavailable') displayCooldown = t('unavailable');
                 cooldownButton.textContent = displayCooldown;
@@ -212,15 +220,13 @@ function fillAbilitiesPanel(abilities, combatant, container) {
             } 
             // Stun mechanic block (overrides available state)
             else if (combatant.isStunned) {
-                cooldownButton.style.background = '#f1fa8c'; // Yellow
-                cooldownButton.style.color = '#181922'; // Dark readable text
+                cooldownButton.classList.add('btn-state-stunned');
                 cooldownButton.textContent = t('stunned');
                 cooldownButton.disabled = true;
             }
             // Turn constraint mechanic block (Exceptions for Reaction tags)
             else if (!hasTurn && !isReaction) {
-                cooldownButton.style.background = '#44475a'; // Deep gray
-                cooldownButton.style.color = '#f8f8f2';
+                cooldownButton.classList.add('btn-state-wait');
                 cooldownButton.textContent = t('wait');
                 cooldownButton.disabled = true;
             }
@@ -243,6 +249,8 @@ function fillEquipmentPanel(equipment, combatant, container) {
     // Group items into gear and others
     const gear = equipment.filter(item => item.type === 'gear');
     const other = equipment.filter(item => item.type !== 'gear');
+    
+    const titleClass = combatant.team === 'enemy' ? 'card-title-enemy' : 'card-title-hero';
 
     // Add gear section if it exists
     if (gear.length > 0) {
@@ -250,7 +258,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             const itemCard = document.createElement('div');
             itemCard.className = 'char-extra-card';
             
-            let html = `<div class="char-extra-card-title">${item.name}</div>`;
+            let html = `<div class="char-extra-card-title ${titleClass}">${item.name}</div>`;
             
             // Construct properties prefix dynamically for items as well if properties array exists
             let descString = item.description || "";
@@ -268,27 +276,27 @@ function fillEquipmentPanel(equipment, combatant, container) {
             if (item.damage !== undefined) {
                 const val = getFormulaValue(item.damage, combatant);
                 const breakdown = getFormulaBreakdown(item.damage);
-                html += `<div>${t('damage')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('damage')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.physArmor !== undefined) {
                 const val = getFormulaValue(item.physArmor, combatant);
                 const breakdown = getFormulaBreakdown(item.physArmor);
-                html += `<div>${t('phys_armor')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('phys_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.physArmorPerc !== undefined) {
                 const val = getFormulaValue(item.physArmorPerc, combatant);
                 const breakdown = getFormulaBreakdown(item.physArmorPerc);
-                html += `<div>${t('phys_armor')} %: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('phys_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.magArmor !== undefined) {
                 const val = getFormulaValue(item.magArmor, combatant);
                 const breakdown = getFormulaBreakdown(item.magArmor);
-                html += `<div>${t('mag_armor')}: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('mag_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.magArmorPerc !== undefined) {
                 const val = getFormulaValue(item.magArmorPerc, combatant);
                 const breakdown = getFormulaBreakdown(item.magArmorPerc);
-                html += `<div>${t('mag_armor')} %: <strong style="color: #f8f8f2;" class="copyable-value" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('mag_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.value !== undefined) {
                 html += `<div>${t('value')}: ${item.value}S</div>`;
@@ -306,7 +314,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             const itemCard = document.createElement('div');
             itemCard.className = 'char-extra-card';
             
-            let html = `<div class="char-extra-card-title">${item.name}</div>`;
+            let html = `<div class="char-extra-card-title ${titleClass}">${item.name}</div>`;
             
             // Construct properties prefix dynamically for items as well if properties array exists
             let descString = item.description || "";
@@ -321,8 +329,8 @@ function fillEquipmentPanel(equipment, combatant, container) {
             
             html += `
                 <div class="char-extra-card-meta">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        ${t('quantity')} <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0" style="width: 50px; background: #212330; border: 1px solid #44475a; color: white; text-align: center; border-radius: 4px; padding: 2px;">
+                    <div class="quantity-wrapper">
+                        ${t('quantity')} <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0">
                     </div>
                     ${item.value !== undefined ? `<div>${t('value')}: ${item.value}</div>` : ''}
                 </div>
@@ -387,11 +395,11 @@ function useAbility(combatantId, ability, event) {
             success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
             
             // Adjust visual colors uniformly across the array block mapped directly to compound success condition
-            const groupColor = success ? '#50fa7b' : '#ff5555';
+            const groupColor = success ? 'text-success' : 'text-fail';
             initialRollsData.push({
                 stat: ability.roll,
                 result: totalResult,
-                color: ability.difficulty === "X" ? 'white' : groupColor,
+                color: ability.difficulty === "X" ? 'text-neutral' : groupColor,
                 breakdown: combinedBreakdown,
                 difficulty: ability.difficulty !== "X" ? parseInt(ability.difficulty) : null
             });

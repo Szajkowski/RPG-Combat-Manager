@@ -817,7 +817,6 @@ var ability = {
                 forceRoll: "intuition",
                 forceRollDifficulty: 5,
                 forceRollVS: "vitality vs reflex",
-                isConditionSuccessBeneficial: false, // technicznie rzecz biorac wymaganie tej flagi tutaj nie powinno byc obowiazkowe bo i tak nie pokazujemy szansy nigdzie (target = self), ale nie wiem, moze to sie przyda kiedys?
                 conditions: [
                     {
                         conditionName: "Pozytywny stan po uderzeniu siebie",
@@ -1225,7 +1224,7 @@ var ability = {
             }
         ]
     },
-     "Test: Action Errors": {
+    "Test: Action Errors": {
         name: "Test: Action Errors",
         description: "Skill created specifically to intentionally trigger all possible logic errors within actions.",
         cooldown: 0,
@@ -1278,7 +1277,7 @@ var ability = {
                 ]
             },
             {
-                // 7. error_condition_mixed: heal type action has forced roll AND mixed condition types, missing isConditionSuccessBeneficial root flag
+                // 7. error_condition_mixed: heal type action is targeted, has forced roll AND mixed condition types, missing isConditionSuccessBeneficial root flag
                 type: "heal",
                 target: "single",
                 forceRoll: "vitality",
@@ -1295,6 +1294,14 @@ var ability = {
                         conditionIsBeneficial: false
                     }
                 ]
+            },
+            {
+                // 8. error_armor_dynamic_missing_flag: armor action using a dynamic formula without isActionBeneficial flag
+                type: "armor",
+                target: "single",
+                physArmorValue: "[-10 + 1 * roll]",
+                forceRoll: "agility",
+                forceRollDifficulty: 10
             }
         ]
     },

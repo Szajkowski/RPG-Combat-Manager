@@ -181,12 +181,11 @@ function rollDice(combatantId, diceType, difficulty = null) {
     const roll = Math.floor(Math.random() * baseStat) + 1;
     let result = Math.max(1, roll + modValue);
 
-    // Determine color
-    let resultColor = 'white';
+    let resultColor = 'text-neutral';
     let difficultyValue = null;
     if (difficulty && difficulty !== "X") {
         difficultyValue = parseInt(difficulty);
-        resultColor = result >= difficultyValue ? '#50fa7b' : '#ff5555';
+        resultColor = result >= difficultyValue ? 'text-success' : 'text-fail';
     }
 
     return { 
@@ -198,42 +197,6 @@ function rollDice(combatantId, diceType, difficulty = null) {
     };
 }
 
-// Wrapper to execute and broadcast a single roll directly from the character sheet
-function rollSingleStat(combatantId, diceType, difficulty = null) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
-    if (!combatant) return;
-
-    const rollData = rollDice(combatantId, diceType, difficulty);
-    if (!rollData) return;
-
-    const rollEvent = {
-        id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-        combatantId: combatant.id,
-        combatantName: combatant.uniqueName,
-        combatantTeam: combatant.team, // Added for easy color identification on the rolls panel
-        rolls: [ rollData ]
-    };
-    
-    // Instantly broadcast the roll to all clients
-    syncAddRollEvent(rollEvent);
-}
-
-// Renders the entire rolls feed history
-function renderRollsFeed(history) {
-    const feed = document.getElementById('rolls-feed');
-    if (!feed) return;
-
-    feed.innerHTML = '';
-    if (history.length === 0) {
-        feed.innerHTML = `<div class="rolls-placeholder" data-i18n="placeholder_no_rolls">${t('placeholder_no_rolls')}</div>`;
-        return;
-    }
-
-    history.forEach(event => appendRollEvent(event, false));
-    feed.scrollTop = feed.scrollHeight;
-}
-
-// Performs actual randomized dice rolls resolving opposing interactions and supports caching the first roll across mass actions
 function performOpposedRoll(attacker, defender, attStatString, defStatString, cachedAttData = null, isHitVsDodge = false) {
     const attStats = parseRollStats(attStatString);
     const defStats = parseRollStats(defStatString);
@@ -287,9 +250,44 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
         isSuccess: isSuccess,
         actualAttRoll: attRes, // Saved for potential external caching
         attBreakdown: attBreakdown, // Save to pass to cache
-        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? '#50fa7b' : '#ff5555', breakdown: attBreakdown },
-        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? '#ff5555' : '#50fa7b', breakdown: defBreakdown }
+        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? 'text-success' : 'text-fail', breakdown: attBreakdown },
+        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? 'text-fail' : 'text-success', breakdown: defBreakdown }
     };
+}
+
+// Wrapper to execute and broadcast a single roll directly from the character sheet
+function rollSingleStat(combatantId, diceType, difficulty = null) {
+    const combatant = activeCombatants.find(c => c.id === combatantId);
+    if (!combatant) return;
+
+    const rollData = rollDice(combatantId, diceType, difficulty);
+    if (!rollData) return;
+
+    const rollEvent = {
+        id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        combatantId: combatant.id,
+        combatantName: combatant.uniqueName,
+        combatantTeam: combatant.team, // Added for easy color identification on the rolls panel
+        rolls: [ rollData ]
+    };
+    
+    // Instantly broadcast the roll to all clients
+    syncAddRollEvent(rollEvent);
+}
+
+// Renders the entire rolls feed history
+function renderRollsFeed(history) {
+    const feed = document.getElementById('rolls-feed');
+    if (!feed) return;
+
+    feed.innerHTML = '';
+    if (history.length === 0) {
+        feed.innerHTML = `<div class="rolls-placeholder" data-i18n="placeholder_no_rolls">${t('placeholder_no_rolls')}</div>`;
+        return;
+    }
+
+    history.forEach(event => appendRollEvent(event, false));
+    feed.scrollTop = feed.scrollHeight;
 }
 
 // Small helper mapping structure matching the broadcast event payload exactly
@@ -328,7 +326,7 @@ function rollDeathsDoor(combatant) {
         roll: { 
             stat: "deaths_door", 
             result: rollResult, 
-            color: survived ? '#50fa7b' : '#ff5555',
+            color: survived ? 'text-success' : 'text-fail',
             breakdown: [{ stat: "deaths_door", roll: rollResult, mod: 0, total: rollResult }],
             difficulty: survivalThreshold
         }
@@ -345,38 +343,17 @@ function translateStat(statStr) {
 }
 
 // Helper function to build standard roll pill HTML mapping breakdown values directly to the DOM
-function createRollPillHtml(r, animate) {
+function createRollPillHtml(r, animate, team) {
     const breakdownAttr = r.breakdown ? `data-breakdown='${JSON.stringify(r.breakdown)}'` : '';
     const diffAttr = r.difficulty ? `data-difficulty='${r.difficulty}'` : '';
+    const teamAttr = team ? `data-team='${team}'` : '';
     
     const diceHtml = animate 
-        ? `<div class="mini-dice tumbling" ${breakdownAttr} ${diffAttr}></div>` 
-        : `<div class="mini-dice" style="color: ${r.color};" ${breakdownAttr} ${diffAttr}>${r.result}</div>`;
+        ? `<div class="mini-dice tumbling ${r.color}" ${breakdownAttr} ${diffAttr} ${teamAttr}></div>` 
+        : `<div class="mini-dice ${r.color}" ${breakdownAttr} ${diffAttr} ${teamAttr}>${r.result}</div>`;
         
-    return `<div class="roll-pill"><span class="roll-stat">${translateStat(r.stat)}</span>${diceHtml}</div>`;
-}
-
-// Helper function to prevent multiple diceroll sounds in a single action
-function playDiceSoundDeduplicated(event) {
-    let shouldPlayDiceSound = true;
-    
-    // Deduplicate sound ONLY for auto-actions (e.g., group targets) to play once per group
-    // Manual actions (like multi-target clicks) will play sound for every individual target clicked
-    if (event.isAuto && event.groupId) {
-        const diceSoundKey = `dice-${event.groupId}`;
-        if (!window.playedStepSounds) window.playedStepSounds = new Set();
-        
-        if (window.playedStepSounds.has(diceSoundKey)) {
-            shouldPlayDiceSound = false; // A character from this group already triggered the diceroll sound
-        } else {
-            window.playedStepSounds.add(diceSoundKey);
-            setTimeout(() => window.playedStepSounds.delete(diceSoundKey), 5000);
-        }
-    }
-    
-    if (shouldPlayDiceSound) {
-        playSoundEffect('sound/diceroll.mp3');
-    }
+    const statColorClass = r.stat === 'deaths_door' ? 'text-deaths-door' : '';
+    return `<div class="roll-pill"><span class="roll-stat ${statColorClass}">${translateStat(r.stat)}</span>${diceHtml}</div>`;
 }
 
 // Tries to append a roll to an existing grouped roll row. Returns true if successful.
@@ -393,17 +370,17 @@ function tryAppendToGroupedRoll(event, feed, animate) {
     ampersand.className = 'targeted-arrow';
     ampersand.innerHTML = '&amp;'; // Symbol of connection
     
-    const defNameColor = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-    const defNameHtml = `<div class="roll-char-name" style="color: ${defNameColor};" title="${event.defenderName}">${event.defenderName}</div>`;
-    const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate)).join('');
+    const defNameClass = event.defenderTeam === 'hero' ? 'name-hero' : (event.defenderTeam === 'enemy' ? 'name-enemy' : 'name-other');
+    const defNameHtml = `<div class="roll-char-name ${defNameClass}" title="${event.defenderName}">${event.defenderName}</div>`;
+    const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam)).join('');
     
     let clashPillarHtml = '';
     if (event.opposedRolls && event.opposedRolls.length > 0) {
         clashPillarHtml = event.opposedRolls.map(opp => `
             <div class="vs-block">
-                ${createRollPillHtml(opp.attRoll, animate)}
+                ${createRollPillHtml(opp.attRoll, animate, event.attackerTeam)}
                 <div class="vs-text" data-i18n="vs">${t('vs')}</div>
-                ${createRollPillHtml(opp.defRoll, animate)}
+                ${createRollPillHtml(opp.defRoll, animate, event.defenderTeam)}
             </div>
         `).join('');
     }
@@ -430,7 +407,7 @@ function tryAppendToGroupedRoll(event, feed, animate) {
                 const r = targetRolls[index];
                 if (r) {
                     diceEl.classList.remove('tumbling');
-                    diceEl.style.color = r.color;
+                    // Colors are already built into the classes structure from createRollPillHtml mapping
                     diceEl.textContent = r.result;
                 }
             });
@@ -445,11 +422,11 @@ function tryAppendToGroupedRoll(event, feed, animate) {
 function buildTargetedRollHtml(event, animate) {
     const isSelf = event.attackerName === event.defenderName;
 
-    const nameColorAtt = event.attackerTeam === 'hero' ? '#8be9fd' : (event.attackerTeam === 'enemy' ? '#ff5555' : '#bd93f9');
-    const nameColorDef = event.defenderTeam === 'hero' ? '#8be9fd' : (event.defenderTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+    const nameColorAtt = event.attackerTeam === 'hero' ? 'name-hero' : (event.attackerTeam === 'enemy' ? 'name-enemy' : 'name-other');
+    const nameColorDef = event.defenderTeam === 'hero' ? 'name-hero' : (event.defenderTeam === 'enemy' ? 'name-enemy' : 'name-other');
 
     // Attacker's Pillar (Name on the left + Standalone rolls on the right)
-    const attNameHtml = `<div class="roll-char-name" style="color: ${nameColorAtt};" title="${event.attackerName}">${event.attackerName}</div>`;
+    const attNameHtml = `<div class="roll-char-name ${nameColorAtt}" title="${event.attackerName}">${event.attackerName}</div>`;
     
     const attRolls = [...(event.attackerSingleRolls || [])];
     if (isSelf && event.defenderSingleRolls) {
@@ -457,7 +434,7 @@ function buildTargetedRollHtml(event, animate) {
         attRolls.push(...event.defenderSingleRolls);
     }
     
-    const attSingleHtml = attRolls.map(r => createRollPillHtml(r, animate)).join('');
+    const attSingleHtml = attRolls.map(r => createRollPillHtml(r, animate, event.attackerTeam)).join('');
     const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
 
     let flowElements = [attPillar];
@@ -468,15 +445,15 @@ function buildTargetedRollHtml(event, animate) {
         if (event.opposedRolls && event.opposedRolls.length > 0) {
             clashHtml = event.opposedRolls.map(opp => `
                 <div class="vs-block">
-                    ${createRollPillHtml(opp.attRoll, animate)}
+                    ${createRollPillHtml(opp.attRoll, animate, event.attackerTeam)}
                     <div class="vs-text" data-i18n="vs">${t('vs')}</div>
-                    ${createRollPillHtml(opp.defRoll, animate)}
+                    ${createRollPillHtml(opp.defRoll, animate, event.defenderTeam)}
                 </div>
             `).join('');
         }
 
-        const defNameHtml = `<div class="roll-char-name" style="color: ${nameColorDef};" title="${event.defenderName}">${event.defenderName}</div>`;
-        const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate)).join('');
+        const defNameHtml = `<div class="roll-char-name ${nameColorDef}" title="${event.defenderName}">${event.defenderName}</div>`;
+        const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam)).join('');
         const defPillar = `<div class="roll-pillar">${defNameHtml}${clashHtml}${defSingleHtml}</div>`;
 
         flowElements.push(defPillar);
@@ -491,15 +468,15 @@ function buildTargetedRollHtml(event, animate) {
 
 // Builds HTML for standalone rolls
 function buildStandaloneRollHtml(event, animate) {
-    const nameColor = event.combatantTeam === 'hero' ? '#8be9fd' : (event.combatantTeam === 'enemy' ? '#ff5555' : '#bd93f9');
+    const nameColorClass = event.combatantTeam === 'hero' ? 'name-hero' : (event.combatantTeam === 'enemy' ? 'name-enemy' : 'name-other');
 
     let rollsHtml = '';
     event.rolls.forEach(r => {
-        rollsHtml += createRollPillHtml(r, animate);
+        rollsHtml += createRollPillHtml(r, animate, event.combatantTeam);
     });
 
     return `
-        <div class="roll-char-name" style="color: ${nameColor};" title="${event.combatantName}">${event.combatantName}</div>
+        <div class="roll-char-name ${nameColorClass}" title="${event.combatantName}">${event.combatantName}</div>
         <div class="roll-results">
             ${rollsHtml}
         </div>
@@ -587,7 +564,10 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
         document.body.appendChild(tooltip);
     }
 
-    const diceColor = anchorEl.style.color || '#f8f8f2';
+    // Extract dynamic class colors natively applied from createRollPillHtml
+    const diceColorClass = Array.from(anchorEl.classList).find(c => c.startsWith('text-')) || 'text-neutral';
+    const team = anchorEl.dataset.team;
+    const defaultStatColorClass = team === 'enemy' ? 'name-enemy' : 'name-hero';
 
     let html = `<div class="breakdown-title">${t('breakdown_title')}</div>`;
     
@@ -597,27 +577,27 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
     breakdownData.forEach(item => {
         const statName = t(item.stat).charAt(0).toUpperCase() + t(item.stat).slice(1);
         const modPrefix = item.mod > 0 ? '+' : '';
-        const statColor = item.stat === 'deaths_door' ? '#ff5555' : '#8be9fd';
+        const statColorClass = item.stat === 'deaths_door' ? 'text-deaths-door' : defaultStatColorClass;
         
         html += `
             <div class="breakdown-row">
-                <span class="breakdown-stat" style="color: ${statColor};">${statName}</span>
+                <span class="breakdown-stat ${statColorClass}">${statName}</span>
                 <span class="breakdown-math">
-                    ${item.roll} <span style="font-size: 0.7rem; color: #6272a4;">(${t('breakdown_roll')})</span> 
-                    ${item.mod !== 0 ? ` ${modPrefix}${item.mod} <span style="font-size: 0.7rem; color: #6272a4;">(${t('breakdown_mod')})</span>` : ''}
+                    ${item.roll} <span class="breakdown-hint">(${t('breakdown_roll')})</span> 
+                    ${item.mod !== 0 ? ` ${modPrefix}${item.mod} <span class="breakdown-hint">(${t('breakdown_mod')})</span>` : ''}
                 </span>
-                <span class="breakdown-total" style="color: ${diceColor};">= ${item.total}</span>
+                <span class="breakdown-total ${diceColorClass}">= ${item.total}</span>
             </div>
         `;
     });
     
     if (difficulty) {
         html += `
-            <div style="grid-column: 1 / -1; height: 1px; background: #44475a; margin: 4px 0;"></div>
+            <div class="breakdown-divider"></div>
             <div class="breakdown-row">
-                <span class="breakdown-stat" style="color: #ffffff;">${t('breakdown_difficulty')}</span>
+                <span class="breakdown-stat text-white">${t('breakdown_difficulty')}</span>
                 <span></span>
-                <span class="breakdown-total" style="color: #ffffff;">${difficulty}</span>
+                <span class="breakdown-total text-white">${difficulty}</span>
             </div>
         `;
     }

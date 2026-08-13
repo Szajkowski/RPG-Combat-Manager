@@ -45,7 +45,7 @@ function renderConditions() {
     if (!container) return;
 
     if (!activeConditions || activeConditions.length === 0) {
-        container.innerHTML = `<div style="padding: 10px; color: #6272a4; text-align: center; font-size: 0.8rem;">${t('placeholder_no_conditions')}</div>`;
+        container.innerHTML = `<div class="empty-list-placeholder">${t('placeholder_no_conditions')}</div>`;
         return;
     }
 
@@ -92,7 +92,7 @@ function renderConditions() {
             <div class="condition-block">
                 <div class="condition-header">
                     <span class="condition-name">${cond.name || t('condition')}</span>
-                    <div style="display: flex; gap: 5px; align-items: center;">
+                    <div class="condition-header-actions">
                         ${cond.duration !== undefined && cond.duration !== null ? `<span class="condition-duration" title="${t('condition_duration')}">${cond.duration}</span>` : ''}
                         <div class="condition-actions">
                             <button class="condition-btn remove" title="${t('condition_remove')}" onclick="removeCondition('${cond.id}')">✖</button>
@@ -100,13 +100,13 @@ function renderConditions() {
                     </div>
                 </div>
                 <div class="condition-target-wrapper">
-                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeInvoker}', event)">${t('condition_invoker')}</span>
+                    <span class="copyable-value text-neutral" title="${t('condition_copy')}" onclick="copyValue('${safeInvoker}', event)">${t('condition_invoker')}</span>
                     <input type="text" class="condition-target" value="${cond.invoker || ''}" onchange="updateConditionInvoker('${cond.id}', this.value)">
                 </div>
                 ${cond.target ? `
                 <div class="condition-target-wrapper">
-                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
-                    <input type="text" class="condition-target" value="${displayTarget}" ${isGroupTarget ? 'readonly style="color: #8be9fd; cursor: default;"' : ''} onchange="updateConditionTarget('${cond.id}', this.value)">
+                    <span class="copyable-value text-neutral" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
+                    <input type="text" class="condition-target ${isGroupTarget ? 'readonly-group' : ''}" value="${displayTarget}" ${isGroupTarget ? 'readonly' : ''} onchange="updateConditionTarget('${cond.id}', this.value)">
                 </div>
                 ` : ''}
                 <div class="condition-desc">${parsedDesc}</div>

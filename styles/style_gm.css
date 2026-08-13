@@ -241,8 +241,8 @@ body {
 .character-token:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.5); }
 .character-token.hero-token { border-bottom-color: #8be9fd; }
 .character-token.hero-token.selected { border-color: #8be9fd; box-shadow: 0 0 15px rgba(139, 233, 253, 0.3); }
-.character-token.enemy-token { border-bottom-color: #ff5555; }
-.character-token.enemy-token.selected { border-color: #ff5555; box-shadow: 0 0 15px rgba(255, 85, 85, 0.3); }
+.character-token.enemy-token { border-bottom-color: #ffb86c; }
+.character-token.enemy-token.selected { border-color: #ffb86c; box-shadow: 0 0 15px rgba(255, 184, 108, 0.3); }
 
 /* Darkens the token and turns it grayscale when the character is dead */
 .character-token.dead .token-img { filter: brightness(0.3) grayscale(0.8); }
@@ -403,6 +403,7 @@ body {
 .char-extra-tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; color: #6272a4; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; transition: 0.2s;}
 .char-extra-tab:hover { background: #282a36; }
 .char-extra-tab.active { color: #8be9fd; border-bottom: 2px solid #8be9fd; background: #212330; }
+.char-extra-tab.enemy-tab.active { color: #ffb86c; border-bottom-color: #ffb86c; }
 
 .char-extra-content { 
     flex: 1; 
@@ -1250,4 +1251,133 @@ body.targeting-mode .character-token { transform: none !important; }
     font-size: 0.85rem;
     line-height: 1.4;
     text-align: center;
+}
+
+
+
+/* --- UTILITY & TEXT COLORS --- */
+.text-success { color: #50fa7b !important; }
+.text-fail { color: #ff5555 !important; }
+.text-neutral { color: #f8f8f2 !important; }
+.text-white { color: #ffffff !important; }
+.text-warning { color: #ffb86c !important; }
+.text-deaths-door { color: #550000 !important; }
+
+.name-hero { color: #8be9fd !important; }
+.name-enemy { color: #ffb86c !important; }
+.name-other { color: #bd93f9 !important; }
+
+.ability-success-rate { color: #bd93f9; }
+
+/* --- PLACEHOLDERS --- */
+.empty-list-placeholder {
+    padding: 10px;
+    color: #6272a4;
+    text-align: center;
+    font-size: 0.8rem;
+    margin: auto;
+}
+
+/* --- MAIN PANEL REFACTORED STYLES --- */
+.char-name-display {
+    cursor: pointer;
+    line-height: normal;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.char-stats-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.char-stats-container::-webkit-scrollbar { display: none; }
+
+.stat-row.derived-stat {
+    border-color: #44475a;
+    margin-top: 5px;
+}
+
+.base-damage-input {
+    margin: 0;
+}
+
+/* --- EXTRA PANEL REFACTORED STYLES --- */
+.card-title-hero { color: #8be9fd; }
+.card-title-enemy { color: #ffb86c; }
+
+.action-cd-btn.btn-state-dead,
+.action-cd-btn.btn-state-cd {
+    background: #ff5555;
+    color: white;
+}
+
+.action-cd-btn.btn-state-stunned {
+    background: #f1fa8c;
+    color: #181922;
+}
+
+.action-cd-btn.btn-state-wait {
+    background: #44475a;
+    color: #f8f8f2;
+}
+
+.quantity-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quantity-input {
+    width: 50px;
+    background: #212330;
+    border: 1px solid #44475a;
+    color: white;
+    text-align: center;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+/* --- MISC REFACTORED STYLES --- */
+.condition-header-actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.condition-target.readonly-group {
+    color: #8be9fd;
+    cursor: default;
+}
+
+.init-name-stunned {
+    color: #f1fa8c;
+}
+
+.token-dimmed {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.gm-dice-crit { color: #50fa7b; }
+.gm-dice-fail { color: #ff5555; }
+.gm-dice-neutral { color: #f8f8f2; }
+.gm-dice-hidden { color: transparent !important; }
+
+.breakdown-divider {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: #44475a;
+    margin: 4px 0;
+}
+.breakdown-hint {
+    font-size: 0.7rem;
+    color: #6272a4;
 }

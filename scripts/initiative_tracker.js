@@ -92,7 +92,7 @@ function renderInitiativeTracker() {
     );
 
     if (validCombatants.length === 0) {
-        tracker.innerHTML = `<div style="color: #6272a4; margin: auto;" data-i18n="placeholder_no_initiative">${t('placeholder_no_initiative')}</div>`;
+        tracker.innerHTML = `<div class="empty-list-placeholder" data-i18n="placeholder_no_initiative">${t('placeholder_no_initiative')}</div>`;
         return;
     }
 
@@ -167,7 +167,7 @@ function renderInitiativeTracker() {
             if (e.count > 1) text += ` x${e.count}`;
             
             if (e.isStunned) {
-                return `<span style="color: #f1fa8c;" title="${t('stunned')}">${text}</span>`;
+                return `<span class="init-name-stunned" title="${t('stunned')}">${text}</span>`;
             }
             return text;
         }).join(', ');

@@ -134,8 +134,9 @@ function validateActionPayload(payload, attacker, rollData) {
             if (cond.conditionIsBeneficial === false) hasNegative = true;
         }
 
-        // Require the new clarifying flag if there are forced rolls AND mixed conditions
-        if (actionHasForcedRolls && hasPositive && hasNegative && payload.isConditionSuccessBeneficial === undefined) {
+        // Require the new clarifying flag if there are forced rolls AND mixed conditions, but ONLY for actions requiring manual targeting (where tooltip chances are shown)
+        const requiresTargeting = ['single', 'multi'].includes(payload.target);
+        if (requiresTargeting && actionHasForcedRolls && hasPositive && hasNegative && payload.isConditionSuccessBeneficial === undefined) {
             return t('error_condition_mixed');
         }
     }
@@ -391,7 +392,7 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
         defenderSingleRolls.push({ 
             stat: statString, 
             result: hasBase ? rollRes : "X", 
-            color: passedForceRoll ? '#50fa7b' : '#ff5555', 
+            color: passedForceRoll ? 'text-success' : 'text-fail', 
             breakdown: forceBreakdown,
             difficulty: diff
         });

@@ -12,6 +12,29 @@ function playSoundEffect(src, volume = 0.5) {
     return audio;
 }
 
+// Helper function to prevent multiple diceroll sounds in a single action
+function playDiceSoundDeduplicated(event) {
+    let shouldPlayDiceSound = true;
+    
+    // Deduplicate sound ONLY for auto-actions (e.g., group targets) to play once per group
+    // Manual actions (like multi-target clicks) will play sound for every individual target clicked
+    if (event.isAuto && event.groupId) {
+        const diceSoundKey = `dice-${event.groupId}`;
+        if (!window.playedStepSounds) window.playedStepSounds = new Set();
+        
+        if (window.playedStepSounds.has(diceSoundKey)) {
+            shouldPlayDiceSound = false; // A character from this group already triggered the diceroll sound
+        } else {
+            window.playedStepSounds.add(diceSoundKey);
+            setTimeout(() => window.playedStepSounds.delete(diceSoundKey), 5000);
+        }
+    }
+    
+    if (shouldPlayDiceSound) {
+        playSoundEffect('sound/diceroll.mp3');
+    }
+}
+
 // Toggles global audio mute state
 function toggleGlobalMute() {
     window.isAudioMuted = !window.isAudioMuted;
@@ -47,7 +70,7 @@ function renderMusicList() {
     
     // Render placeholder if the list is empty
     if (!mp3Files || mp3Files.length === 0) {
-        musicListContainer.innerHTML = `<div style="padding: 10px; color: #6272a4; text-align: center; font-size: 0.8rem;" data-i18n="placeholder_no_music">${t('placeholder_no_music')}</div>`;
+        musicListContainer.innerHTML = `<div class="empty-list-placeholder" data-i18n="placeholder_no_music">${t('placeholder_no_music')}</div>`;
         return;
     }
     

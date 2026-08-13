@@ -46,12 +46,12 @@ function renderCharMainPanel(id) {
     // Fetch globally saved sheet tab state from localStorage
     const savedSheetTab = localStorage.getItem('CombatManager-SheetTab') || 'tab-rolls';
 
-    // Name formatting logic - Inputs only for custom empty tokens, completely locked (but identical) styling for named file entities
+    // Name formatting logic
     let charNameHtml = '';
     if (combatant.type === 'character') {
-        charNameHtml = `<input type="text" class="char-name-input" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">`;
+        charNameHtml = `<input type="text" class="char-name-input char-name-display" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">`;
     } else {
-        charNameHtml = `<div class="char-name-input copyable-value" style="cursor: pointer; line-height: normal; display: flex; align-items: center; justify-content: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;" onclick="copyValue('${combatant.uniqueName || ''}', event)">${combatant.uniqueName || ''}</div>`;
+        charNameHtml = `<div class="char-name-input char-name-display copyable-value text-neutral" onclick="copyValue('${combatant.uniqueName || ''}', event)">${combatant.uniqueName || ''}</div>`;
     }
 
     // 1. Render Main Character Sheet (.char-sheet)
@@ -71,19 +71,19 @@ function renderCharMainPanel(id) {
             </div>
         </div>
 
-        <div class="char-stats-container" style="display: flex; flex-direction: column; gap: 4px; overflow-y: auto; scrollbar-width: none;">
+        <div class="char-stats-container">
             ${rollsHtml} 
-            <div class="stat-row" style="border-color: #44475a; margin-top: 5px;">
+            <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="base_damage"></span>
-                <input type="number" class="base-damage-input" style="margin:0;" value="${stats.damage || 0}">
+                <input type="number" class="base-damage-input" value="${stats.damage || 0}">
             </div>
-            <div class="stat-row" style="border-color: #44475a;">
+            <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="phys_armor_caps"></span>
                 <input type="number" class="armor-val-input base-phys-armor" title="${t('armor_value_base')}" value="${stats.physArmor || 0}">
                 <span class="armor-plus-sign">+</span>
                 <input type="text" class="armor-perc-input base-phys-armor-mod" title="${t('armor_value_percent')}" placeholder="%" value="${stats.physArmorMod || ''}">
             </div>
-            <div class="stat-row" style="border-color: #44475a;">
+            <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="mag_armor_caps"></span>
                 <input type="number" class="armor-val-input base-mag-armor" title="${t('armor_value_base')}" value="${stats.magArmor || 0}">
                 <span class="armor-plus-sign">+</span>

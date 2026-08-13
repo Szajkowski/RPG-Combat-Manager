@@ -79,8 +79,8 @@ function rollGmDice() {
         clearTimeout(gmDiceTimeout);
     }
 
-    // Hide text
-    resultSpan.style.color = 'transparent';
+    // Hide text via CSS class mapping
+    resultSpan.className = 'gm-dice-hidden';
 
     // Force restart the CSS animation if it was already running
     shieldDiv.classList.remove('gm-dice-tumbling');
@@ -92,8 +92,8 @@ function rollGmDice() {
         shieldDiv.classList.remove('gm-dice-tumbling');
         resultSpan.textContent = roll;
         
-        // Highlight crit success (max) and crit fail (1)
-        resultSpan.style.color = roll === max ? '#50fa7b' : (roll === 1 ? '#ff5555' : '#f8f8f2');
+        // Highlight crit success (max) and crit fail (1) mapping the string directly
+        resultSpan.className = roll === max ? 'gm-dice-crit' : (roll === 1 ? 'gm-dice-fail' : 'gm-dice-neutral');
         
         gmDiceTimeout = null;
     }, 600);
