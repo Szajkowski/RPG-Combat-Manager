@@ -10,7 +10,7 @@ if (rawPath && !rawPath.includes("index.html") && !rawPath.includes("player.html
 
 // --- GLOBAL STATE MOVED TO NETWORK FOR ALL CLIENTS ---
 let activeCombatants = []; // Holds all active characters data and their current stats
-let activeConditions = []; // Holds all active conditions
+let activeEffects = []; // Holds all active effects
 let rollsHistory = []; // Tracks historical roll events
 let selectedCharacterId = null; // Tracks currently selected character token on the arena
 let myClientId = null; // Stored personal client ID assigned by the server
@@ -51,7 +51,7 @@ function connectSocket() {
             // Replaces the entire local state with the server's state upon initial connection
             case 'RESPONSEgetFullState': {
                 activeCombatants = data.activeCombatants;
-                activeConditions = data.activeConditions; // Sync conditions
+                activeEffects = data.activeEffects; // Sync effects
                 rollsHistory = data.rollsHistory || []; // Sync rolls
                 
                 if (typeof renderToken === 'function') {
@@ -60,7 +60,7 @@ function connectSocket() {
 
                 // Render dynamic HUDs
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
-                if (typeof renderConditions === 'function') renderConditions();
+                if (typeof renderEffects === 'function') renderEffects();
                 if (typeof renderRollsFeed === 'function') renderRollsFeed(rollsHistory);
 
                 // Initialize empty states properly
@@ -156,16 +156,16 @@ function connectSocket() {
                 break;
             }
 
-            case "BROADCASTaddCondition": {
-                activeConditions = data.activeConditions;
-                if (typeof renderConditions === 'function') renderConditions();
+            case "BROADCASTaddEffect": {
+                activeEffects = data.activeEffects;
+                if (typeof renderEffects === 'function') renderEffects();
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
 
-            case "BROADCASTupdateConditions": {
-                activeConditions = data.activeConditions;
-                if (typeof renderConditions === 'function') renderConditions();
+            case "BROADCASTupdateEffects": {
+                activeEffects = data.activeEffects;
+                if (typeof renderEffects === 'function') renderEffects();
                 if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
                 break;
             }
@@ -341,7 +341,7 @@ async function playActionSequence(payload) {
 
         // Prevent playing main buff/debuff sounds if the target resisted the action entirely
         let shouldPlayMainSound = true;
-        if ((actionType === 'armor' || actionType === 'heal' || actionType === 'condition') && (subType === 'miss' || subType === 'resist')) {
+        if ((actionType === 'armor' || actionType === 'heal' || actionType === 'effect') && (subType === 'miss' || subType === 'resist')) {
             shouldPlayMainSound = false;
         }
 
@@ -477,8 +477,8 @@ function refreshDisplay(combatantsArray) {
         updateRightPanelDisplay(combatant);
     });
 
-    // Update conditions globally once per batch update
-    if (typeof renderConditions === 'function') renderConditions();
+    // Update effects globally once per batch update
+    if (typeof renderEffects === 'function') renderEffects();
 }
 
 // Fallback legacy UI Updater routing single updates specifically through batch rendering engine constraints
@@ -486,11 +486,11 @@ function refreshCombatantDisplay(combatant) {
     refreshDisplay([combatant]); 
 }
 
-function updateServerConditions(newConditions) {
+function updateServerEffects(newEffects) {
     if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
-            type: "REQUESTupdateConditions",
-            activeConditions: newConditions
+            type: "REQUESTupdateEffects",
+            activeEffects: newEffects
         }));
     }
 }

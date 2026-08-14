@@ -22,12 +22,12 @@ function calculateTotalTurns(combatant) {
         });
     }
 
-    // Check active conditions targeting this specific combatant explicitly via conditionProperties
-    if (typeof activeConditions !== 'undefined') {
-        activeConditions.forEach(cond => {
-            // Null target automatically implies the condition affects the invoker
-            const effectiveTarget = cond.target ? cond.target : cond.invoker;
-            if (effectiveTarget === combatant.uniqueName && cond.conditionProperties && cond.conditionProperties.includes(tag)) {
+    // Check active effects targeting this specific combatant explicitly via effectProperties
+    if (typeof activeEffects !== 'undefined') {
+        activeEffects.forEach(effect => {
+            // Null target automatically implies the effect affects the invoker
+            const effectiveTarget = effect.target ? effect.target : effect.invoker;
+            if (effectiveTarget === combatant.uniqueName && effect.effectProperties && effect.effectProperties.includes(tag)) {
                 extraTurns++;
             }
         });
@@ -267,15 +267,15 @@ function nextTurn(isSilent = false) {
             });
         }
         
-        // Decrement targeted conditions matching the turn amount evaluated (ONLY 't' duration states)
-        if (typeof decrementConditions === 'function') {
+        // Decrement targeted effects matching the turn amount evaluated (ONLY 't' duration states)
+        if (typeof decrementEffects === 'function') {
             for (let i = 0; i < turnsToTake; i++) {
-                decrementConditions(cond => {
-                    const durStr = String(cond.duration || '').trim();
+                decrementEffects(effect => {
+                    const durStr = String(effect.duration || '').trim();
                     const type = durStr.slice(-1);
                     // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
                     const isTurnBased = type === 't' || !isNaN(type);
-                    const effectiveTarget = cond.target ? cond.target : cond.invoker;
+                    const effectiveTarget = effect.target ? effect.target : effect.invoker;
                     return effectiveTarget === c.uniqueName && isTurnBased;
                 });
             }
@@ -331,19 +331,19 @@ function newRound() {
         syncUpdateCombatantsBatch(modifiedCombatants);
     }
 
-    // Handle global round condition decrement logic (Round based 'r', and missing targets for 't')
+    // Handle global round effect decrement logic (Round based 'r', and missing targets for 't')
     const activeNames = activeCombatants.map(c => c.uniqueName);
-    if (typeof decrementConditions === 'function') {
-        decrementConditions(cond => {
-            const durStr = String(cond.duration || '').trim();
+    if (typeof decrementEffects === 'function') {
+        decrementEffects(effect => {
+            const durStr = String(effect.duration || '').trim();
             const type = durStr.slice(-1);
             const isRoundBased = type === 'r';
             const isTurnBased = type === 't' || !isNaN(type);
             
-            const effectiveTarget = cond.target ? cond.target : cond.invoker;
+            const effectiveTarget = effect.target ? effect.target : effect.invoker;
             const isOrphaned = !activeNames.includes(effectiveTarget);
             
-            // Evaluates TRUE if the condition explicitly tracks rounds, or tracks turns but the target is gone
+            // Evaluates TRUE if the effect explicitly tracks rounds, or tracks turns but the target is gone
             return isRoundBased || (isTurnBased && isOrphaned);
         });
     }
@@ -374,7 +374,7 @@ function endCombat() {
         syncUpdateCombatantsBatch(modifiedCombatants);
     }
 
-    if (typeof updateServerConditions === 'function') {
-        updateServerConditions([]);
+    if (typeof updateServerEffects === 'function') {
+        updateServerEffects([]);
     }
 }

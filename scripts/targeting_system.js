@@ -300,8 +300,8 @@ function buildActionTooltipText(action, attacker, target, rollData) {
         
         if (parts.length > 0) text = parts.join(', ');
         else text = t('action_armor_phys').replace('{val}', '...'); // Fallback empty
-    } else if (action.type === 'condition') {
-        text = t('action_condition');
+    } else if (action.type === 'effect') {
+        text = t('action_effect');
     }
 
     // Append repeat count logically to the tooltip if it exceeds standard bounds
@@ -436,18 +436,18 @@ function handleTargetingHoverEnter(e, targetId) {
     if (chances.success !== undefined) {
         text += `${t('success_chance')} ${chances.success}%<br>`;
     }
-    if (chances.condition !== undefined) {
-        let focus = getConditionSuccessFocus(targetingData.payload);
+    if (chances.effect !== undefined) {
+        let focus = getEffectSuccessFocus(targetingData.payload);
         let count = 0;
-        if (targetingData.payload.conditions) {
-            count = targetingData.payload.conditions.filter(c => c.conditionIsBeneficial === focus).length;
+        if (targetingData.payload.effects) {
+            count = targetingData.payload.effects.filter(e => e.effectIsBeneficial === focus).length;
         }
         
         let textKey = focus ? 
             (count > 1 ? 'effect_chance_pos_many' : 'effect_chance_pos_one') : 
             (count > 1 ? 'effect_chance_neg_many' : 'effect_chance_neg_one');
         
-        text += `${t(textKey)} ${chances.condition}%<br>`;
+        text += `${t(textKey)} ${chances.effect}%<br>`;
     }
     if (chances.stun !== undefined) {
         text += `${t('stun_chance')} ${chances.stun}%<br>`;
@@ -558,8 +558,8 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
     if (payload.type === 'damage') {
         // Damage handler natively appends Death's Door checks inside the same visual package block
         const hitSuccess = await resolveDamageAction(attacker, target, payload, evalRes, skipSync);
-        if (hitSuccess && payload.conditions) {
-            processAndSendConditions(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
+        if (hitSuccess && payload.effects) {
+            processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
         }
         return hitSuccess;
     } else {
@@ -571,17 +571,17 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
         if (evalRes.success) {
             if (payload.type === 'heal') await resolveHealAction(target, payload, attacker, skipSync, shouldStunNonDamage);
             else if (payload.type === 'armor') await resolveArmorAction(target, payload, attacker, skipSync, shouldStunNonDamage);
-            else if (payload.type === 'condition') {
-                // If it's a pure condition action that triggered a stun, broadcast the sequence purely for the sound and visuals
+            else if (payload.type === 'effect') {
+                // If it's a pure effect action that triggered a stun, broadcast the sequence purely for the sound and visuals
                 if (shouldStunNonDamage && typeof syncPlayActionSequence === 'function') {
                     syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true });
                     await delay(400);
                 }
             }
             
-            // Attach explicitly linked target conditions
-            if (payload.conditions) {
-                processAndSendConditions(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
+            // Attach explicitly linked target effects
+            if (payload.effects) {
+                processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
             }
 
             return true;

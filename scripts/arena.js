@@ -88,8 +88,8 @@ function addCharacter(type, team, stats = {}, image = null) {
     // Push to server -> which will broadcast it back to everyone (including GM) and trigger renderToken()
     syncAddCombatant(combatant);
 
-    // Automatically apply entry conditions attached directly to the character template
-    processAndSendConditions(uniqueName, null, stats, t('condition'), "self");
+    // Automatically apply entry effects attached directly to the character template
+    processAndSendEffects(uniqueName, null, stats, t('effect'), "self");
 }
 
 // Renders the token visually on the board based on the combatant object
@@ -185,7 +185,7 @@ function rollDice(combatantId, diceType, difficulty = null) {
     let difficultyValue = null;
     if (difficulty && difficulty !== "X") {
         difficultyValue = parseInt(difficulty);
-        resultColor = result >= difficultyValue ? 'text-success' : 'text-fail';
+        resultColor = result >= difficultyValue ? 'text-positive' : 'text-negative';
     }
 
     return { 
@@ -250,8 +250,8 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
         isSuccess: isSuccess,
         actualAttRoll: attRes, // Saved for potential external caching
         attBreakdown: attBreakdown, // Save to pass to cache
-        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? 'text-success' : 'text-fail', breakdown: attBreakdown },
-        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? 'text-fail' : 'text-success', breakdown: defBreakdown }
+        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? 'text-positive' : 'text-negative', breakdown: attBreakdown },
+        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? 'text-negative' : 'text-positive', breakdown: defBreakdown }
     };
 }
 
@@ -326,7 +326,7 @@ function rollDeathsDoor(combatant) {
         roll: { 
             stat: "deaths_door", 
             result: rollResult, 
-            color: survived ? 'text-success' : 'text-fail',
+            color: survived ? 'text-positive' : 'text-negative',
             breakdown: [{ stat: "deaths_door", roll: rollResult, mod: 0, total: rollResult }],
             difficulty: survivalThreshold
         }

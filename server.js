@@ -313,7 +313,7 @@ async function startServer() {
 
     // Store global game state
     let activeCombatants = []; // Single source of truth for all characters
-    let activeConditions = []; // Kept separate for now
+    let activeEffects = []; // Kept separate for now
     let rollsHistory = []; // Global roll history feed array
     const connectedClients = new Map(); // Maps socket to client details { clientId, clientName, isGM }
 
@@ -351,7 +351,7 @@ async function startServer() {
                     socket.send(JSON.stringify({
                         type: 'RESPONSEgetFullState',
                         activeCombatants,
-                        activeConditions,
+                        activeEffects,
                         rollsHistory
                     }));
                     break;
@@ -501,24 +501,24 @@ async function startServer() {
                     break;
                 }
                 
-                case 'REQUESTgetConditions': {
+                case 'REQUESTgetEffects': {
                     socket.send(JSON.stringify({
-                        type: "RESPONSEgetConditions",
+                        type: "RESPONSEgetEffects",
                         requestId: data.requestId,
-                        activeConditions
+                        activeEffects
                     }));
                     break;
                 }
 
-                case 'REQUESTaddCondition': {
-                    const condition = data.condition;
-                    activeConditions.push(condition);
+                case 'REQUESTaddEffect': {
+                    const effect = data.effect;
+                    activeEffects.push(effect);
 
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
-                                type: "BROADCASTaddCondition",
-                                activeConditions,
+                                type: "BROADCASTaddEffect",
+                                activeEffects,
                                 senderId: clientId
                             }));
                         }
@@ -526,15 +526,15 @@ async function startServer() {
                     break;
                 }
 
-                case 'REQUESTupdateConditions': {
-                    if (data.activeConditions) activeConditions = data.activeConditions;
-                    else activeConditions = [];
+                case 'REQUESTupdateEffects': {
+                    if (data.activeEffects) activeEffects = data.activeEffects;
+                    else activeEffects = [];
 
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
-                                type: "BROADCASTupdateConditions",
-                                activeConditions,
+                                type: "BROADCASTupdateEffects",
+                                activeEffects,
                                 senderId: clientId
                             }));
                         }

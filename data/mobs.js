@@ -264,7 +264,7 @@ var mobs = {
             },
         ],
     },
-    "Kultysta Edeusa (elita)": {
+"Kultysta Edeusa (elita)": {
         name: "Kultysta Edeusa (elita)",
         hp: 250,
         maxHp: 250,
@@ -286,8 +286,8 @@ var mobs = {
                 roll: "vitality",
                 difficulty: 10,
                 cooldown: 0,
-                condition: "Rozpalona broń. Broń zadaje 50% więcej obrażeń",
-                conditionDuration: "6t"
+                effect: "Rozpalona broń. Broń zadaje 50% więcej obrażeń",
+                effectDuration: "6t"
             },
         ],
         equipment: [

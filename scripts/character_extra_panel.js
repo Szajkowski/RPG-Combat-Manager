@@ -465,7 +465,7 @@ async function useAbility(combatantId, ability, event) {
     if (needsPipeline) {
         startActionPipeline(updatedCombatant, ability.actions, ability, initialRollsData, event, shouldBroadcastInitRollImmediately);
     } else if (success) {
-        processAndSendConditions(updatedCombatant.uniqueName, null, ability, ability.name, ability.source || "self");
+        processAndSendEffects(updatedCombatant.uniqueName, null, ability, ability.name, ability.source || "self");
     }
 }
 

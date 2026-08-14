@@ -114,30 +114,30 @@ function validateActionPayload(payload, attacker, rollData) {
         }
     }
 
-    // Validate Condition actions having no conditions
-    if (payload.type === 'condition' && (!payload.conditions || payload.conditions.length === 0)) {
-        return t('error_condition_empty');
+    // Validate Effect actions having no effects
+    if (payload.type === 'effect' && (!payload.effects || payload.effects.length === 0)) {
+        return t('error_effect_empty');
     }
 
-    // Validate condition arrays (for any action type that has them)
-    if (payload.conditions && payload.conditions.length > 0) {
+    // Validate effect arrays (for any action type that has them)
+    if (payload.effects && payload.effects.length > 0) {
         let hasPositive = false;
         let hasNegative = false;
 
-        for (const cond of payload.conditions) {
-            // Forced rolls require conditions to explicitly declare if they are beneficial
-            if (actionHasForcedRolls && cond.conditionIsBeneficial === undefined) {
-                let fallbackName = cond.conditionName || cond.name || 'Condition';
-                return t('error_condition_missing_flag').replace('{name}', fallbackName);
+        for (const eff of payload.effects) {
+            // Forced rolls require effects to explicitly declare if they are beneficial
+            if (actionHasForcedRolls && eff.effectIsBeneficial === undefined) {
+                let fallbackName = eff.effectName || eff.name || 'Effect';
+                return t('error_effect_missing_flag').replace('{name}', fallbackName);
             }
-            if (cond.conditionIsBeneficial === true) hasPositive = true;
-            if (cond.conditionIsBeneficial === false) hasNegative = true;
+            if (eff.effectIsBeneficial === true) hasPositive = true;
+            if (eff.effectIsBeneficial === false) hasNegative = true;
         }
 
-        // Require the new clarifying flag if there are forced rolls AND mixed conditions, but ONLY for actions requiring manual targeting (where tooltip chances are shown)
+        // Require the new clarifying flag if there are forced rolls AND mixed effects, but ONLY for actions requiring manual targeting (where tooltip chances are shown)
         const requiresTargeting = ['single', 'multi'].includes(payload.target);
-        if (requiresTargeting && actionHasForcedRolls && hasPositive && hasNegative && payload.isConditionSuccessBeneficial === undefined) {
-            return t('error_condition_mixed');
+        if (requiresTargeting && actionHasForcedRolls && hasPositive && hasNegative && payload.isEffectSuccessBeneficial === undefined) {
+            return t('error_effect_mixed');
         }
     }
 
@@ -169,15 +169,15 @@ function getArmorActionBeneficialState(payload, attacker) {
     return hasPositive;
 }
 
-// Determines which chance to show on the tooltip when calculating condition outcomes
+// Determines which chance to show on the tooltip when calculating effect outcomes
 // No need to check if they are all strictly positive or negative since if they are, that situation is already handled in validateActionPayload
-function getConditionSuccessFocus(payload) {
-    if (payload.isConditionSuccessBeneficial !== undefined) return payload.isConditionSuccessBeneficial;
+function getEffectSuccessFocus(payload) {
+    if (payload.isEffectSuccessBeneficial !== undefined) return payload.isEffectSuccessBeneficial;
 
     let hasPositive = false;
-    if (payload.conditions) {
-        payload.conditions.forEach(cond => {
-            if (cond.conditionIsBeneficial === true) hasPositive = true;
+    if (payload.effects) {
+        payload.effects.forEach(eff => {
+            if (eff.effectIsBeneficial === true) hasPositive = true;
         });
     }
 
@@ -249,13 +249,13 @@ function calculateActionSuccessChance(attacker, target, payload) {
     if (payload.type === 'damage') {
         result.hit = Math.round(baseSuccessChance * 100);
         
-        if (payload.conditions && payload.conditions.length > 0) {
-            let condChance = baseSuccessChance; // Conditions on damage require the attack to hit first
+        if (payload.effects && payload.effects.length > 0) {
+            let effChance = baseSuccessChance; // Effects on damage require the attack to hit first
             if (hasForceRoll || hasForceRollVS) {
-                let focusBeneficial = getConditionSuccessFocus(payload);
-                condChance = focusBeneficial ? (baseSuccessChance * targetPassChance) : (baseSuccessChance * (1.0 - targetPassChance));
+                let focusBeneficial = getEffectSuccessFocus(payload);
+                effChance = focusBeneficial ? (baseSuccessChance * targetPassChance) : (baseSuccessChance * (1.0 - targetPassChance));
             }
-            result.condition = Math.round(condChance * 100);
+            result.effect = Math.round(effChance * 100);
         }
         
         if (causesStun) {
@@ -263,13 +263,13 @@ function calculateActionSuccessChance(attacker, target, payload) {
             result.stun = Math.round(stunChance * 100);
         }
     } else if (payload.type === 'heal') {
-        if (payload.conditions && payload.conditions.length > 0) {
-            let condChance = 1.0;
+        if (payload.effects && payload.effects.length > 0) {
+            let effChance = 1.0;
             if (hasForceRoll || hasForceRollVS) {
-                let focusBeneficial = getConditionSuccessFocus(payload);
-                condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
+                let focusBeneficial = getEffectSuccessFocus(payload);
+                effChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
             }
-            result.condition = Math.round(condChance * 100);
+            result.effect = Math.round(effChance * 100);
         }
         
         if (causesStun) {
@@ -284,26 +284,26 @@ function calculateActionSuccessChance(attacker, target, payload) {
         }
         result.success = Math.round(successChance * 100);
         
-        if (payload.conditions && payload.conditions.length > 0) {
-            let condChance = 1.0;
+        if (payload.effects && payload.effects.length > 0) {
+            let effChance = 1.0;
             if (hasForceRoll || hasForceRollVS) {
-                let focusBeneficial = getConditionSuccessFocus(payload);
-                condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
+                let focusBeneficial = getEffectSuccessFocus(payload);
+                effChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
             }
-            result.condition = Math.round(condChance * 100);
+            result.effect = Math.round(effChance * 100);
         }
         
         if (causesStun) {
             let stunChance = (hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0;
             result.stun = Math.round(stunChance * 100);
         }
-    } else if (payload.type === 'condition') {
-        let condChance = 1.0; // condition action base is 100% unless forced rolls apply
+    } else if (payload.type === 'effect') {
+        let effChance = 1.0; // effect action base is 100% unless forced rolls apply
         if (hasForceRoll || hasForceRollVS) {
-            let focusBeneficial = getConditionSuccessFocus(payload);
-            condChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
+            let focusBeneficial = getEffectSuccessFocus(payload);
+            effChance = focusBeneficial ? targetPassChance : (1.0 - targetPassChance);
         }
-        result.condition = Math.round(condChance * 100);
+        result.effect = Math.round(effChance * 100);
         
         if (causesStun) {
             let stunChance = (hasForceRoll || hasForceRollVS) ? (1.0 - targetPassChance) : 1.0;
@@ -392,7 +392,7 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
         defenderSingleRolls.push({ 
             stat: statString, 
             result: hasBase ? rollRes : "X", 
-            color: passedForceRoll ? 'text-success' : 'text-fail', 
+            color: passedForceRoll ? 'text-positive' : 'text-negative', 
             breakdown: forceBreakdown,
             difficulty: diff
         });
@@ -423,9 +423,9 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     let subTypeFinal = null;
 
     if (hasForceRoll || hasForceRollVS) {
-        // Damage, heal, and condition main action execution depends purely on base hit (100% for non-damage).
-        // The forced rolls will be handled by processAndSendConditions for individual states.
-        if (payload.type === 'damage' || payload.type === 'heal' || payload.type === 'condition') {
+        // Damage, heal, and effect main action execution depends purely on base hit (100% for non-damage).
+        // The forced rolls will be handled by processAndSendEffects for individual states.
+        if (payload.type === 'damage' || payload.type === 'heal' || payload.type === 'effect') {
             actionSuccess = isBaseSuccess; 
         } else if (payload.type === 'armor') {
             let isArmorBeneficial = getArmorActionBeneficialState(payload, attacker);
@@ -564,9 +564,9 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                 if (targetKilled) {
                     freshTarget.isDead = true;
                     freshTarget.isStunned = false;
-                    // Clean up conditions targeting this dead character
-                    if (typeof removeConditionsForTarget === 'function') {
-                        removeConditionsForTarget(freshTarget.uniqueName);
+                    // Clean up effects targeting this dead character
+                    if (typeof removeEffectsForTarget === 'function') {
+                        removeEffectsForTarget(freshTarget.uniqueName);
                     }
                 } else if (shouldStun) {
                     freshTarget.isStunned = true;

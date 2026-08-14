@@ -126,6 +126,37 @@ function showToast(message, duration = 2500) {
     }, duration);
 }
 
+// Organizes modals visually as a stack of cards to prevent flat visual clutter
+function updateModalStack() {
+    const overlay = document.getElementById('global-modal-overlay');
+    if (!overlay) return;
+    
+    const modals = Array.from(overlay.querySelectorAll('.custom-modal-box'));
+    const total = modals.length;
+    
+    modals.forEach((modal, index) => {
+        const reverseIndex = total - 1 - index; // 0 is the newest (top) modal
+        
+        modal.style.position = 'absolute';
+        modal.style.transition = 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        
+        if (reverseIndex === 0) {
+            modal.style.transform = 'translateY(0) scale(1)';
+            modal.style.opacity = '1';
+            modal.style.zIndex = '1000';
+            modal.style.pointerEvents = 'auto'; // Only the top one is interactable
+        } else {
+            const yOffset = reverseIndex * -15; // Move up and behind
+            const scale = Math.max(0.85, 1 - (reverseIndex * 0.05)); // Shrink slightly to create depth
+            
+            modal.style.transform = `translateY(${yOffset}px) scale(${scale})`;
+            modal.style.opacity = Math.max(0, 1 - (reverseIndex * 0.2)).toString();
+            modal.style.zIndex = (1000 - reverseIndex).toString();
+            modal.style.pointerEvents = 'none'; // Background modals cannot be clicked
+        }
+    });
+}
+
 // Replaces standard window.alert() with a custom non-blocking UI modal
 // Uses a single global overlay and prevents identical messages from stacking
 function showAlertDialog(message) {
@@ -136,9 +167,6 @@ function showAlertDialog(message) {
             overlay = document.createElement('div');
             overlay.id = 'global-modal-overlay';
             overlay.className = 'custom-modal-overlay';
-            // Force flex direction to stack multiple different alerts vertically if they occur
-            overlay.style.flexDirection = 'column'; 
-            overlay.style.gap = '15px';
             document.body.appendChild(overlay);
         } else {
             // Prevent duplicate identical alerts from spawning (e.g. repeated connection errors)
@@ -167,6 +195,7 @@ function showAlertDialog(message) {
         btn.onclick = () => {
             box.remove();
             if (overlay.childNodes.length === 0) overlay.remove();
+            else updateModalStack(); // Adjust remaining modals in the stack
             resolve();
         };
         
@@ -174,6 +203,8 @@ function showAlertDialog(message) {
         box.appendChild(text);
         box.appendChild(btnContainer);
         overlay.appendChild(box);
+
+        updateModalStack();
     });
 }
 
@@ -186,8 +217,6 @@ function showConfirmDialog(message, onConfirmCallback) {
         overlay = document.createElement('div');
         overlay.id = 'global-modal-overlay';
         overlay.className = 'custom-modal-overlay';
-        overlay.style.flexDirection = 'column'; 
-        overlay.style.gap = '15px';
         document.body.appendChild(overlay);
     } else {
         const existingTexts = Array.from(overlay.querySelectorAll('.custom-modal-text')).map(el => el.innerHTML);
@@ -212,6 +241,7 @@ function showConfirmDialog(message, onConfirmCallback) {
     btnYes.onclick = () => {
         box.remove();
         if (overlay.childNodes.length === 0) overlay.remove();
+        else updateModalStack(); // Adjust remaining modals in the stack
         if (onConfirmCallback) onConfirmCallback();
     };
 
@@ -221,6 +251,7 @@ function showConfirmDialog(message, onConfirmCallback) {
     btnNo.onclick = () => {
         box.remove();
         if (overlay.childNodes.length === 0) overlay.remove();
+        else updateModalStack(); // Adjust remaining modals in the stack
     };
     
     btnContainer.appendChild(btnYes);
@@ -228,6 +259,8 @@ function showConfirmDialog(message, onConfirmCallback) {
     box.appendChild(text);
     box.appendChild(btnContainer);
     overlay.appendChild(box);
+
+    updateModalStack();
 }
 
 // --- PROPERTY TOOLTIP LOGIC ---

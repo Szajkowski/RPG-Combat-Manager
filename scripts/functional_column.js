@@ -17,14 +17,14 @@ async function removeCharacterById(id, event) {
     const combatant = activeCombatants.find(c => c.id === id);
     if (!combatant) return;
 
-    // 1. Remove conditions tied to this character (Server sync)
-    // Directly use the globally synced activeConditions array to prevent Promise/undefined errors!
-    if (typeof activeConditions !== 'undefined' && Array.isArray(activeConditions)) {
-        const filteredConditions = activeConditions.filter(condition => condition.target !== combatant.uniqueName);
+    // 1. Remove effects tied to this character (Server sync)
+    // Directly use the globally synced activeEffects array to prevent Promise/undefined errors!
+    if (typeof activeEffects !== 'undefined' && Array.isArray(activeEffects)) {
+        const filteredEffects = activeEffects.filter(effect => effect.target !== combatant.uniqueName);
         
         // Only trigger network update if something was actually deleted
-        if (filteredConditions.length !== activeConditions.length && typeof updateServerConditions === 'function') {
-            updateServerConditions(filteredConditions);
+        if (filteredEffects.length !== activeEffects.length && typeof updateServerEffects === 'function') {
+            updateServerEffects(filteredEffects);
         }
     }
 

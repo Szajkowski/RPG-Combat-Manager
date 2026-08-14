@@ -110,7 +110,7 @@ function injectTargetingUI() {
     if (!document.getElementById('targeting-svg')) {
         const svgHTML = `
             <svg id="targeting-svg">
-                <path id="targeting-path" fill="none" stroke="#f1fa8c" stroke-width="4" stroke-dasharray="10, 10" />
+                <path id="targeting-path" fill="none" stroke="var(--theme-target)" stroke-width="4" stroke-dasharray="10, 10" />
             </svg>
             <div id="targeting-tooltip">
                 <div class="chance-text"></div>
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.target.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
-        } else if (e.target.matches('.condition-target')) {
+        } else if (e.target.matches('.effect-target')) {
             if (val && !/^-?\d+$/.test(val.trim())) {
                 if (typeof pasteValueToInput === 'function') {
                     pasteValueToInput(e.target);

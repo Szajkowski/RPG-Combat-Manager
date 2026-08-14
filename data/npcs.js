@@ -90,16 +90,16 @@ magArmor: 0,
                 value: 10
             },
         ],
-        conditions: [
+        effects: [
             { 
-                conditionName: "Lodowy miecz",
-                conditionDescription: "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                conditionDuration: "3t",
+                effectName: "Lodowy miecz",
+                effectDescription: "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                effectDuration: "3t",
             },
             { 
-                conditionName: "Lodowy miecz",
-                conditionDescription: "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                conditionDuration: "3t",
+                effectName: "Lodowy miecz",
+                effectDescription: "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
+                effectDuration: "3t",
             },
         ],
     },
