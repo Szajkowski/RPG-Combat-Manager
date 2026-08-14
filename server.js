@@ -18,6 +18,22 @@ function getLocalIp() {
     return 'localhost';
 }
 
+// Global server lock for action pipeline to prevent concurrent action overlaps
+let serverLock = {
+    isBusy: false,
+    ownerId: null,
+    timeout: null
+};
+
+function releaseServerLock() {
+    serverLock.isBusy = false;
+    serverLock.ownerId = null;
+    if (serverLock.timeout) {
+        clearTimeout(serverLock.timeout);
+        serverLock.timeout = null;
+    }
+}
+
 async function startServer() {
     // Check and generate SSL keys if they don't exist
     let privateKey, certificate;
@@ -307,6 +323,69 @@ async function startServer() {
                     break;
                 }
 
+                // --- ACTION LOCKING MECHANISM ---
+                case 'REQUESTinitiateAction': {
+                    // Check if the server is currently locked by another pipeline
+                    if (serverLock.isBusy) {
+                        socket.send(JSON.stringify({
+                            type: 'RESPONSEactionDenied',
+                            requestId: data.requestId
+                        }));
+                        break;
+                    }
+
+                    // Process and broadcast the bundled state modifications immediately while granting the lock
+                    if (data.combatant) {
+                        const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                        if (index !== -1) {
+                            activeCombatants[index] = data.combatant;
+                            wss.clients.forEach(client => {
+                                if (client.readyState === WebSocket.OPEN) {
+                                    client.send(JSON.stringify({
+                                        type: 'BROADCASTupdateCombatant',
+                                        combatant: data.combatant,
+                                        senderId: clientId
+                                    }));
+                                }
+                            });
+                        }
+                    }
+
+                    if (data.rollEvent) {
+                        rollsHistory.push(data.rollEvent);
+                        if (rollsHistory.length > 50) rollsHistory.shift();
+                        wss.clients.forEach(client => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                client.send(JSON.stringify({
+                                    type: 'BROADCASTaddRollEvent',
+                                    rollEvent: data.rollEvent
+                                }));
+                            }
+                        });
+                    }
+
+                    // autoRelease prevents the server from keeping the lock open if the client doesn't intend to start the targeting pipeline
+                    if (!data.autoRelease) {
+                        serverLock.isBusy = true;
+                        serverLock.ownerId = clientId;
+                        serverLock.timeout = setTimeout(() => releaseServerLock(), 45000); // Failsafe timeout
+                    }
+
+                    socket.send(JSON.stringify({
+                        type: 'RESPONSEactionGranted',
+                        requestId: data.requestId
+                    }));
+                    break;
+                }
+
+                case 'REQUESTreleaseActionLock': {
+                    // Allow releasing only if the client owns the lock
+                    if (serverLock.ownerId === clientId) {
+                        releaseServerLock();
+                    }
+                    break;
+                }
+
                 case 'REQUESTaddCombatant': {
                     activeCombatants.push(data.combatant);
                     console.log(`Added combatant: ${data.combatant.uniqueName}`);
@@ -466,6 +545,10 @@ async function startServer() {
         socket.on('close', () => {
             const clientInfo = connectedClients.get(socket);
             if (clientInfo) {
+                // Instantly free the lock if the owner disconnects
+                if (serverLock.ownerId === clientInfo.clientId) {
+                    releaseServerLock();
+                }
                 console.log(`Disconnected: ${clientInfo.clientName} [ID: ${clientInfo.clientId}]`);
                 connectedClients.delete(socket);
             }

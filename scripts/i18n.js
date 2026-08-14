@@ -26,6 +26,7 @@ const i18n = {
         'target_enemies': 'Drużyna przeciwników',
         
         // Action Menu Details
+        'game_master': 'Mistrz Gry',
         'gm_action_menu': 'Menu akcji',
         'value': 'Wartość',
         'value_flat': 'Stała',
@@ -197,6 +198,7 @@ const i18n = {
         'condition_success_chance': 'Szansa na sukces stanów:',
         'stun_chance': 'Szansa na ogłuszenie:',
         'vs': 'VS',
+        'action': "Akcja",
         'action_dmg_mag': 'Uderz za {val} obrażeń magicznych',
         'action_dmg_pierce': 'Uderz za {val} obrażeń przebijających',
         'action_dmg_phys': 'Uderz za {val} obrażeń fizycznych',
@@ -221,6 +223,7 @@ const i18n = {
         'no_stats_error': 'Brak wymaganych pól statystyki!',
         'invalid_url': 'Brak poprawnych graczy w URL!',
         'connection_error': 'Błąd połączenia (zapewne serwer nie jest włączony)',
+        'server_busy': 'Inna akcja w trakcie, spróbuj za chwilę.',
 
         'btn_ok': 'OK',
         'btn_yes': 'Tak',
@@ -264,6 +267,7 @@ const i18n = {
         'target_enemies': 'Enemy Team',
 
         // Action Menu Details
+        'game_master': 'Game Master',
         'gm_action_menu': 'Action menu',
         'value': 'Value',
         'value_flat': 'Flat',
@@ -439,6 +443,7 @@ const i18n = {
         'stun_chance': 'Stun chance:',
         'vs': 'VS',
 
+        'action': "Action",
         'action_dmg_mag': 'Deal {val} magical damage',
         'action_dmg_pierce': 'Deal {val} piercing damage',
         'action_dmg_phys': 'Deal {val} physical damage',
@@ -463,6 +468,7 @@ const i18n = {
         'no_stats_error': 'Required stat fields missing!',
         'invalid_url': 'No valid players in URL!',
         'connection_error': 'Connection error (it probably means server is down)', 
+        'server_busy': 'Another action in progress, please wait.',
         
         'btn_ok': 'OK',
         'btn_yes': 'Yes',

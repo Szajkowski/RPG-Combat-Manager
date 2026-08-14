@@ -274,27 +274,27 @@ function fillEquipmentPanel(equipment, combatant, container) {
             if (item.damage !== undefined) {
                 const val = getFormulaValue(item.damage, combatant);
                 const breakdown = getFormulaBreakdown(item.damage);
-                html += `<div>${t('damage')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('damage')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.physArmor !== undefined) {
                 const val = getFormulaValue(item.physArmor, combatant);
                 const breakdown = getFormulaBreakdown(item.physArmor);
-                html += `<div>${t('phys_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('phys_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.physArmorPerc !== undefined) {
                 const val = getFormulaValue(item.physArmorPerc, combatant);
                 const breakdown = getFormulaBreakdown(item.physArmorPerc);
-                html += `<div>${t('phys_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('phys_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.magArmor !== undefined) {
                 const val = getFormulaValue(item.magArmor, combatant);
                 const breakdown = getFormulaBreakdown(item.magArmor);
-                html += `<div>${t('mag_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('mag_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.magArmorPerc !== undefined) {
                 const val = getFormulaValue(item.magArmorPerc, combatant);
                 const breakdown = getFormulaBreakdown(item.magArmorPerc);
-                html += `<div>${t('mag_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val}, event)">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+                html += `<div>${t('mag_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.value !== undefined) {
                 html += `<div>${t('value')}: ${item.value}S</div>`;
@@ -358,17 +358,18 @@ function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) 
     return Math.floor((successfulCombos / dist.totalCombos) * 100);
 }
 
-// Routes abilities, resolves multi-dice arrays securely and prepares sequence pipelines
-function useAbility(combatantId, ability, event) {
-    // Fetch fresh combatant from memory based on ID
+// Routes abilities, resolves multi-dice arrays securely and prepares sequence pipelines utilizing optimistic locks
+async function useAbility(combatantId, ability, event) {
     const combatant = activeCombatants.find(c => c.id === combatantId);
     if (!combatant) return;
 
-    const abilityState = combatant.abilitiesStates[ability.name];
+    // Clone the combatant state before modifying to prepare a bundled request payload for the server
+    const updatedCombatant = JSON.parse(JSON.stringify(combatant));
+    const abilityState = updatedCombatant.abilitiesStates[ability.name];
     if (!abilityState || abilityState.currentCooldown !== 0) return;
 
     let success = true; 
-    let initialRollsData = null; // Changed to array structure to support combined multiple stat executions
+    let initialRollsData = null;
 
     if (ability.roll) { 
         initialRollsData = [];
@@ -378,10 +379,10 @@ function useAbility(combatantId, ability, event) {
         let hasBase = false;
 
         stats.forEach(stat => {
-            const baseStat = parseInt(combatant.stats[stat]) || 0;
+            const baseStat = parseInt(updatedCombatant.stats[stat]) || 0;
             if (baseStat > 0) {
                 hasBase = true;
-                const modValue = parseInt(combatant.stats[`${stat}Mod`]) || 0;
+                const modValue = parseInt(updatedCombatant.stats[`${stat}Mod`]) || 0;
                 const roll = Math.floor(Math.random() * baseStat) + 1;
                 const finalRes = Math.max(1, roll + modValue);
                 totalResult += finalRes;
@@ -391,8 +392,6 @@ function useAbility(combatantId, ability, event) {
 
         if (hasBase) {
             success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
-            
-            // Adjust visual colors uniformly across the array block mapped directly to compound success condition
             const groupColor = success ? 'text-success' : 'text-fail';
             initialRollsData.push({
                 stat: ability.roll,
@@ -402,64 +401,16 @@ function useAbility(combatantId, ability, event) {
                 difficulty: ability.difficulty !== "X" ? parseInt(ability.difficulty) : null
             });
         } else {
-            success = false; // Failing strictly due to stats missing entirely
+            success = false; 
         }
     }
 
+    // Mutate the local clone
     if (success) {
         if (abilityState.singleUse) {
             abilityState.currentCooldown = 'unavailable';
         } else { 
             abilityState.currentCooldown = abilityState.maxCooldown;
-        }
-
-        // IMMEDIATELY sync the combatant to secure the cooldown block across all clients globally before any manual targeting delays
-        syncUpdateCombatant(combatant);
-
-        // Check if the ability utilizes the Action Pipeline system
-        if (ability.actions && ability.actions.length > 0) {
-            let shouldBroadcastInitRollImmediately = false;
-            
-            // Determine if the initial roll should be broadcasted immediately as a standalone row
-            if (initialRollsData && initialRollsData.length > 0) {
-                const firstAction = ability.actions[0];
-                const requiresTargeting = ['single', 'multi'].includes(firstAction.target);
-                
-                const hasExtraRolls = firstAction.type === 'damage' || firstAction.forceRoll || firstAction.forceRollVS;
-                
-                if (requiresTargeting || !hasExtraRolls) {
-                    shouldBroadcastInitRollImmediately = true;
-                }
-            }
-
-            if (shouldBroadcastInitRollImmediately) {
-                syncAddRollEvent({
-                    id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-                    isTargeted: false,
-                    combatantId: combatant.id,
-                    combatantName: combatant.uniqueName,
-                    combatantTeam: combatant.team,
-                    rolls: initialRollsData
-                });
-            }
-
-            if (typeof startActionPipeline === 'function') {
-                // Pass the initial rolls array and broadcast flag to the pipeline so math continues resolving accurately
-                startActionPipeline(combatant, ability.actions, ability, initialRollsData, event, shouldBroadcastInitRollImmediately);
-            }
-        } else {
-            // Legacy fallback for simple abilities without pipeline
-            if (initialRollsData && initialRollsData.length > 0) {
-                syncAddRollEvent({
-                    id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-                    isTargeted: false,
-                    combatantId: combatant.id,
-                    combatantName: combatant.uniqueName,
-                    combatantTeam: combatant.team,
-                    rolls: initialRollsData
-                });
-            }
-            processAndSendConditions(combatant.uniqueName, null, ability, ability.name, ability.source || "self");
         }
     } else {
         if (abilityState.singleUse && abilityState.currentCooldown !== 'unavailable') {
@@ -467,21 +418,54 @@ function useAbility(combatantId, ability, event) {
         } else if (!abilityState.singleUse) {
             abilityState.currentCooldown = abilityState.maxCooldown;
         }
+    }
+
+    // Determine if the ability requires the action pipeline
+    const needsPipeline = success && ability.actions && ability.actions.length > 0;
+    
+    // Auto-release lock if we don't need to hold it for a targeting sequence (e.g. failed rolls or pure buffs)
+    const autoRelease = !needsPipeline;
+
+    // Determine whether the initial roll should be broadcasted as a standalone feed pill immediately
+    let shouldBroadcastInitRollImmediately = false;
+    if (initialRollsData && initialRollsData.length > 0 && needsPipeline) {
+        const firstAction = ability.actions[0];
+        const requiresTargeting = ['single', 'multi'].includes(firstAction.target);
+        const hasExtraRolls = firstAction.type === 'damage' || firstAction.forceRoll || firstAction.forceRollVS;
         
-        // Always broadcast failures immediately as normal, non-targeted standalone logs (No arrow)
-        if (initialRollsData && initialRollsData.length > 0) {
-            syncAddRollEvent({
-                id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-                isTargeted: false,
-                combatantId: combatant.id,
-                combatantName: combatant.uniqueName,
-                combatantTeam: combatant.team,
-                rolls: initialRollsData
-            });
+        if (requiresTargeting || !hasExtraRolls) {
+            shouldBroadcastInitRollImmediately = true;
         }
-        
-        // Failed skills must sync their failure cooldown penalty immediately
-        syncUpdateCombatant(combatant);
+    } else if (initialRollsData && initialRollsData.length > 0 && !needsPipeline) {
+        // Failed rolls or non-pipeline actions always broadcast the roll immediately
+        shouldBroadcastInitRollImmediately = true;
+    }
+
+    let rollEventToSync = null;
+    if (shouldBroadcastInitRollImmediately && initialRollsData) {
+        rollEventToSync = {
+            id: 'roll-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+            isTargeted: false,
+            combatantId: updatedCombatant.id,
+            combatantName: updatedCombatant.uniqueName,
+            combatantTeam: updatedCombatant.team,
+            rolls: initialRollsData
+        };
+    }
+
+    // Send the bundled state to the server to acquire the action lock
+    const lockGranted = await syncInitiateAction(updatedCombatant, rollEventToSync, autoRelease);
+
+    if (!lockGranted) {
+        showToast(t('server_busy'));
+        return; 
+    }
+
+    // Lock granted - Server has securely broadcasted the cooldown and initial rolls to everyone
+    if (needsPipeline) {
+        startActionPipeline(updatedCombatant, ability.actions, ability, initialRollsData, event, shouldBroadcastInitRollImmediately);
+    } else if (success) {
+        processAndSendConditions(updatedCombatant.uniqueName, null, ability, ability.name, ability.source || "self");
     }
 }
 

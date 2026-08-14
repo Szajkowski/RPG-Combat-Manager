@@ -74,6 +74,24 @@ function connectSocket() {
                 break;
             }
 
+            // Lock responses
+            case 'RESPONSEactionGranted': {
+                const resolve = pendingPromises[data.requestId];
+                if (resolve) {
+                    resolve(true);
+                    delete pendingPromises[data.requestId];
+                }
+                break;
+            }
+            case 'RESPONSEactionDenied': {
+                const resolve = pendingPromises[data.requestId];
+                if (resolve) {
+                    resolve(false);
+                    delete pendingPromises[data.requestId];
+                }
+                break;
+            }
+
             case 'BROADCASTaddCombatant': {
                 if (!activeCombatants.find(c => c.id === data.combatant.id)) {
                     activeCombatants.push(data.combatant);
@@ -186,6 +204,42 @@ function waitForSocket(callback) {
 
 // --- UNIFIED SERVER SYNC FUNCTIONS ---
 
+// Bundled request to acquire the pipeline lock and distribute initial state changes to other clients seamlessly
+function syncInitiateAction(combatant, rollEvent, autoRelease = false) {
+    return new Promise(resolve => {
+        if (socket.readyState !== WebSocket.OPEN) {
+            resolve(false);
+            return;
+        }
+
+        const reqId = 'req-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+        pendingPromises[reqId] = resolve;
+
+        socket.send(JSON.stringify({
+            type: 'REQUESTinitiateAction',
+            requestId: reqId,
+            combatant: combatant,
+            rollEvent: rollEvent,
+            autoRelease: autoRelease
+        }));
+
+        // Failsafe timeout to resolve promise if server crashes silently
+        setTimeout(() => {
+            if (pendingPromises[reqId]) {
+                resolve(false);
+                delete pendingPromises[reqId];
+            }
+        }, 8000);
+    });
+}
+
+// Manually requests the server to release the pipeline lock once the action is completely done
+function syncReleaseActionLock() {
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'REQUESTreleaseActionLock' }));
+    }
+}
+
 // Sends a completely new combatant to the server
 function syncAddCombatant(combatant) {
     if (socket.readyState === WebSocket.OPEN) {
@@ -245,23 +299,6 @@ function syncPlayActionSequence(payload) {
             type: 'REQUESTplayActionSequence',
             payload: payload
         }));
-    }
-}
-
-// Helper to reliably deduplicate concurrent global sounds utilizing the action group ID
-function playDeduplicatedSound(soundPath, dedupeKey, isAuto, volume = 0.5) {
-    let shouldPlay = true;
-    if (isAuto && dedupeKey) {
-        if (!window.playedStepSounds) window.playedStepSounds = new Set();
-        if (window.playedStepSounds.has(dedupeKey)) {
-            shouldPlay = false;
-        } else {
-            window.playedStepSounds.add(dedupeKey);
-            setTimeout(() => window.playedStepSounds.delete(dedupeKey), 5000);
-        }
-    }
-    if (shouldPlay) {
-        playSoundEffect(soundPath, volume);
     }
 }
 

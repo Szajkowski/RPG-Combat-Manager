@@ -62,9 +62,9 @@ var players = {
         ],
     },
     "Aurelia": {
-        hasDeathsDoor: true,
         lvl: 4,
         name: "Aurelia",
+        hasDeathsDoor: true,
         hp: 120,
         maxHp: 120,
         vitality: 12,

@@ -1,33 +1,33 @@
 // --- COPYING AND PASTING ---
 
-async function copyInputValue(input, event) {
+async function copyInputValue(input) {
     // Prevent copying if the input is empty or just whitespaces
     if (!input.value || input.value.trim() === '') return;
 
     try {
         await navigator.clipboard.writeText(input.value);
         window.lastCopiedRPGValue = input.value;
-        showNotification(`${t('copied')} ${input.value}`, event);
+        showNotification(`${t('copied')} ${input.value}`);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'), event);
+        showNotification(t('copy_error'));
     }
 }
 
-async function copyValue(value, event) {
+async function copyValue(value) {
     try {
         if (typeof value === "number") await navigator.clipboard.writeText(value.toString());
         else await navigator.clipboard.writeText(value);
 
         window.lastCopiedRPGValue = typeof value === "number" ? value.toString() : value;
-        showNotification(`${t('copied')} ${value}`, event);
+        showNotification(`${t('copied')} ${value}`);
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'), event);
+        showNotification(t('copy_error'));
     }
 }
 
-function pasteValueToInput(input, event) {
+function pasteValueToInput(input) {
     const val = window.lastCopiedRPGValue;
     if (!val) return;
     
@@ -41,13 +41,22 @@ function pasteValueToInput(input, event) {
     window.lastCopiedRPGValue = null;
 
     if (typeof showNotification === 'function') {
-        showNotification(`${t('pasted')} ${trimmed}`, event);
+        showNotification(`${t('pasted')} ${trimmed}`);
     }
 }
 
 // --- NOTIFICATIONS ---
 
-function showNotification(message, event = null) {
+// Global mouse tracking for tooltips and notifications
+window.currentMouseX = window.innerWidth / 2;
+window.currentMouseY = window.innerHeight / 2;
+
+document.addEventListener('mousemove', (e) => {
+    window.currentMouseX = e.clientX;
+    window.currentMouseY = e.clientY;
+});
+
+function showNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'copy-notification';
     notification.textContent = message;
@@ -56,32 +65,22 @@ function showNotification(message, event = null) {
     notification.style.visibility = 'hidden';
     document.body.appendChild(notification);
 
-    const e = event || window.event;
-    let left = 0;
-    let top = 0;
+    let left = window.currentMouseX + 15;
+    let top = window.currentMouseY - 35;
 
-    if (e && e.clientX !== undefined && e.clientY !== undefined) {
-        left = e.clientX + 15;
-        top = e.clientY - 35;
+    const notificationWidth = notification.offsetWidth;
+    
+    // Prevent overflowing the right edge of the viewport
+    if (left + notificationWidth > window.innerWidth) {
+        left = window.innerWidth - notificationWidth - 15;
+    }
 
-        const notificationWidth = notification.offsetWidth;
-        
-        // Prevent overflowing the right edge of the viewport
-        if (left + notificationWidth > window.innerWidth) {
-            left = window.innerWidth - notificationWidth - 15;
-        }
+    // Prevent overflowing the left edge of the viewport
+    if (left < 0) left = 10;
 
-        // Prevent overflowing the left edge of the viewport
-        if (left < 0) left = 10;
-
-        // Prevent overflowing the top edge of the viewport (flip below cursor if needed)
-        if (top < 0) {
-            top = e.clientY + 20;
-        }
-    } else {
-        // Fallback positioning if event context is entirely missing
-        left = window.innerWidth / 2 - notification.offsetWidth / 2;
-        top = 20;
+    // Prevent overflowing the top edge of the viewport (flip below cursor if needed)
+    if (top < 0) {
+        top = window.currentMouseY + 20;
     }
 
     notification.style.left = `${left}px`;
@@ -92,6 +91,39 @@ function showNotification(message, event = null) {
     setTimeout(() => {
         notification.remove();
     }, 1200);
+}
+
+// Non-invasive, non-blocking toast notification displayed near the cursor
+function showToast(message, duration = 2500) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    const toastWidth = toast.offsetWidth;
+    const toastHeight = toast.offsetHeight;
+
+    let left = window.currentMouseX;
+    let top = window.currentMouseY - toastHeight - 15; // 15px above cursor
+
+    // Boundary checks to keep it on screen
+    if (left - (toastWidth / 2) < 10) left = (toastWidth / 2) + 10;
+    if (left + (toastWidth / 2) > window.innerWidth - 10) left = window.innerWidth - (toastWidth / 2) - 10;
+    if (top < 10) top = window.currentMouseY + 25; // Flip below cursor if too close to top edge
+    
+    toast.style.left = `${left}px`;
+    toast.style.top = `${top}px`;
+    
+    // Trigger reflow to ensure the CSS transition plays correctly
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        // Wait for the slide-out animation to finish before removing from DOM
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 
 // Replaces standard window.alert() with a custom non-blocking UI modal

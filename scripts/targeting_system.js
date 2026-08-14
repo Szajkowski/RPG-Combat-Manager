@@ -1,16 +1,12 @@
 let targetingData = null; // Stores information about the ongoing targeted action
 const tokenControllers = new Map(); // References for strict click listener cleanup
 
-// Stores the last known cursor coordinates updated specifically via specific events
-// Eliminates the need for a global, background-running mousemove listener
-let lastMouseX = window.innerWidth / 2;
-let lastMouseY = window.innerHeight / 2;
-
 // --- NEW GLOBAL PIPELINE STATE VARIABLES ---
 let actionPipelineQueue = [];
 let currentPipelineContext = null;
 let currentActionTargets = []; // Stores IDs of targets clicked in the current action step to prevent multi-target duplicates
 let initialPipelineRoll = null; // Holds the ability initiation roll block mapped array to be attached to the first log
+let isProcessingTargetClick = false; // Prevents rapidly clicking identical targets, guaranteeing state logic blocks sequentially
 
 // Helper for asynchronous pauses between repeated actions. Used to block pipeline progression during WS sequences.
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -21,13 +17,9 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function startActionPipeline(abilityUser, actions, ability, initialRollData = null, originEvent = null, alreadyBroadcasted = false) {
     actionPipelineQueue = JSON.parse(JSON.stringify(actions));
     
+    // Capture origin coordinates reliably to anchor the targeting line arrow
     const startX = originEvent ? originEvent.clientX : window.innerWidth / 2;
     const startY = originEvent ? originEvent.clientY : window.innerHeight / 2;
-    
-    if (originEvent) {
-        lastMouseX = startX;
-        lastMouseY = startY;
-    }
 
     // Capture the mathematical aggregate of the initial roll (if it exists) to dynamically substitute variables in downstream action formulas safely
     let rollTotal = 0;
@@ -40,7 +32,7 @@ function startActionPipeline(abilityUser, actions, ability, initialRollData = nu
     currentPipelineContext = { 
         abilityUser, 
         ability, 
-        startX, 
+        startX,
         startY,
         rollTotal,
         difficulty: ability ? (parseInt(ability.difficulty) || null) : null
@@ -67,6 +59,8 @@ async function processNextPipelineAction() {
         // Entire Action Pipeline finished. Clear visual dimming states immediately.
         clearTargetingState();
         currentPipelineContext = null;
+        // Release the server lock immediately since the final action finished routing perfectly
+        if (typeof syncReleaseActionLock === 'function') syncReleaseActionLock();
         return; 
     }
 
@@ -110,8 +104,7 @@ async function processNextPipelineAction() {
         processNextPipelineAction(); 
     } else {
         // Handle actions requiring manual targeting (single, multi). 
-        // Origin coordinates (startX/Y) strictly anchor to the initial button click.
-        startTargetingMode(currentPipelineContext.abilityUser, currentAction.type, currentAction, currentPipelineContext.startX, currentPipelineContext.startY, true);
+        startTargetingMode(currentPipelineContext.abilityUser, currentAction.type, currentAction, true);
     }
 }
 
@@ -143,8 +136,12 @@ async function executeAutoAction(action, targetType) {
 // --- TARGETING UI AND ENGINE ---
 
 // Universal targeting engine entry point
-function startTargetingMode(attacker, actionType, payload, startX, startY, isPipeline = false) {
+function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     if (!payload.stepId) payload.stepId = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    
+    // Anchor coordinates fixed from pipeline context, or fallback to mouse if missing
+    const startX = currentPipelineContext ? currentPipelineContext.startX : window.currentMouseX;
+    const startY = currentPipelineContext ? currentPipelineContext.startY : window.currentMouseY;
     targetingData = { attacker, actionType, payload, startX, startY, isPipeline };
     
     document.body.classList.add('targeting-mode');
@@ -158,17 +155,17 @@ function startTargetingMode(attacker, actionType, payload, startX, startY, isPip
     if (tooltip) {
         tooltip.style.display = 'flex';
         // Immediately pin to cursor utilizing last known location, ensuring instant visual feedback
-        tooltip.style.left = (lastMouseX + 15) + 'px';
-        tooltip.style.top = (lastMouseY + 15) + 'px';
+        tooltip.style.left = (window.currentMouseX + 15) + 'px';
+        tooltip.style.top = (window.currentMouseY + 15) + 'px';
         updateTargetingTooltip(); // Render the dynamic pipeline tooltip texts
     }
     
     // Instantly draw the curved path from source to current cursor location to avoid zero-movement delays
     const path = document.getElementById('targeting-path');
     if (path) {
-        const cpX = startX + (lastMouseX - startX) / 2;
-        const cpY = Math.min(startY, lastMouseY) - 60;
-        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${lastMouseX} ${lastMouseY}`);
+        const cpX = startX + (window.currentMouseX - startX) / 2;
+        const cpY = Math.min(startY, window.currentMouseY) - 60;
+        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${window.currentMouseX} ${window.currentMouseY}`);
     }
 
     document.addEventListener('mousemove', handleTargetingMove);
@@ -196,7 +193,7 @@ function startTargetingMode(attacker, actionType, payload, startX, startY, isPip
 
     // Immediately evaluate the target under the cursor on pipeline stage changes to avoid requiring mouse movement
     if (isPipeline) {
-        const elementUnderCursor = document.elementFromPoint(lastMouseX, lastMouseY);
+        const elementUnderCursor = document.elementFromPoint(window.currentMouseX, window.currentMouseY);
         const tokenUnderCursor = elementUnderCursor ? elementUnderCursor.closest('.character-token:not(.dead)') : null;
         if (tokenUnderCursor) {
             handleTargetingHoverEnter(null, tokenUnderCursor.dataset.id);
@@ -395,22 +392,19 @@ function handleTargetingMove(e) {
     
     const { startX, startY } = targetingData;
     
-    lastMouseX = e.clientX;
-    lastMouseY = e.clientY;
-    
     // Calculate arrow path (curved upwards) using the locked origin coordinates
     const path = document.getElementById('targeting-path');
     if (path) {
-        const cpX = startX + (lastMouseX - startX) / 2;
-        const cpY = Math.min(startY, lastMouseY) - 60; // Slight upward curve
-        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${lastMouseX} ${lastMouseY}`);
+        const cpX = startX + (window.currentMouseX - startX) / 2;
+        const cpY = Math.min(startY, window.currentMouseY) - 60; // Slight upward curve
+        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${window.currentMouseX} ${window.currentMouseY}`);
     }
 
     // Position tooltip closely tracking the cursor
     const tooltip = document.getElementById('targeting-tooltip');
     if (tooltip) {
-        tooltip.style.left = (lastMouseX + 15) + 'px';
-        tooltip.style.top = (lastMouseY + 15) + 'px';
+        tooltip.style.left = (window.currentMouseX + 15) + 'px';
+        tooltip.style.top = (window.currentMouseY + 15) + 'px';
     }
 }
 
@@ -451,6 +445,9 @@ function handleTargetingHoverLeave(e) {
 
 // Core execution router for user-initiated clicks during targeting
 async function executeTargetedAction(targetId) {
+    // REQUIRED: Prevents async state overlap when spam-clicking tokens
+    if (isProcessingTargetClick) return;
+
     const target = activeCombatants.find(c => c.id === targetId);
     if (!target || target.isDead) {
         if (!targetingData.isPipeline) cancelTargetingMode();
@@ -481,30 +478,37 @@ async function executeTargetedAction(targetId) {
         }
     }
 
-    // Step 1: Manage UI State immediately (suspend interaction if processing pipeline, or close entirely if done)
-    if (isSingle || isLastMulti) {
-        suspendTargetingState(); 
-    } else if (!isPipeline) {
-        clearTargetingState(); // Prevent further clicks on generic legacy buttons
-    } else if (isPipeline && payload.target === 'multi') {
-        updateTargetingTooltip(); // Visually update target counts immediately without suspending
-    }
+    isProcessingTargetClick = true;
 
-    // Step 2: Route through unified resolution logic enforcing Hit/Resist mathematical constraints
-    await processActionExecution(attacker, target, payload, false); // Single clicks still send individual syncs
+    try {
+        // Step 1: Manage UI State immediately (suspend interaction if processing pipeline, or close entirely if done)
+        if (isSingle || isLastMulti) {
+            suspendTargetingState(); 
+        } else if (!isPipeline) {
+            clearTargetingState(); // Prevent further clicks on generic legacy buttons
+        } else if (isPipeline && payload.target === 'multi') {
+            updateTargetingTooltip(); // Visually update target counts immediately without suspending
+        }
 
-    // Step 3: Pipeline progression management
-    if (isSingle || isLastMulti) {
-        actionPipelineQueue.shift();
-        processNextPipelineAction();
-    } else if (!isPipeline) {
-        // Legacy input clearing for generic non-pipeline UI buttons
-        const damageInput = document.querySelector('.damage-input');
-        if (damageInput) damageInput.value = '';
-        const healInput = document.querySelector('.heal-input');
-        if (healInput) healInput.value = '';
-        const armorInput = document.querySelector('.armor-input');
-        if (armorInput) armorInput.value = '';
+        // Step 2: Route through unified resolution logic enforcing Hit/Resist mathematical constraints
+        await processActionExecution(attacker, target, payload, false); // Single clicks still send individual syncs
+
+        // Step 3: Pipeline progression management
+        if (isSingle || isLastMulti) {
+            actionPipelineQueue.shift();
+            processNextPipelineAction();
+        } else if (!isPipeline) {
+            // Legacy input clearing for generic non-pipeline UI buttons
+            const damageInput = document.querySelector('.damage-input');
+            if (damageInput) damageInput.value = '';
+            const healInput = document.querySelector('.heal-input');
+            if (healInput) healInput.value = '';
+            const armorInput = document.querySelector('.armor-input');
+            if (armorInput) armorInput.value = '';
+        }
+    } finally {
+        // Always unlock clicks regardless of whether execution succeeded or errored out
+        isProcessingTargetClick = false;
     }
 }
 

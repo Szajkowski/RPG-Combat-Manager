@@ -49,9 +49,9 @@ function renderCharMainPanel(id) {
     // Name formatting logic
     let charNameHtml = '';
     if (combatant.type === 'character') {
-        charNameHtml = `<input type="text" class="char-name-input char-name-display" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this, event)">`;
+        charNameHtml = `<input type="text" class="char-name-input char-name-display" value="${combatant.uniqueName || ''}" onclick="copyInputValue(this)">`;
     } else {
-        charNameHtml = `<div class="char-name-input char-name-display copyable-value text-neutral" onclick="copyValue('${combatant.uniqueName || ''}', event)">${combatant.uniqueName || ''}</div>`;
+        charNameHtml = `<div class="char-name-input char-name-display copyable-value text-neutral" onclick="copyValue('${combatant.uniqueName || ''}')">${combatant.uniqueName || ''}</div>`;
     }
 
     // 1. Render Main Character Sheet (.char-sheet)
@@ -314,7 +314,7 @@ function bindMainPanelInputs(combatantData) {
     // Handle Name change strictly enforcing that we only bind if it's an INPUT tag
     const nameInput = charSheet.querySelector('input.char-name-input');
     if (nameInput) {
-        nameInput.addEventListener('input', (e) => {
+        nameInput.addEventListener('change', (e) => {
             // ALWAYS fetch the freshest memory object to avoid overwriting network changes (like HP)
             const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
@@ -327,7 +327,7 @@ function bindMainPanelInputs(combatantData) {
     // Handle Core Stats (Triggers recalculation)
     const coreInputs = charSheet.querySelectorAll('.stat-val-input:not(.base-damage-input), .stat-mod-input');
     coreInputs.forEach(input => {
-        input.addEventListener('input', (e) => {
+        input.addEventListener('change', (e) => {
             const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
             
@@ -359,7 +359,7 @@ function bindMainPanelInputs(combatantData) {
     // Handle Manual Additional Stats changes (Damage/Armor)
     const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-phys-armor-mod, .base-mag-armor, .base-mag-armor-mod');
     additionalInputs.forEach(input => {
-        input.addEventListener('input', (e) => {
+        input.addEventListener('change', (e) => {
             const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
 
@@ -376,7 +376,7 @@ function bindMainPanelInputs(combatantData) {
     // Handle manual HP input changes directly
     const hpInputs = charSheet.querySelectorAll('.current-hp-input, .max-hp-input');
     hpInputs.forEach(input => {
-        input.addEventListener('input', (e) => {
+        input.addEventListener('change', (e) => {
             const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
 

@@ -35,6 +35,23 @@ function playDiceSoundDeduplicated(event) {
     }
 }
 
+// Helper to reliably deduplicate concurrent global sounds utilizing the action group ID
+function playDeduplicatedSound(soundPath, dedupeKey, isAuto, volume = 0.5) {
+    let shouldPlay = true;
+    if (isAuto && dedupeKey) {
+        if (!window.playedStepSounds) window.playedStepSounds = new Set();
+        if (window.playedStepSounds.has(dedupeKey)) {
+            shouldPlay = false;
+        } else {
+            window.playedStepSounds.add(dedupeKey);
+            setTimeout(() => window.playedStepSounds.delete(dedupeKey), 5000);
+        }
+    }
+    if (shouldPlay) {
+        playSoundEffect(soundPath, volume);
+    }
+}
+
 // Toggles global audio mute state
 function toggleGlobalMute() {
     window.isAudioMuted = !window.isAudioMuted;

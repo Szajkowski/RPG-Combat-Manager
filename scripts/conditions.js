@@ -100,12 +100,12 @@ function renderConditions() {
                     </div>
                 </div>
                 <div class="condition-target-wrapper">
-                    <span class="copyable-value text-neutral" title="${t('condition_copy')}" onclick="copyValue('${safeInvoker}', event)">${t('condition_invoker')}</span>
+                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeInvoker}')">${t('condition_invoker')}</span>
                     <input type="text" class="condition-target" value="${cond.invoker || ''}" onchange="updateConditionInvoker('${cond.id}', this.value)">
                 </div>
                 ${cond.target ? `
                 <div class="condition-target-wrapper">
-                    <span class="copyable-value text-neutral" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}', event)">${t('target')}</span>
+                    <span class="copyable-value" title="${t('condition_copy')}" onclick="copyValue('${safeTarget}')">${t('target')}</span>
                     <input type="text" class="condition-target ${isGroupTarget ? 'readonly-group' : ''}" value="${displayTarget}" ${isGroupTarget ? 'readonly' : ''} onchange="updateConditionTarget('${cond.id}', this.value)">
                 </div>
                 ` : ''}

@@ -151,7 +151,7 @@ function updateGmActionSubtypes() {
 }
 
 // Executes a GM Action bridging it securely to the native Action Pipeline without limits
-function executeGmAction(event) {
+async function executeGmAction(event) {
     const valInput = document.getElementById('gm-action-value');
     if (!valInput || !valInput.value) return;
     
@@ -204,10 +204,17 @@ function executeGmAction(event) {
         }
     }
 
+    // Attempt to acquire server lock before proceeding with GM targeted actions
+    const lockGranted = await syncInitiateAction(null, null, false);
+    if (!lockGranted) {
+        showToast(t('server_busy'));
+        return;
+    }
+
     // Dummy identity wrapper for pipeline logs representing the Game Master purely
     const gmAttacker = {
         id: 'GM-Entity',
-        uniqueName: 'Game Master',
+        uniqueName: t('game_master'),
         team: 'gm',
         stats: {}
     };
@@ -217,10 +224,9 @@ function executeGmAction(event) {
         const widget = document.querySelector('.gm-action-widget');
         if (widget) widget.classList.add('locked-open');
         
-        startActionPipeline(gmAttacker, [payload], { name: 'GM Action' }, null, event);
-        
-        // Clear value input cleanly upon successful registration to pipeline
-        valInput.value = '';
+        startActionPipeline(gmAttacker, [payload], { name: 'GM Action' }, null, event, false);
+    } else {
+        syncReleaseActionLock(); // Failsafe
     }
 }
 
@@ -236,6 +242,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     injectTargetingUI();
     updateGmActionSubtypes(); // Initialize subtypes payload mapping explicitly
+
+    // GM Menu toggler logic
+    document.addEventListener('click', (e) => {
+        const gmWidget = document.querySelector('.gm-action-widget');
+        const trigger = e.target.closest('.gm-action-trigger');
+        
+        if (trigger) {
+            gmWidget.classList.toggle('open');
+        } else if (gmWidget && !e.target.closest('.gm-action-widget')) {
+            gmWidget.classList.remove('open');
+        }
+    });
 
     // Interactive Pill Selection Logic
     document.addEventListener('click', (e) => {
@@ -366,18 +384,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.body.classList.contains('targeting-mode')) return;
 
         const val = window.lastCopiedRPGValue;
-        if (!val) return;
 
         if (e.target.matches('#gm-action-value')) {
-            if (/^-?\d+$/.test(val.trim())) {
+            if (val && /^-?\d+$/.test(val.trim())) {
                 if (typeof pasteValueToInput === 'function') {
-                    pasteValueToInput(e.target, e);
+                    pasteValueToInput(e.target);
+                }
+            } else {
+                // Empty the input only if no numeric value to paste
+                if (e.target.value !== '') {
+                    e.target.value = '';
+                    e.target.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
         } else if (e.target.matches('.condition-target')) {
-            if (!/^-?\d+$/.test(val.trim())) {
+            if (val && !/^-?\d+$/.test(val.trim())) {
                 if (typeof pasteValueToInput === 'function') {
-                    pasteValueToInput(e.target, e);
+                    pasteValueToInput(e.target);
                 }
             }
         }

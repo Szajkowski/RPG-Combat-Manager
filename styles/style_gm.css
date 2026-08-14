@@ -811,6 +811,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     gap: 4px;
 }
 
+.tooltip-action-value {
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.tooltip-target-count {
+    color: var(--text-main);
+    font-size: 0.85rem;
+    margin: 4px 0;
+    font-weight: bold;
+}
+
+.tooltip-action-label {
+    color: var(--theme-special);
+    font-size: 0.9rem;
+}
+
 .chance-text { font-weight: bold; font-size: 1rem; color: var(--theme-target); }
 .cancel-hint { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold;}
 
@@ -1235,6 +1252,30 @@ body.targeting-mode .character-token { transform: none !important; }
 .custom-modal-btn:hover { background: var(--text-muted); }
 .custom-modal-btn.confirm { background: var(--theme-other); color: var(--bg-card); border-color: var(--theme-other); font-weight: bold; }
 .custom-modal-btn.confirm:hover { background: #d6b4ff; }
+
+/* --- TOAST NOTIFICATIONS --- */
+.toast-notification {
+    position: fixed;
+    background: var(--bg-card);
+    color: var(--text-main);
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--theme-fail);
+    font-size: 0.9rem;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 10000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    opacity: 0;
+    /* Centered horizontally based on dynamic left coordinate, slightly offset downwards to slide up */
+    transform: translateX(-50%) translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast-notification.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
 
 /* --- UTILITY & TEXT COLORS --- */
 .text-success { color: var(--theme-success) !important; }
