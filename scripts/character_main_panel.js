@@ -422,6 +422,13 @@ function recalculateAdditionalStats(combatant) {
     combatant.stats.magArmor = finalStats.magArmor;
     combatant.stats.magArmorMod = finalStats.magArmorMod;
 
+    // Force updates to the baseline as well, so automatic gear scaling doesn't trigger a false-positive stat delta
+    combatant.baselineStats.damage = finalStats.damage;
+    combatant.baselineStats.physArmor = finalStats.physArmor;
+    combatant.baselineStats.physArmorMod = finalStats.physArmorMod;
+    combatant.baselineStats.magArmor = finalStats.magArmor;
+    combatant.baselineStats.magArmorMod = finalStats.magArmorMod;
+
     // Safely update the additional fields in the UI
     if (selectedCharacterId === combatant.id) {
         document.querySelector('.base-damage-input').value = finalStats.damage;

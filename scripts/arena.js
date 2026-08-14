@@ -366,9 +366,9 @@ function tryAppendToGroupedRoll(event, feed, animate) {
     const container = existingRow.querySelector('.targeted-roll-container');
     if (!container) return false;
 
-    const ampersand = document.createElement('div');
-    ampersand.className = 'targeted-arrow';
-    ampersand.innerHTML = '&amp;'; // Symbol of connection
+    const connector = document.createElement('div');
+    connector.className = 'targeted-arrow';
+    connector.innerHTML = '+'; // Symbol of connection;
     
     const defNameClass = event.defenderTeam === 'hero' ? 'text-hero' : (event.defenderTeam === 'enemy' ? 'text-enemy' : 'text-other');
     const defNameHtml = `<div class="roll-char-name ${defNameClass}" title="${event.defenderName}">${event.defenderName}</div>`;
@@ -389,7 +389,7 @@ function tryAppendToGroupedRoll(event, feed, animate) {
     defPillar.className = 'roll-pillar';
     defPillar.innerHTML = defNameHtml + clashPillarHtml + defSingleHtml;
     
-    container.appendChild(ampersand);
+    container.appendChild(connector);
     container.appendChild(defPillar);
     
     // Animate ONLY the newly appended dice

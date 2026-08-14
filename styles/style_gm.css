@@ -616,7 +616,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .copy-notification {
     position: fixed;
-    background: var(--border-color);
+    background: var(--bg-card);
     color: var(--text-main);
     padding: 5px 10px;
     border-radius: 4px;
@@ -848,6 +848,10 @@ body.targeting-mode .character-token.dead {
     pointer-events: none !important; 
 }
 
+body.targeting-mode .character-token.token-dimmed {
+    pointer-events: none !important; 
+}
+
 body.targeting-mode .character-token:not(.dead):hover {
     border-color: var(--theme-target);
     box-shadow: 0 0 20px var(--theme-target-glow);
@@ -902,8 +906,9 @@ body.targeting-mode .character-token { transform: none !important; }
 }
 
 .targeted-arrow {
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    color: var(--theme-target);
+    font-size: 1.2rem;
+    font-weight: bold;
     flex-shrink: 0;
 }
 
@@ -932,7 +937,7 @@ body.targeting-mode .character-token { transform: none !important; }
     user-select: none;
 }
 
-.gm-action-widget:hover .gm-action-trigger,
+.gm-action-widget.open .gm-action-trigger,
 .gm-action-widget.locked-open .gm-action-trigger {
     background: var(--border-dark);
     border-color: var(--theme-other);
@@ -945,7 +950,7 @@ body.targeting-mode .character-token { transform: none !important; }
     transition: transform 0.2s ease;
 }
 
-.gm-action-widget:hover .dropdown-arrow,
+.gm-action-widget.open .dropdown-arrow,
 .gm-action-widget.locked-open .dropdown-arrow {
     transform: rotate(180deg);
     color: var(--theme-other);
@@ -991,8 +996,8 @@ body.targeting-mode .character-token { transform: none !important; }
     height: 10px;
 }
 
-.gm-action-widget:hover .gm-action-dropdown,
-.gm-action-dropdown:hover { 
+.gm-action-widget.open .gm-action-dropdown,
+.gm-action-widget.locked-open .gm-action-dropdown { 
     visibility: visible;
     opacity: 1;
     transform: translateY(0);
@@ -1383,7 +1388,7 @@ body.targeting-mode .character-token { transform: none !important; }
 
 .token-dimmed {
     opacity: 0.4;
-    pointer-events: none;
+    pointer-events: none !important;
 }
 
 .gm-dice-crit { color: var(--theme-success); }

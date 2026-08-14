@@ -753,7 +753,7 @@ var ability = {
                 type: "damage",
                 target: "multi",
                 possibleTargets: 3,
-                damageType: "pierce",
+                damageType: "phys",
                 value: "[1 * vitality + 1 * roll]",
                 forceRollVS: "vitality + agility + vitality vs accuracy + agility",
                 forceRoll: "strength + agility",
@@ -880,7 +880,7 @@ var ability = {
             { // testuje wymuszania rolla na wiecej niz 1 rzecz (ktory to roll nic nie robi w zasadzie, bo i tak nie ma stanow)
                 type: "damage",
                 target: "single",
-                damageType: "pierce",
+                damageType: "phys",
                 value: "[2 * attunement]",
                 forceRoll: "strength + agility",
                 forceRollDifficulty: 12,
@@ -1092,6 +1092,35 @@ var ability = {
                 conditions: [
                     { 
                         conditionName: "Przyspieszenie", 
+                        conditionDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
+                        conditionDuration: "1r",
+                        conditionProperties: ["prop_extra_turn"],
+                        conditionIsBeneficial: true,
+                    },
+                    { 
+                        conditionName: "Nieudane przyspieszenie", 
+                        conditionDescription: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
+                        conditionDuration: "1r",
+                        conditionIsBeneficial: false,
+                    }
+                ],
+            },
+            {
+                type: "condition",
+                target: "single",
+                forceRoll: "vitality",
+                forceRollDifficulty: 4,
+                isConditionSuccessBeneficial: true,
+                conditions: [ // sprawdzamy czy szansa sie poprawnie wyswietli
+                    { 
+                        conditionName: "Dwa przyspieszenia", 
+                        conditionDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
+                        conditionDuration: "1r",
+                        conditionProperties: ["prop_extra_turn"],
+                        conditionIsBeneficial: true,
+                    },
+                    { 
+                        conditionName: "Dwa przyspieszenia", 
                         conditionDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
                         conditionDuration: "1r",
                         conditionProperties: ["prop_extra_turn"],

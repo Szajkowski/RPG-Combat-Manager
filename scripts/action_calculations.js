@@ -445,6 +445,33 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     };
 }
 
+// Universal damage calculation helper evaluating base action damage versus target defenses
+function calculateActualDamage(attacker, target, payload, rollData) {
+    let baseDamage = 0;
+    if (payload.valuePerc !== undefined) {
+        const percent = parseInt(payload.valuePerc);
+        const maxHp = target.stats.maxHp || 1;
+        baseDamage = Math.ceil((maxHp * percent) / 100);
+    } else if (payload.value !== undefined) {
+        baseDamage = getFormulaValue(payload.value, attacker, rollData);
+    }
+
+    let finalDamage = baseDamage;
+    let finalDamageType = payload.damageType;
+
+    if (finalDamageType === 'phys' || finalDamageType === 'mag') {
+        const armorFlat = parseInt(finalDamageType === 'phys' ? target.stats.physArmor : target.stats.magArmor) || 0;
+        const armorPercentStr = finalDamageType === 'phys' ? target.stats.physArmorMod : target.stats.magArmorMod;
+        const armorPercent = parseInt(armorPercentStr) || 0;
+
+        finalDamage = Math.ceil(finalDamage - armorFlat);
+        finalDamage *= (100 - armorPercent) / 100;
+    }
+
+    finalDamage = Math.max(Math.round(finalDamage), 0);
+    return { baseDamage, finalDamage, finalDamageType };
+}
+
 // RESOLVING BASIC ACTIONS (Damage, Heal, Armor)
 
 // Specific logic block evaluating attack payload execution post-roll processing
@@ -473,29 +500,12 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         const targetHasDD = target.hasDeathsDoor && !isLethal;
 
         for (let i = 0; i < repeats; i++) {
-            // Original damage computation & mitigation
-            let damage = 0;
+            // Original damage computation & mitigation routed through dedicated helper
+            const dmgResult = calculateActualDamage(attacker, target, payload, rollData);
+            let damage = dmgResult.baseDamage;
+            let damageAfterArmor = dmgResult.finalDamage;
             let survivedThisStep = false;
             
-            if (payload.valuePerc !== undefined) { 
-                const percent = parseInt(payload.valuePerc); 
-                damage = Math.ceil((target.stats.maxHp * percent) / 100); 
-            } else if (payload.value !== undefined) {
-                // Injects rollData into equation evaluation
-                damage = getFormulaValue(payload.value, attacker, rollData);
-            }
-
-            let damageAfterArmor = damage;
-
-            if (finalDamageType === 'phys' || finalDamageType === 'mag') {
-                const armorFlat = parseInt(finalDamageType === 'phys' ? target.stats.physArmor : target.stats.magArmor) || 0;
-                const armorPercent = parseInt(finalDamageType === 'phys' ? target.stats.physArmorMod : target.stats.magArmorMod) || 0;
-
-                damageAfterArmor = Math.ceil(damageAfterArmor - armorFlat);
-                damageAfterArmor *= (100 - armorPercent) / 100;
-            }
-
-            damageAfterArmor = Math.max(Math.round(damageAfterArmor), 0);
             if (damageAfterArmor > 0) subTypeFinal = finalDamageType;
 
             if (damage > 0) {

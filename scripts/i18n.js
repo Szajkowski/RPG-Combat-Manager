@@ -3,15 +3,15 @@ window.currentLanguage = localStorage.getItem('CombatManager-Language') || 'PL';
 const i18n = {
     'PL': {
         // --- INTERFACE / UI ---
-        'active_conditions': 'Aktywne Stany',
+        'active_conditions': 'Aktywne Efekty',
         'music_list': 'Muzyka',
         'hover_to_expand': '(Najedź, aby rozwinąć)',
-        'conditions': 'Stany',
+        'conditions': 'Efekty',
         'unknown_character': 'Nieznana postać',
         'target': 'Cel:',
         'copy': 'Kopiuj',
         'condition_copy': 'Kopiuj cel',
-        'condition_remove': 'Usuń stan',
+        'condition_remove': 'Usuń efekt',
         'condition_duration': 'Pozostały czas trwania',
         'gm_dice': 'Kostka Mistrza Gry',
         'dice_short': 'K',
@@ -53,7 +53,7 @@ const i18n = {
         'execute_action': 'Wykonaj',
 
         // --- PLACEHOLDERS ---
-        'placeholder_no_conditions': 'Brak aktywnych stanów',
+        'placeholder_no_conditions': 'Brak aktywnych efektów',
         'placeholder_no_heroes': 'Brak dodanych bohaterów',
         'placeholder_no_enemies': 'Brak dodanych przeciwników',
         'placeholder_no_character_selected': 'Nie wybrano żadnej postaci',
@@ -66,8 +66,8 @@ const i18n = {
         'btn_next_turn': 'Następna tura (T)',
         'btn_next_round': 'Następna runda (R)',
         'btn_end_combat': 'Koniec walki',
-        'condition': 'Stan',
-        'confirm_end_combat': 'Zakończyć walkę i usunąć wszystkie postacie oraz stany?',
+        'condition': 'Efekt',
+        'confirm_end_combat': 'Zakończyć walkę i usunąć wszystkie postacie oraz efekty?',
         
         // --- ADDING CHARACTERS ---
         'add_mob': '+ Dodaj moba',
@@ -133,7 +133,6 @@ const i18n = {
         'damage': 'Obrażenia',
         'heal': 'Leczenie',
         'add_armor': 'Pancerz',
-        'damage': 'Obrażenia',
         'phys_armor': 'Pancerz fizyczny',
         'mag_armor': 'Pancerz magiczny',
         'phys_armor_caps': 'Panc. FIZYCZNY',
@@ -176,7 +175,7 @@ const i18n = {
         'stunned': 'Ogłuszenie',
         'wait': 'Czekaj',
 
-        // --- Abilities and equipment properties (will be highlighted in description when used) --- 
+        // --- Properties (will be highlighted in description when used) --- 
         'prop_undodgeable': 'Nieunikalna.',
         'prop_extra_turn': 'Daje dodatkową turę.',
         'prop_reaction': 'Reakcja.',
@@ -185,7 +184,7 @@ const i18n = {
         'prop_lethal': 'Zabójcza.',
 
         'desc_prop_undodgeable': 'Nieunikalna umiejętność ignoruje rzuty na trafienie kontra unik. Zawsze trafia w cel.',
-        'desc_prop_extra_turn': 'Zapewnia postaci dodatkową turę do wykorzystania w rundzie.',
+        'desc_prop_extra_turn': 'Akcje postaci są rozkładane równomiernie na pasku inicjatywy. Przykładowo: postać z refleksem 30 i jedną turą zagra na 30 stopniu. Z dwiema turami zagra na 30 i 15, a z trzema turami na 30, 20 i 10.',
         'desc_prop_reaction': 'Umiejętność, która jest reakcją, może być użyta także poza turą postaci.',
         'desc_prop_non_combat': 'Umiejętność przeznaczona do użytku poza bezpośrednią walką.',
         'desc_prop_stuns': 'Nakłada na cel ogłuszenie. W przypadku akcji z wymuszonymi rzutami, ogłusza tylko przy niepowodzeniu obrońcy.',
@@ -195,7 +194,10 @@ const i18n = {
         'targeting_cancel_hint': 'PPM aby anulować',
         'success_chance': 'Szansa na powodzenie:',
         'hit_chance': 'Szansa na trafienie:',
-        'condition_success_chance': 'Szansa na sukces stanów:',
+        'effect_chance_pos_one': 'Szansa wywołania pozytywnego efektu:',
+        'effect_chance_pos_many': 'Szansa wywołania pozytywnych efektów:',
+        'effect_chance_neg_one': 'Szansa wywołania negatywnego efektu:',
+        'effect_chance_neg_many': 'Szansa wywołania negatywnych efektów:',
         'stun_chance': 'Szansa na ogłuszenie:',
         'vs': 'VS',
         'action': "Akcja",
@@ -211,7 +213,7 @@ const i18n = {
         'action_heal_thresh_perc': 'Ulecz do progu {val} zdrowia celu',
         'action_armor_add': 'Dodaj',
         'action_armor_sub': 'Odejmij',
-        'action_condition': 'Nałożenie stanu',
+        'action_condition': 'Wywołanie efektu',
         'selected_targets': 'Wybrane cele',
         'targeting_skip_hint': 'PPM aby pominąć',
 
@@ -233,25 +235,25 @@ const i18n = {
         'error_armor_mixed_stats': 'Błąd logiki: Akcja pancerza dodaje i odejmuje statystyki naraz, przy jednoczesnym wymogu rzutu/ów. Wymagana flaga "isActionBeneficial" w obiekcie akcji!',
         'error_armor_zero_stats': 'Błąd logiki: Akcja pancerza ma wartość zerową. Wymagana flaga "isActionBeneficial" w obiekcie akcji!',
         'error_armor_dynamic_stats': 'Błąd logiki: Akcja pancerza używa dynamicznej formuły (np. roll/over). Wymagana flaga "isActionBeneficial" w obiekcie akcji, ponieważ znak (+/-) ostatecznego wyniku może nie być możliwy do przewidzenia!',
-        'error_condition_empty': 'Błąd logiki: Akcja typu "condition" musi zawierać zdefiniowane stany w tablicy "conditions"!',
-        'error_condition_mixed': 'Błąd logiki: Celowana akcja (single/multi) wymusza rzuty i posiada mieszane stany (pozytywne i negatywne). Wymagana flaga "isConditionSuccessBeneficial" na akcji, aby określić kalkulację szans dla tooltipa!',
-        'error_condition_missing_flag': 'Błąd logiki: Stan "{name}" nie posiada wymaganej flagi "conditionIsBeneficial" (wymaganej przy akcjach z wymuszonym rzutem)!',
+        'error_condition_empty': 'Błąd logiki: Akcja typu "condition" musi zawierać zdefiniowane efekty w tablicy "conditions"!',
+        'error_condition_mixed': 'Błąd logiki: Celowana akcja (single/multi) wymusza rzuty i posiada mieszane efekty (pozytywne i negatywne). Wymagana flaga "isConditionSuccessBeneficial" na akcji, aby określić kalkulację szans dla tooltipa!',
+        'error_condition_missing_flag': 'Błąd logiki: Efekt "{name}" nie posiada wymaganej flagi "conditionIsBeneficial" (wymaganej przy akcjach z wymuszonym rzutem)!',
         'error_ability_roll_missing': 'Błąd logiki: Przekazano "roll" lub "over", ale umiejętność nie ma zdefiniowanego parametru "roll"!',
         'error_ability_diff_missing': 'Błąd logiki: Przekazano "over", ale umiejętność nie ma zdefiniowanej trudności liczbowej!',
         'error_gm_negative_val': 'Błąd logiki: Nie można zadawać obrażeń ani leczyć wartościami ujemnymi!',
     },
     'EN': {
         // --- INTERFACE / UI ---
-        'active_conditions': 'Active Conditions',
+        'active_conditions': 'Active Effects',
         'music_list': 'Music List',
         'hover_to_expand': '(Hover to expand)',
         'round': 'round',
-        'conditions': 'Conditions',
+        'conditions': 'Effects',
         'unknown_character': 'Unknown character',
         'target': 'Target:',
         'copy': 'Copy',
         'condition_copy': 'Copy target',
-        'condition_remove': 'Remove condition',
+        'condition_remove': 'Remove effect',
         'condition_duration': 'Remaining duration',
         'gm_dice': 'Game Master dice',
         'dice_short': 'D',
@@ -294,7 +296,7 @@ const i18n = {
         'execute_action': 'Execute',
 
        // --- PLACEHOLDERS ---
-       'placeholder_no_conditions': 'No active conditions',
+       'placeholder_no_conditions': 'No active effects',
        'placeholder_no_heroes': 'No heroes added',
        'placeholder_no_enemies': 'No enemies added',
        'placeholder_no_character_selected': 'No character selected',
@@ -307,8 +309,8 @@ const i18n = {
         'btn_next_turn': 'Next turn (T)',
         'btn_next_round': 'Next round (R)',
         'btn_end_combat': 'End combat',
-        'condition': 'Condition',
-        'confirm_end_combat': 'End combat and remove all characters and conditions?',
+        'condition': 'Effect',
+        'confirm_end_combat': 'End combat and remove all characters and effects?',
         
         // --- ADDING CHARACTERS ---
         'add_mob': '+ Add mob',
@@ -410,7 +412,6 @@ const i18n = {
         'ability_difficulty': 'Difficulty:',
         'ability_cooldown': 'Cooldown:',
         'ability_success_chance': 'Success chance:',
-        'condition_apply_chance': 'Condition apply chance:',
         'gear': 'Gear',
         'other_items': 'Other items',
         'quantity': 'Quantity:',
@@ -429,7 +430,7 @@ const i18n = {
         'prop_lethal': 'Lethal.',
 
         'desc_prop_undodgeable': 'Undodgeable ability ignores hit vs dodge rolls. It always hits the target.',
-        'desc_prop_extra_turn': 'Grants the character an additional turn to use during the round.',
+        'desc_prop_extra_turn': 'Character actions are distributed evenly on the initiative bar. For example: a character with 30 reflex and one turn acts at step 30. With two turns at 30 and 15, and with three turns at 30, 20, and 10.',
         'desc_prop_reaction': 'A reaction ability can be used outside of the character\'s active turn.',
         'desc_prop_non_combat': 'An ability meant to be used outside of direct combat.',
         'desc_prop_stuns': 'Stuns the target. For actions with forced rolls, it stuns only if the defender fails the check.',
@@ -439,7 +440,10 @@ const i18n = {
         'targeting_cancel_hint': 'RMB to cancel',
         'success_chance': 'Success chance:',
         'hit_chance': 'Hit chance:',
-        'condition_success_chance': 'Condition success chance:',
+        'effect_chance_pos_one': 'Positive effect chance:',
+        'effect_chance_pos_many': 'Positive effects chance:',
+        'effect_chance_neg_one': 'Negative effect chance:',
+        'effect_chance_neg_many': 'Negative effects chance:',
         'stun_chance': 'Stun chance:',
         'vs': 'VS',
 
@@ -456,7 +460,7 @@ const i18n = {
         'action_heal_thresh_perc': 'Heal to threshold {val} of target\'s HP',
         'action_armor_add': 'Add',
         'action_armor_sub': 'Subtract',
-        'action_condition': 'Applying condition',
+        'action_condition': 'Applying effect',
         'selected_targets': 'Selected targets',
         'targeting_skip_hint': 'RMB to skip',
 
@@ -478,9 +482,9 @@ const i18n = {
         'error_armor_mixed_stats': 'Logic Error: Armor action applies mixed stats (+ and -) and forced rolls. Requires "isActionBeneficial" flag on the action object!',
         'error_armor_zero_stats': 'Logic Error: Armor action evaluates to zero. Requires "isActionBeneficial" flag on the action object!',
         'error_armor_dynamic_stats': 'Logic Error: Armor action uses a dynamic formula (e.g. roll/over). Requires "isActionBeneficial" flag on the action object, as the value\'s sign (+/-) might be impossible to predict before the roll is made!',
-        'error_condition_empty': 'Logic Error: A "condition" type action must have defined conditions in the "conditions" array!',
-        'error_condition_mixed': 'Logic Error: Targeted action (single/multi) uses forced rolls and has mixed conditions (good and bad). Requires "isConditionSuccessBeneficial" flag on the action to calculate tooltip chances!',
-        'error_condition_missing_flag': 'Logic Error: Condition "{name}" is missing the required "conditionIsBeneficial" flag (required for actions with forced rolls)!',
+        'error_condition_empty': 'Logic Error: A "condition" type action must have defined effects in the "conditions" array!',
+        'error_condition_mixed': 'Logic Error: Targeted action (single/multi) uses forced rolls and has mixed effects (good and bad). Requires "isConditionSuccessBeneficial" flag on the action to calculate tooltip chances!',
+        'error_condition_missing_flag': 'Logic Error: Effect "{name}" is missing the required "conditionIsBeneficial" flag (required for actions with forced rolls)!',
         'error_ability_roll_missing': 'Logic Error: "roll" or "over" was requested, but ability lacks the "roll" property!',
         'error_ability_diff_missing': 'Logic Error: "over" margin calculation used, but ability lacks a numeric "difficulty" property!',
         'error_gm_negative_val': 'Logic Error: Cannot heal or deal damage with negative values!',

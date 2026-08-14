@@ -180,7 +180,6 @@ async function startServer() {
             let blockContent = fileContent.substring(blockStart + 1, blockEnd);
 
             // 3. SECURE THE ROOT NAMESPACE
-            // We isolate the root variables from nested arrays to prevent accidentally modifying stats inside equipment/abilities
             let abilitiesIdx = blockContent.indexOf('abilities:');
             let equipmentIdx = blockContent.indexOf('equipment:');
             
@@ -192,46 +191,81 @@ async function startServer() {
             let rootContent = blockContent.substring(0, splitIdx);
             const nestedContent = blockContent.substring(splitIdx);
 
-            // 4. Apply directional adjustments based on the received deltas
-            Object.keys(deltas).forEach(stat => {
-                const statRegex = new RegExp(`^(\\s*['"]?${stat}['"]?\\s*:\\s*)([-]?\\d+)(,?)`, 'm');
-                const match = rootContent.match(statRegex);
-                
-                // Core primary attributes list that must never evaluate to 0 or be removed from the script file
-                const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
-                
-                if (match) {
-                    const currentVal = parseInt(match[2]);
-                    let newVal = currentVal + deltas[stat];
-                    
-                    if (coreAttributes.includes(stat)) {
-                        // Primary core attributes cannot drop below 1
-                        if (newVal <= 0) newVal = 1;
-                        rootContent = rootContent.replace(statRegex, `$1${newVal}$3`);
-                    } else {
-                        if (newVal === 0) {
-                            // Remove the stat property completely from the file if it evaluates back to zero default state
-                            const lineRegex = new RegExp(`^\\s*['"]?${stat}['"]?\\s*:\\s*[-]?\\d+,?\\s*\\n?`, 'm');
-                            rootContent = rootContent.replace(lineRegex, '');
-                        } else {
-                            rootContent = rootContent.replace(statRegex, `$1${newVal}$3`);
-                        }
-                    }
-                } else {
-                    // If the specific stat property doesn't exist yet, we must inject it
-                    let newVal = deltas[stat]; 
-                    if (coreAttributes.includes(stat) && newVal <= 0) newVal = 1;
+            // Parse existing flat properties into an object mapping
+            let properties = {};
+            let propRegex = /^\s*['"]?([a-zA-Z0-9_]+)['"]?\s*:\s*(.*?),?\s*$/gm;
+            let match;
+            while ((match = propRegex.exec(rootContent)) !== null) {
+                properties[match[1]] = match[2].trim();
+            }
 
-                    if (newVal !== 0) {
-                        const indentMatch = rootContent.match(/^(\s+)/m);
-                        const indent = indentMatch ? indentMatch[1] : '        ';
-                        rootContent = `\n${indent}${stat}: ${newVal},` + rootContent;
+            // 4. Apply directional adjustments based on the received deltas
+            const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
+            
+            Object.keys(deltas).forEach(stat => {
+                let currentVal = properties[stat] !== undefined ? parseFloat(properties[stat]) : 0;
+                if (isNaN(currentVal)) currentVal = 0;
+                
+                let newVal = currentVal + deltas[stat];
+
+                if (coreAttributes.includes(stat)) {
+                    // Primary core attributes cannot drop below 1
+                    if (newVal <= 0) newVal = 1;
+                    properties[stat] = newVal;
+                } else {
+                    if (newVal === 0) {
+                        // Remove the stat property completely from the file if it evaluates back to zero default state
+                        delete properties[stat];
+                    } else {
+                        properties[stat] = newVal;
                     }
                 }
             });
 
-            // 5. Reconstruct the complete valid JS file and push it to the server filesystem
-            blockContent = rootContent + nestedContent;
+            // 5. Reconstruct the complete valid JS file enforcing specific formatting order
+            const STAT_ORDER = [
+                'lvl', 'name', 'hasDeathsDoor', 'hp', 'maxHp',
+                'vitality', 'vitalityMod', 'intuition', 'intuitionMod',
+                'strength', 'strengthMod', 'agility', 'agilityMod',
+                'attunement', 'attunementMod', 'perception', 'perceptionMod',
+                'accuracy', 'accuracyMod', 'reflex', 'reflexMod',
+                'resilience', 'resilienceMod', 'damage',
+                'physArmor', 'physArmorPerc', 'magArmor', 'magArmorPerc',
+                'abilities', 'equipment'
+            ];
+
+            // Safely extract the exact indentation used in the file
+            const indentMatch = fileContent.substring(blockStart, blockEnd).match(/\n([ \t]+)/);
+            const indent = indentMatch ? indentMatch[1] : '    ';
+
+            let newRootContent = '\n';
+            let keys = Object.keys(properties);
+            
+            keys.sort((a, b) => {
+                let idxA = STAT_ORDER.indexOf(a);
+                let idxB = STAT_ORDER.indexOf(b);
+                
+                // Keep alphabetical order for unlisted elements
+                if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                // Unlisted keys stay at the top (e.g., 'image' or 'type')
+                if (idxA === -1) return -1;
+                if (idxB === -1) return 1;
+                // Otherwise sort by defined sequence
+                return idxA - idxB;
+            });
+
+            keys.forEach(k => {
+                newRootContent += `${indent}${k}: ${properties[k]},\n`;
+            });
+
+            // Merge back everything correctly tabbed without accumulating newlines
+            if (nestedContent.trim().length > 0) {
+                blockContent = newRootContent + indent + nestedContent.trimStart();
+            } else {
+                // If there are no nested arrays, close the block cleanly
+                blockContent = newRootContent + indent.substring(0, Math.max(0, indent.length - 4));
+            }
+            
             const updatedFileContent = fileContent.substring(0, blockStart + 1) + blockContent + fileContent.substring(blockEnd);
             fs.writeFileSync(filePath, updatedFileContent, 'utf8');
 

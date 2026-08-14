@@ -201,7 +201,7 @@ function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     }
 }
 
-function updateTargetingTooltip() {
+function updateTargetingTooltip(hoveredTarget = null) {
     const tooltipText = document.querySelector('#targeting-tooltip .chance-text');
     const cancelHint = document.querySelector('#targeting-tooltip .cancel-hint');
     if (!tooltipText || !cancelHint) return;
@@ -214,7 +214,7 @@ function updateTargetingTooltip() {
         // Retrieve active pipeline logic variables containing roll data to evaluate formulas securely
         const rollData = currentPipelineContext ? { total: currentPipelineContext.rollTotal, diff: currentPipelineContext.difficulty } : null;
         
-        let actionName = buildActionTooltipText(action, attacker, rollData);
+        let actionName = buildActionTooltipText(action, attacker, hoveredTarget, rollData);
 
         let targetsText = '';
         if (action.target === 'multi') {
@@ -244,17 +244,24 @@ function updateTargetingTooltip() {
 }
 
 // Helper function to build dynamic action description strings mapping numerical values directly to the tooltip
-function buildActionTooltipText(action, attacker, rollData) {
+function buildActionTooltipText(action, attacker, target, rollData) {
     let text = '';
     
     if (action.type === 'damage') {
-        if (action.valuePerc !== undefined) {
-            text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
-        } else if (action.value !== undefined) {
-            let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
-            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
+        if (target) {
+            // Render exact final calculated damage when hovering specifically over an entity
+            const dmgResult = calculateActualDamage(attacker, target, action, rollData);
+            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${dmgResult.finalDamage}</strong>`);
         } else {
-            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
+            // Fallback rendering base estimations when not actively hovering any target
+            if (action.valuePerc !== undefined) {
+                text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+            } else if (action.value !== undefined) {
+                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
+            } else {
+                text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
+            }
         }
     } else if (action.type === 'heal') {
         if (action.healType === 'threshold') {
@@ -413,6 +420,9 @@ function handleTargetingHoverEnter(e, targetId) {
     const target = activeCombatants.find(c => c.id === targetId);
     if (!target) return;
     
+    // Refresh tooltip dynamically swapping base values to the specific target calculation
+    updateTargetingTooltip(target);
+
     const tooltipText = document.querySelector('#targeting-tooltip .chance-text');
     if (!tooltipText) return;
 
@@ -427,7 +437,17 @@ function handleTargetingHoverEnter(e, targetId) {
         text += `${t('success_chance')} ${chances.success}%<br>`;
     }
     if (chances.condition !== undefined) {
-        text += `${t('condition_success_chance')} ${chances.condition}%<br>`;
+        let focus = getConditionSuccessFocus(targetingData.payload);
+        let count = 0;
+        if (targetingData.payload.conditions) {
+            count = targetingData.payload.conditions.filter(c => c.conditionIsBeneficial === focus).length;
+        }
+        
+        let textKey = focus ? 
+            (count > 1 ? 'effect_chance_pos_many' : 'effect_chance_pos_one') : 
+            (count > 1 ? 'effect_chance_neg_many' : 'effect_chance_neg_one');
+        
+        text += `${t(textKey)} ${chances.condition}%<br>`;
     }
     if (chances.stun !== undefined) {
         text += `${t('stun_chance')} ${chances.stun}%<br>`;
@@ -439,6 +459,8 @@ function handleTargetingHoverEnter(e, targetId) {
 }
 
 function handleTargetingHoverLeave(e) {
+    // Revert tooltip formatting to generic non-targeted estimations
+    updateTargetingTooltip(null);
     const tooltipText = document.querySelector('#targeting-tooltip .chance-text');
     if (tooltipText) tooltipText.textContent = ''; 
 }
@@ -487,7 +509,7 @@ async function executeTargetedAction(targetId) {
         } else if (!isPipeline) {
             clearTargetingState(); // Prevent further clicks on generic legacy buttons
         } else if (isPipeline && payload.target === 'multi') {
-            updateTargetingTooltip(); // Visually update target counts immediately without suspending
+            handleTargetingHoverEnter(null, targetId); // Update targeting tooltip with specific target data and count
         }
 
         // Step 2: Route through unified resolution logic enforcing Hit/Resist mathematical constraints
