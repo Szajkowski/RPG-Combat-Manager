@@ -57,8 +57,12 @@ function toggleGlobalMute() {
     window.isAudioMuted = !window.isAudioMuted;
     localStorage.setItem('CombatManager-Muted', window.isAudioMuted);
     
-    const muteBtn = document.getElementById('mute-btn');
-    muteBtn.textContent = window.isAudioMuted ? '🔇' : '🔊';
+    const muteIcon = document.getElementById('mute-icon');
+    if (muteIcon) {
+        const iconPath = window.isAudioMuted ? "url('images/icon-sound-off.svg')" : "url('images/icon-sound-on.svg')";
+        muteIcon.style.webkitMaskImage = iconPath;
+        muteIcon.style.maskImage = iconPath;
+    }
 
     if (typeof currentMusic !== 'undefined' && currentMusic) {
         currentMusic.muted = window.isAudioMuted;
@@ -98,9 +102,12 @@ function renderMusicList() {
         musicItem.className = 'music-item';
         musicItem.dataset.track = trackName;
         
+        // Injected SVG mask for Play icon instead of text characters
         musicItem.innerHTML = `
             <span>${trackName}</span> 
-            <button onclick="playMusic('${file}', this)">▶</button>
+            <button onclick="playMusic('${file}', this)">
+                <div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>
+            </button>
         `;
         
         musicListContainer.appendChild(musicItem);
@@ -124,7 +131,7 @@ function playMusic(filePath, buttonElement) {
         document.querySelectorAll('.music-item').forEach(item => {
             item.classList.remove('playing', 'paused');
             const btn = item.querySelector('button');
-            if(btn) btn.textContent = '▶';
+            if(btn) btn.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>`;
         });
     }
 
@@ -140,12 +147,12 @@ function playMusic(filePath, buttonElement) {
     currentMusic.play();
     currentMusic.onended = () => currentMusic.play(); 
 
-    // Apply active styles
+    // Apply active styles and set icon to Pause
     const activeItem = buttonElement.closest('.music-item');
     if (activeItem) {
         activeItem.classList.remove('paused');
         activeItem.classList.add('playing');
-        buttonElement.textContent = '⏸';
+        buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-pause.svg'); mask-image: url('images/icon-pause.svg');"></div>`;
     }
 }
 
@@ -158,14 +165,14 @@ function toggleMusic() {
 
     if (currentMusic.paused) {
         currentMusic.play();
-        if (buttonElement) buttonElement.textContent = '⏸';
+        if (buttonElement) buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-pause.svg'); mask-image: url('images/icon-pause.svg');"></div>`;
         if (activeItem) {
             activeItem.classList.remove('paused');
             activeItem.classList.add('playing');
         }
     } else {
         currentMusic.pause();
-        if (buttonElement) buttonElement.textContent = '▶';
+        if (buttonElement) buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>`;
         if (activeItem) {
             activeItem.classList.remove('playing');
             activeItem.classList.add('paused');

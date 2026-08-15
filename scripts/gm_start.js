@@ -99,35 +99,6 @@ function rollGmDice() {
     }, 600);
 }
 
-// Injects the UI necessary for the Targeting System dynamically
-function injectTargetingUI() {
-    if (!document.getElementById('targeting-overlay')) {
-        const overlay = document.createElement('div');
-        overlay.id = 'targeting-overlay';
-        document.body.appendChild(overlay); 
-    }
-
-    if (!document.getElementById('targeting-svg')) {
-        const svgHTML = `
-            <svg id="targeting-svg">
-                <path id="targeting-path" fill="none" stroke="var(--theme-target)" stroke-width="4" stroke-dasharray="10, 10" />
-            </svg>
-            <div id="targeting-tooltip">
-                <div class="chance-text"></div>
-                <div class="cancel-hint" data-i18n="targeting_cancel_hint"></div>
-            </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', svgHTML);
-    }
-    
-    // Inject the new DOM-based Crosshair
-    if (!document.getElementById('targeting-crosshair')) {
-        const crosshair = document.createElement('div');
-        crosshair.id = 'targeting-crosshair';
-        document.body.appendChild(crosshair);
-    }
-}
-
 // Dynamically populate subtype selection depending on main action type using the new pill structure
 function updateGmActionSubtypes() {
     const typePill = document.querySelector('#gm-action-type .pill.active');
@@ -239,9 +210,12 @@ async function executeGmAction(event) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Setup UI Toggle buttons
-    const gmToggleBtn = document.getElementById('mute-btn');
-    if (gmToggleBtn) {
-        gmToggleBtn.textContent = window.isAudioMuted ? "🔇" : "🔊";
+    const muteIcon = document.getElementById('mute-icon');
+    if (muteIcon) {
+        // Load initial SVG mask path based on stored state
+        const iconPath = window.isAudioMuted ? "url('images/icon-sound-off.svg')" : "url('images/icon-sound-on.svg')";
+        muteIcon.style.webkitMaskImage = iconPath;
+        muteIcon.style.maskImage = iconPath;
     }
 
     const gmLangBtn = document.getElementById('lang-btn');

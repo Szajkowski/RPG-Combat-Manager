@@ -6,9 +6,12 @@
     <link rel="stylesheet" href="styles/style_gm.css">
 
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Preload dynamic SVG icons to prevent loading delays on first click -->
+    <link rel="preload" href="images/icon-pause.svg" as="image" type="image/svg+xml">
+    <link rel="preload" href="images/icon-play.svg" as="image" type="image/svg+xml">
+    <link rel="preload" href="images/icon-volume-on.svg" as="image" type="image/svg+xml">
+    <link rel="preload" href="images/icon-volume-off.svg" as="image" type="image/svg+xml">
 
     <!-- Added 'defer' attribute to all scripts to guarantee execution order and DOM readiness -->
     <script id="abilities-data" src="data/abilities.js" defer></script>
@@ -104,7 +107,9 @@
                 <div class="top-bar-divider"></div>
 
                 <div class="gm-settings-widget top-bar-widget">
-                    <button class="circle-btn settings-trigger" data-i18n-title="title_gm_settings">⚙️</button>
+                    <button class="circle-btn settings-trigger" data-i18n-title="title_gm_settings">
+                        <div class="icon-mask" style="-webkit-mask-image: url('images/icon-settings.svg'); mask-image: url('images/icon-settings.svg');"></div>
+                    </button>
                     <div class="gm-settings-dropdown">
                         <button class="settings-menu-btn" onclick="reloadServerData()" data-i18n="btn_reload_data"></button>
                     </div>
@@ -112,7 +117,9 @@
 
                 <div class="top-bar-divider"></div>
                 
-                <button id="mute-btn" class="circle-btn" data-i18n-title="title_mute_ui" onclick="toggleGlobalMute()">🔊</button>
+                <button id="mute-btn" class="circle-btn" data-i18n-title="title_mute_ui" onclick="toggleGlobalMute()">
+                    <div id="mute-icon" class="icon-mask"></div>
+                </button>
                 <button id="lang-btn" class="circle-btn" data-i18n-title="title_change_language" onclick="toggleLanguage()">🇵🇱</button>
             </div>
         </div>

@@ -92,10 +92,7 @@ function renderCharMainPanel(id) {
         </div>
     `;
 
-    // 2. Render Functional Column (.char-functional-col)
-    charFunctional.innerHTML = generateFunctionalColumn(combatant);
-
-    // 3. Re-run translation for the newly injected HTML
+    // 2. Re-run translation for the newly injected HTML
     document.querySelectorAll('#characterDetailsPanel [data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
@@ -105,8 +102,12 @@ function renderCharMainPanel(id) {
         }
     });
 
+    // 3. Render Extra Panel
     bindMainPanelInputs(combatant);
     if (typeof renderExtraPanel === 'function') renderExtraPanel(id);
+
+    // 4. Render Functional Column (.char-functional-col)
+    charFunctional.innerHTML = generateFunctionalColumn(combatant);
 }
 
 function generateStatRow(combatantId, statName, value, mod) {

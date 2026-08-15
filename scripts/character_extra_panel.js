@@ -168,7 +168,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
 
         let cardInner = `
             <div class="char-extra-card-title ${titleClass}">
-                ${abilityName}
+                <span>${abilityName}</span>
                 <div class="btn-container"></div>
             </div>
             <div class="char-extra-card-desc">${parsedDesc}</div>
@@ -256,7 +256,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             const itemCard = document.createElement('div');
             itemCard.className = 'char-extra-card';
             
-            let html = `<div class="char-extra-card-title ${titleClass}">${item.name}</div>`;
+            let html = `<div class="char-extra-card-title ${titleClass}"><span>${item.name}</span></div>`;
             
             // Construct properties prefix dynamically for items as well if properties array exists
             let descString = item.description || "";
@@ -312,7 +312,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             const itemCard = document.createElement('div');
             itemCard.className = 'char-extra-card';
             
-            let html = `<div class="char-extra-card-title ${titleClass}">${item.name}</div>`;
+            let html = `<div class="char-extra-card-title ${titleClass}"><span>${item.name}</span></div>`;
             
             // Construct properties prefix dynamically for items as well if properties array exists
             let descString = item.description || "";

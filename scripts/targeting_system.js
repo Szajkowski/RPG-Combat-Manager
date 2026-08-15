@@ -11,6 +11,57 @@ let isProcessingTargetClick = false; // Prevents rapidly clicking identical targ
 // Helper for asynchronous pauses between repeated actions. Used to block pipeline progression during WS sequences.
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Inject the UI necessary for the Targeting System dynamically
+function injectTargetingUI() {
+    if (!document.getElementById('targeting-overlay')) {
+        const overlay = document.createElement('div');
+        overlay.id = 'targeting-overlay';
+        document.body.appendChild(overlay); 
+    }
+
+    if (!document.getElementById('targeting-svg')) {
+        const svgHTML = `
+            <svg id="targeting-svg">
+                <path id="targeting-path" fill="none" stroke="var(--theme-target)" stroke-width="4" stroke-dasharray="10, 10" />
+            </svg>
+            <div id="targeting-tooltip">
+                <div class="chance-text"></div>
+                <div class="cancel-hint" data-i18n="targeting_cancel_hint"></div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', svgHTML);
+    }
+    
+    // Inject the new DOM-based Crosshair
+    if (!document.getElementById('targeting-crosshair')) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'targeting-crosshair';
+        
+        // Injecting SVG directly into DOM so it can access CSS variables
+        crosshair.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="100%" height="100%" class="dynamic-crosshair">
+                <!-- Darker, thicker outline underneath -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="var(--crosshair-dark, #8c7e11)" stroke-width="5" opacity="0.85"/>
+                <line x1="18" y1="2" x2="18" y2="11" stroke="var(--crosshair-dark, #8c7e11)" stroke-width="5" stroke-linecap="round"/>
+                <line x1="18" y1="25" x2="18" y2="34" stroke="var(--crosshair-dark, #8c7e11)" stroke-width="5" stroke-linecap="round"/>
+                <line x1="2" y1="18" x2="11" y2="18" stroke="var(--crosshair-dark, #8c7e11)" stroke-width="5" stroke-linecap="round"/>
+                <line x1="25" y1="18" x2="34" y2="18" stroke="var(--crosshair-dark, #8c7e11)" stroke-width="5" stroke-linecap="round"/>
+                <circle cx="18" cy="18" r="2.5" fill="var(--crosshair-dark, #8c7e11)"/>
+
+                <!-- Light, main crosshair -->
+                <circle cx="18" cy="18" r="14" fill="none" stroke="var(--crosshair-light, #f1fa8c)" stroke-width="2"/>
+                <line x1="18" y1="3" x2="18" y2="10" stroke="var(--crosshair-light, #f1fa8c)" stroke-width="2" stroke-linecap="round"/>
+                <line x1="18" y1="26" x2="18" y2="33" stroke="var(--crosshair-light, #f1fa8c)" stroke-width="2" stroke-linecap="round"/>
+                <line x1="3" y1="18" x2="10" y2="18" stroke="var(--crosshair-light, #f1fa8c)" stroke-width="2" stroke-linecap="round"/>
+                <line x1="26" y1="18" x2="33" y2="18" stroke="var(--crosshair-light, #f1fa8c)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="18" cy="18" r="1" fill="var(--crosshair-light, #f1fa8c)"/>
+            </svg>
+        `;
+        
+        document.body.appendChild(crosshair);
+    }
+}
+
 // --- ACTION PIPELINE CORE ENGINE ---
 
 // Initializes the action queue, maps compound roll values globally, and starts processing the first step dynamically
@@ -154,7 +205,7 @@ function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     if (overlay) overlay.style.display = 'block';
     if (svg) svg.style.display = 'block';
     if (crosshair) {
-        crosshair.style.display = 'block';
+        crosshair.style.display = 'flex';
         crosshair.style.left = window.currentMouseX + 'px';
         crosshair.style.top = window.currentMouseY + 'px';
     }
@@ -261,7 +312,7 @@ function buildActionTooltipText(action, attacker, target, rollData) {
         } else {
             // Fallback rendering base estimations when not actively hovering any target
             if (action.valuePerc !== undefined) {
-                text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+                text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
                 let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
                 text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
@@ -272,14 +323,14 @@ function buildActionTooltipText(action, attacker, target, rollData) {
     } else if (action.type === 'heal') {
         if (action.healType === 'threshold') {
             if (action.valuePerc !== undefined) {
-                text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+                text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
                 let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
                 text = t('action_heal_thresh_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         } else {
             if (action.valuePerc !== undefined) {
-                text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}%</strong>`);
+                text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
                 let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
                 text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);

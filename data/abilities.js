@@ -712,7 +712,7 @@ var ability = {
         properties: ["prop_extra_turn"],
     },
     "Test: Multiple Rolls": { // tests rolling more than 1 die at a time
-        name: "Test: Multiple Rolls",
+        name: "Test: Multiple Rolls and a Very Long Ability Name. Very very long even you know.",
         description: "Uderza do 2 celów za [2 * over] 3 razy. A potem jeden cel za [1 * roll]",
         roll: "vitality + strength + intuition",
         difficulty: 14,

@@ -1,11 +1,21 @@
 // Generates the HTML for the functional column (buttons: delete, stun, resurrect, reload, save)
 function generateFunctionalColumn(combatant) {
     return `
-        <button class="func-btn delete" title="${t('remove_character')}" onclick="removeCharacterById('${combatant.id}', event)">✕</button>
-        <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="${t('toggle_stun')}" onclick="toggleStun()">💫</button>
-        ${combatant.isDead ? `<button class="func-btn resurrect" title="${t('resurrect_character')}" onclick="resurrectCharacter()">💖</button>` : ''}
-        ${combatant.baseName !== '' ? `<button class="func-btn reload" title="${t('reload_character')}" onclick="reloadCharacterData()">↻</button>` : ''}
-        ${combatant.baseName !== '' ? `<button class="func-btn save-stats" title="${t('save_character_stats')}" onclick="saveCharacterStats('${combatant.id}')">💾</button>` : ''}
+        <button class="func-btn delete" title="${t('remove_character')}" onclick="removeCharacterById('${combatant.id}', event)">
+            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-delete.svg'); mask-image: url('images/icon-delete.svg');"></div>
+        </button>
+        <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="${t('toggle_stun')}" onclick="toggleStun()">
+            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-stun.svg'); mask-image: url('images/icon-stun.svg');"></div>
+        </button>
+        ${combatant.isDead ? `<button class="func-btn resurrect" title="${t('resurrect_character')}" onclick="resurrectCharacter()">
+            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-resurrect-ankh.svg'); mask-image: url('images/icon-revive.svg');"></div>
+        </button>` : ''}
+        ${combatant.baseName !== '' ? `<button class="func-btn reload" title="${t('reload_character')}" onclick="reloadCharacterData()">
+            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-reload.svg'); mask-image: url('images/icon-reload.svg');"></div>
+        </button>` : ''}
+        ${combatant.baseName !== '' ? `<button class="func-btn save-stats" title="${t('save_character_stats')}" onclick="saveCharacterStats('${combatant.id}')">
+            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-save.svg'); mask-image: url('images/icon-save.svg');"></div>
+        </button>` : ''}
     `;
 }
 

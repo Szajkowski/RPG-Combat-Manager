@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 270 degree arc -->
+    <path d="M20 12a8 8 0 1 1-8-8" />
+    <!-- Arrow head rotated slightly to the right (20 degrees around vertex 12,4) -->
+    <polyline points="8 0 12 4 8 8" transform="rotate(-15 12 4)" />
+</svg>

@@ -155,6 +155,7 @@ const i18n = {
         // Function bar
         'remove_character': 'Usuń postać',
         'toggle_stun': 'Przełącz ogłuszenie',
+        'resurrect_character': 'Wskrześ postać',
         'reload_character': 'Przeładuj postać',
         'save_character_stats': 'Zapisz statystyki do bazy danych postaci',
         'no_changes_detected': 'Nie wykryto żadnych zmian',
@@ -187,9 +188,9 @@ const i18n = {
         'prop_stuns': 'Ogłuszająca.',
         'prop_lethal': 'Zabójcza.',
 
-        'desc_prop_undodgeable': 'Nieunikalna umiejętność ignoruje rzuty na trafienie kontra unik. Zawsze trafia w cel.',
-        'desc_prop_extra_turn': 'Akcje postaci są rozkładane równomiernie na pasku inicjatywy. Przykładowo: postać z refleksem 30 i jedną turą zagra na 30 stopniu. Z dwiema turami zagra na 30 i 15, a z trzema turami na 30, 20 i 10.',
-        'desc_prop_reaction': 'Umiejętność, która jest reakcją, może być użyta także poza turą postaci.',
+        'desc_prop_undodgeable': 'Ignoruje rzuty na trafienie kontra unik. Zawsze trafia w cel.',
+        'desc_prop_extra_turn': 'Tury postaci są rozkładane równomiernie na pasku inicjatywy. Przykładowo: postać z refleksem 30 i jedną turą zagra na 30 stopniu. Z dwiema turami zagra na 30 i 15, a z trzema turami na 30, 20 i 10.',
+        'desc_prop_reaction': 'Może być użyta także poza turą postaci.',
         'desc_prop_non_combat': 'Umiejętność przeznaczona do użytku poza bezpośrednią walką.',
         'desc_prop_stuns': 'Nakłada na cel ogłuszenie. W przypadku akcji z wymuszonymi rzutami, ogłusza tylko przy niepowodzeniu obrońcy.',
         'desc_prop_lethal': 'Ignoruje mechanikę Wrót Śmierci. Cel ginie natychmiast, gdy jego zdrowie spadnie do zera.',
@@ -437,9 +438,9 @@ const i18n = {
         'prop_stuns': 'Stuns target.',
         'prop_lethal': 'Lethal.',
 
-        'desc_prop_undodgeable': 'Undodgeable ability ignores hit vs dodge rolls. It always hits the target.',
-        'desc_prop_extra_turn': 'Character actions are distributed evenly on the initiative bar. For example: a character with 30 reflex and one turn acts at step 30. With two turns at 30 and 15, and with three turns at 30, 20, and 10.',
-        'desc_prop_reaction': 'A reaction ability can be used outside of the character\'s active turn.',
+        'desc_prop_undodgeable': 'Ignores hit vs dodge rolls. Always hits the target.',
+        'desc_prop_extra_turn': 'Character turns are distributed evenly on the initiative bar. For example: a character with 30 reflex and one turn acts at step 30. With two turns at 30 and 15, and with three turns at 30, 20, and 10.',
+        'desc_prop_reaction': 'Can be used outside of the character\'s active turn.',
         'desc_prop_non_combat': 'An ability meant to be used outside of direct combat.',
         'desc_prop_stuns': 'Stuns the target. For actions with forced rolls, it stuns only if the defender fails the check.',
         'desc_prop_lethal': 'Ignores Death\'s Door mechanics. The target dies instantly if their health drops to zero.',
