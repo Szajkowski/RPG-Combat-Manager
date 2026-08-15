@@ -1,11 +1,11 @@
 var npcs = {
     "Nadia Cardigan": {
-        hasDeathsDoor: true,
-        name: "Nadia Cardigan",
         lvl: 4,
+        name: "Nadia Cardigan",
+        hasDeathsDoor: true,
         hp: 160,
         maxHp: 160,
-        vitality: 15,
+        vitality: 16,
         intuition: 10,
         strength: 10,
         agility: 17,
@@ -15,7 +15,7 @@ var npcs = {
         reflex: 11,
         resilience: 10,
         damage: 10,
-magArmor: 0,
+        magArmor: 0,
         abilities: [
             ability["Tnące łuki"],
             ability["Leczniczy podmuch"],

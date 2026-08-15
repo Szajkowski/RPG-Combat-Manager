@@ -10,27 +10,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 
-    <script id="abilities-data" src="data/abilities.js"></script>
-    <script id="players-data" src="data/players.js"></script>
-    <script id="mobs-data" src="data/mobs.js"></script>
-    <script id="npcs-data" src="data/npcs.js"></script>
-    <script id="bosses-data" src="data/bosses.js"></script>
+    <!-- Added 'defer' attribute to all scripts to guarantee execution order and DOM readiness -->
+    <script id="abilities-data" src="data/abilities.js" defer></script>
+    <script id="players-data" src="data/players.js" defer></script>
+    <script id="mobs-data" src="data/mobs.js" defer></script>
+    <script id="npcs-data" src="data/npcs.js" defer></script>
+    <script id="bosses-data" src="data/bosses.js" defer></script>
     
-    <script src="scripts/i18n.js"></script>
-    <script src="scripts/utils.js"></script>
-    <script src="scripts/audio.js"></script>
-    <script src="scripts/updates.js"></script>
+    <script src="scripts/i18n.js" defer></script>
+    <script src="scripts/gm_settings.js" defer></script>
+    <script src="scripts/utils.js" defer></script>
+    <script src="scripts/audio.js" defer></script>
+    <script src="scripts/updates.js" defer></script>
     
-    <script src="scripts/arena.js"></script>
-    <script src="scripts/character_main_panel.js"></script>
-    <script src="scripts/character_extra_panel.js"></script>
-    <script src="scripts/effects.js"></script>
-    <script src="scripts/action_calculations.js"></script>
-    <script src="scripts/targeting_system.js"></script>
-    <script src="scripts/functional_column.js"></script>
-    <script src="scripts/initiative_tracker.js"></script>
+    <script src="scripts/arena.js" defer></script>
+    <script src="scripts/character_main_panel.js" defer></script>
+    <script src="scripts/character_extra_panel.js" defer></script>
+    <script src="scripts/effects.js" defer></script>
+    <script src="scripts/action_calculations.js" defer></script>
+    <script src="scripts/targeting_system.js" defer></script>
+    <script src="scripts/functional_column.js" defer></script>
+    <script src="scripts/initiative_tracker.js" defer></script>
     
-    <script src="scripts/gm_start.js"></script>
+    <script src="scripts/gm_start.js" defer></script>
 </head>
 <body>
 
@@ -96,6 +98,15 @@
                         </div>
                         
                         <button class="execute-action-btn" onclick="executeGmAction(event)" data-i18n="execute_action">Execute</button>
+                    </div>
+                </div>
+
+                <div class="top-bar-divider"></div>
+
+                <div class="gm-settings-widget top-bar-widget">
+                    <button class="circle-btn settings-trigger" data-i18n-title="title_gm_settings">⚙️</button>
+                    <div class="gm-settings-dropdown">
+                        <button class="settings-menu-btn" onclick="reloadServerData()" data-i18n="btn_reload_data"></button>
                     </div>
                 </div>
 

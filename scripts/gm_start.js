@@ -250,15 +250,26 @@ document.addEventListener('DOMContentLoaded', () => {
     injectTargetingUI();
     updateGmActionSubtypes(); // Initialize subtypes payload mapping explicitly
 
-    // GM Menu toggler logic
+    // Dropdown toggler logic for GM widgets
     document.addEventListener('click', (e) => {
+        // Action widget logic
         const gmWidget = document.querySelector('.gm-action-widget');
-        const trigger = e.target.closest('.gm-action-trigger');
+        const actionTrigger = e.target.closest('.gm-action-trigger');
         
-        if (trigger) {
+        if (actionTrigger) {
             gmWidget.classList.toggle('open');
         } else if (gmWidget && !e.target.closest('.gm-action-widget')) {
             gmWidget.classList.remove('open');
+        }
+
+        // Settings widget logic
+        const settingsWidget = document.querySelector('.gm-settings-widget');
+        const settingsTrigger = e.target.closest('.settings-trigger');
+
+        if (settingsTrigger) {
+            settingsWidget.classList.toggle('open');
+        } else if (settingsWidget && !e.target.closest('.gm-settings-widget')) {
+            settingsWidget.classList.remove('open');
         }
     });
 

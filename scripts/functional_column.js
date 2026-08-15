@@ -134,22 +134,6 @@ async function reloadCharacterData() {
     }
 }
 
-// Generic helper to reload a script dynamically
-async function reloadScript(scriptId, srcPath) {
-    const oldScript = document.querySelector(`#${scriptId}`);
-    if (oldScript) oldScript.remove();
-    
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.id = scriptId;
-        // Adding a timestamp prevents the browser from loading a cached version of the file
-        script.src = `${srcPath}?t=${new Date().getTime()}`;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Error loading ${srcPath}`));
-        document.body.appendChild(script);
-    });
-}
-
 // Compares current modified stats to initial baseline stats and applies delta modifications to backend files via API request
 function saveCharacterStats(id) {
     const combatant = activeCombatants.find(c => c.id === id);
