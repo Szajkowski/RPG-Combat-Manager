@@ -149,9 +149,15 @@ function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     const overlay = document.getElementById('targeting-overlay');
     const svg = document.getElementById('targeting-svg');
     const tooltip = document.getElementById('targeting-tooltip');
+    const crosshair = document.getElementById('targeting-crosshair');
     
     if (overlay) overlay.style.display = 'block';
     if (svg) svg.style.display = 'block';
+    if (crosshair) {
+        crosshair.style.display = 'block';
+        crosshair.style.left = window.currentMouseX + 'px';
+        crosshair.style.top = window.currentMouseY + 'px';
+    }
     if (tooltip) {
         tooltip.style.display = 'flex';
         // Immediately pin to cursor utilizing last known location, ensuring instant visual feedback
@@ -328,10 +334,12 @@ function clearTargetingState() {
     const overlay = document.getElementById('targeting-overlay');
     const svg = document.getElementById('targeting-svg');
     const tooltip = document.getElementById('targeting-tooltip');
+    const crosshair = document.getElementById('targeting-crosshair');
     
     if (overlay) overlay.style.display = 'none';
     if (svg) svg.style.display = 'none';
     if (tooltip) tooltip.style.display = 'none';
+    if (crosshair) crosshair.style.display = 'none';
     
     document.removeEventListener('mousemove', handleTargetingMove);
     document.removeEventListener('contextmenu', cancelTargetingMode);
@@ -355,9 +363,11 @@ function suspendTargetingState() {
 
     const svg = document.getElementById('targeting-svg');
     const tooltip = document.getElementById('targeting-tooltip');
+    const crosshair = document.getElementById('targeting-crosshair');
     
     if (svg) svg.style.display = 'none';
     if (tooltip) tooltip.style.display = 'none';
+    if (crosshair) crosshair.style.display = 'none';
     
     document.removeEventListener('mousemove', handleTargetingMove);
     document.removeEventListener('contextmenu', cancelTargetingMode);
@@ -412,6 +422,13 @@ function handleTargetingMove(e) {
     if (tooltip) {
         tooltip.style.left = (window.currentMouseX + 15) + 'px';
         tooltip.style.top = (window.currentMouseY + 15) + 'px';
+    }
+    
+    // Smoothly update the custom DOM crosshair position
+    const crosshair = document.getElementById('targeting-crosshair');
+    if (crosshair) {
+        crosshair.style.left = window.currentMouseX + 'px';
+        crosshair.style.top = window.currentMouseY + 'px';
     }
 }
 

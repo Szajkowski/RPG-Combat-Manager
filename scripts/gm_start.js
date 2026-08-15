@@ -119,6 +119,13 @@ function injectTargetingUI() {
         `;
         document.body.insertAdjacentHTML('beforeend', svgHTML);
     }
+    
+    // Inject the new DOM-based Crosshair
+    if (!document.getElementById('targeting-crosshair')) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'targeting-crosshair';
+        document.body.appendChild(crosshair);
+    }
 }
 
 // Dynamically populate subtype selection depending on main action type using the new pill structure

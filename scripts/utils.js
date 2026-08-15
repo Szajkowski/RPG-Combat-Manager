@@ -313,8 +313,33 @@ document.addEventListener('mouseout', (e) => {
     }
 });
 
+document.addEventListener('mouseover', (e) => {
+    const diceEl = e.target.closest('.mini-dice');
+    if (diceEl) {
+        const dataStr = diceEl.dataset.breakdown;
+        const diffStr = diceEl.dataset.difficulty;
+        
+        if (dataStr) {
+            breakdownHoverTimeout = setTimeout(() => {
+                showBreakdownTooltip(diceEl, JSON.parse(dataStr), diffStr);
+            }, 1000);
+        }
+    }
+});
+
+document.addEventListener('mouseout', (e) => {
+    const diceEl = e.target.closest('.mini-dice');
+    if (diceEl) {
+        // Ensure we are actually leaving the element entirely
+        if (!diceEl.contains(e.relatedTarget)) {
+            clearTimeout(breakdownHoverTimeout);
+            hideBreakdownTooltip();
+        }
+    }
+});
+
 // Force hide if user clicks anything to prevent tooltip lingering
 document.addEventListener('mousedown', () => {
-    clearTimeout(propertyHoverTimeout);
-    hidePropertyTooltip();
+    clearTimeout(breakdownHoverTimeout);
+    hideBreakdownTooltip();
 });

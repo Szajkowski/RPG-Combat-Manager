@@ -108,7 +108,11 @@ function renderToken(combatant) {
     const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
 
     tokenDiv.innerHTML = `
-        <div class="token-stun-icon ${combatant.isStunned ? 'visible' : ''}">💫</div>
+        <div class="token-stun-icon ${combatant.isStunned ? 'visible' : ''}">
+            <div class="stun-star star-1"></div>
+            <div class="stun-star star-2"></div>
+            <div class="stun-star star-3"></div>
+        </div>
         <button class="token-delete-btn" onclick="removeCharacterById('${combatant.id}', event)" title="${t('remove_character')}">✖</button>
         <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
         <div class="token-hp-bg">
@@ -624,34 +628,3 @@ function hideBreakdownTooltip() {
     const tooltip = document.getElementById('roll-breakdown-tooltip');
     if (tooltip) tooltip.style.display = 'none';
 }
-
-document.addEventListener('mouseover', (e) => {
-    const diceEl = e.target.closest('.mini-dice');
-    if (diceEl) {
-        const dataStr = diceEl.dataset.breakdown;
-        const diffStr = diceEl.dataset.difficulty;
-        
-        if (dataStr) {
-            breakdownHoverTimeout = setTimeout(() => {
-                showBreakdownTooltip(diceEl, JSON.parse(dataStr), diffStr);
-            }, 1000);
-        }
-    }
-});
-
-document.addEventListener('mouseout', (e) => {
-    const diceEl = e.target.closest('.mini-dice');
-    if (diceEl) {
-        // Ensure we are actually leaving the element entirely
-        if (!diceEl.contains(e.relatedTarget)) {
-            clearTimeout(breakdownHoverTimeout);
-            hideBreakdownTooltip();
-        }
-    }
-});
-
-// Force hide if user clicks anything to prevent tooltip lingering
-document.addEventListener('mousedown', () => {
-    clearTimeout(breakdownHoverTimeout);
-    hideBreakdownTooltip();
-});

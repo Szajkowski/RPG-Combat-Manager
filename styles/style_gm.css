@@ -357,23 +357,41 @@ body {
 /* Stunned Token Visual Indicator */
 .token-stun-icon {
     position: absolute;
-    top: -12px;
+    top: 5%;
     left: 50%;
-    font-size: 22px;
     opacity: 0;
     transition: opacity 0.2s ease;
     z-index: 15;
     pointer-events: none;
-    animation: float-stun 2s infinite ease-in-out; 
 }
 
 .token-stun-icon.visible {
     opacity: 1;
 }
 
-@keyframes float-stun {
-    0%, 100% { transform: translate(-50%, 0) rotate(-10deg); }
-    50% { transform: translate(-50%, -5px) rotate(10deg); }
+.stun-star {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    /* Bulky SVG star encoded as a data URI */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L8.91 8.26 Z" fill="%23f1fa8c" stroke="%23302a00" stroke-width="2.5" stroke-linejoin="round"/></svg>');
+    background-size: cover;
+    top: -24px; 
+    left: -9px; 
+    transform-origin: 50% 20px; 
+    animation: stun-orbit 1.5s linear infinite;
+}
+
+.stun-star.star-1 { animation-delay: 0s; }
+.stun-star.star-2 { animation-delay: -0.5s; }
+.stun-star.star-3 { animation-delay: -1s; }
+
+@keyframes stun-orbit {
+    0% { transform: rotate(0deg) scale(1); opacity: 1; z-index: 2; }
+    25% { transform: rotate(90deg) scale(0.7); opacity: 0.8; z-index: 1;}
+    50% { transform: rotate(180deg) scale(0.4); opacity: 0.4; z-index: 0;}
+    75% { transform: rotate(270deg) scale(0.7); opacity: 0.8; z-index: 1;}
+    100% { transform: rotate(360deg) scale(1); opacity: 1; z-index: 2; }
 }
 
 /* Display the delete button when hovering over the token container */
@@ -805,7 +823,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     top: 0; left: 0; width: 100vw; height: 100vh;
     background: rgba(0,0,0,0.55);
     z-index: 9000; 
-    cursor: url('../images/crosshair.svg') 16 16, crosshair;
 }
 
 #targeting-svg {
@@ -860,23 +877,42 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .chance-text { font-weight: bold; font-size: 1rem; color: var(--theme-target); }
 .cancel-hint { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold;}
 
+/* DOM-based Targeting Crosshair */
+#targeting-crosshair {
+    display: none;
+    position: fixed;
+    width: 36px;
+    height: 36px;
+    background-image: url('../images/crosshair.svg');
+    background-size: cover;
+    pointer-events: none;
+    z-index: 10000;
+    transform: translate(-50%, -50%);
+    animation: crosshair-spin 8s linear infinite;
+}
+
+@keyframes crosshair-spin {
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Hide native cursors entirely during targeting mode */
+body.targeting-mode,
+body.targeting-mode * {
+    cursor: none !important;
+}
+
 body.targeting-mode .arena-board {
     position: relative;
     z-index: 9001; 
     pointer-events: auto; 
-    cursor: url('../images/crosshair.svg') 16 16, crosshair; 
 }
 
 body.targeting-mode .character-token {
     z-index: 9005; 
     pointer-events: auto; 
-    cursor: url('../images/crosshair.svg') 16 16, crosshair !important; 
 }
 
-body.targeting-mode .character-token.dead {
-    pointer-events: none !important; 
-}
-
+body.targeting-mode .character-token.dead,
 body.targeting-mode .character-token.token-dimmed {
     pointer-events: none !important; 
 }
