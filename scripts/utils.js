@@ -538,3 +538,69 @@ function showServerRestartModal() {
     overlay.appendChild(box);
     updateModalStack();
 }
+
+// --- RESPONSIVE GLOBAL SCALING ---
+
+// Dynamically scales the entire application UI proportionally like an image 
+// when the viewport height is too small to fit its fixed contents.
+function adjustGlobalScale() {
+    let scaler = document.getElementById('app-scaler');
+    
+    // Setup wrapper on first run
+    if (!scaler) {
+        scaler = document.createElement('div');
+        scaler.id = 'app-scaler';
+        
+        const topBar = document.querySelector('.top-bar');
+        const mainWorkspace = document.querySelector('.main-workspace');
+        
+        if (topBar && mainWorkspace) {
+            document.body.prepend(scaler);
+            scaler.appendChild(topBar);
+            scaler.appendChild(mainWorkspace);
+            
+            // Override strict viewport units so the workspace properly fills the scaled container
+            mainWorkspace.style.height = 'calc(100% - 60px)';
+            mainWorkspace.style.width = '100%';
+        } else {
+            return; 
+        }
+    }
+
+    const availableHeight = window.innerHeight;
+    // Minimum height required for the UI to display fully without internal scrolling
+    const requiredHeight = 890; 
+
+    if (availableHeight < requiredHeight) {
+        const scale = availableHeight / requiredHeight;
+        
+        scaler.style.transform = `scale(${scale})`;
+        scaler.style.transformOrigin = 'top left';
+        
+        // Expand the logical dimensions so they fit the physical screen perfectly when scaled down
+        scaler.style.width = `${100 / scale}vw`;
+        scaler.style.height = `${100 / scale}vh`;
+        
+        scaler.style.display = 'flex';
+        scaler.style.flexDirection = 'column';
+        scaler.style.overflow = 'hidden';
+        
+        // CRITICAL FIX: Prevent the body's flexbox from shrinking the scaler before the transform applies
+        scaler.style.flexShrink = '0'; 
+    } else {
+        // Restore normal 1:1 scale on larger screens
+        scaler.style.transform = 'none';
+        scaler.style.width = '100vw';
+        scaler.style.height = '100vh';
+        scaler.style.display = 'flex';
+        scaler.style.flexDirection = 'column';
+        scaler.style.overflow = 'hidden';
+        scaler.style.flexShrink = '1';
+    }
+}
+
+// Bind the scaling logic to viewport resize events and initial load
+window.addEventListener('resize', adjustGlobalScale);
+document.addEventListener('DOMContentLoaded', adjustGlobalScale);
+// Execute immediately in case the script evaluates after DOM is already ready
+adjustGlobalScale();
