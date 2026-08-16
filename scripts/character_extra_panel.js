@@ -457,7 +457,7 @@ async function useAbility(combatantId, ability, event) {
     const lockGranted = await syncInitiateAction(updatedCombatant, rollEventToSync, autoRelease);
 
     if (!lockGranted) {
-        showToast(t('server_busy'));
+        showNotification(t('server_busy'), { theme: 'var(--theme-negative)' });
         return; 
     }
 

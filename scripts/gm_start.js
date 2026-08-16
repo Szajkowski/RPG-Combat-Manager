@@ -185,7 +185,7 @@ async function executeGmAction(event) {
     // Attempt to acquire server lock before proceeding with GM targeted actions
     const lockGranted = await syncInitiateAction(null, null, false);
     if (!lockGranted) {
-        showToast(t('server_busy'));
+        showNotification(t('server_busy'), { theme: 'var(--theme-negative)' });
         return;
     }
 

@@ -149,6 +149,20 @@ body::after {
     --crosshair-dark: #8c7e11; 
 }
 
+/* --- TEXT COLORS --- */
+.text-positive { color: var(--theme-positive) !important; }
+.text-negative { color: var(--theme-negative) !important; }
+.text-neutral { color: var(--text-main) !important; }
+.text-white { color: #ffffff !important; }
+.text-deaths-door { color: var(--theme-deaths-door) !important; }
+
+.text-hero { color: var(--theme-hero) !important; }
+.text-enemy { color: var(--theme-enemy) !important; }
+.text-other { color: var(--theme-other) !important; }
+.text-special { color: var(--theme-special) !important; }
+
+.ability-success-rate { color: var(--theme-other); }
+
 /* --- LAYOUT FOUNDATIONS --- */
 body {
     margin: 0; padding: 0; height: 100vh; width: 100vw;
@@ -883,20 +897,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .gm-dice-fail { color: var(--theme-negative); }
 .gm-dice-neutral { color: var(--text-main); }
 .gm-dice-hidden { color: transparent !important; }
-
-.copy-notification {
-    position: fixed;
-    background: var(--bg-card);
-    color: var(--text-main);
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--theme-other);
-    font-size: 0.8rem;
-    font-weight: bold;
-    pointer-events: none;
-    z-index: 10000;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-}
 
 .arena-rolls-container {
     background: var(--bg-rolls);
@@ -1637,46 +1637,37 @@ body.targeting-mode .character-token { transform: none !important; }
     color: var(--text-main);
     padding: 10px 20px;
     border-radius: 6px;
-    border: 1px solid var(--theme-other);
+    border: 1px solid; /* Border color is set dynamically via JS */
     font-size: 0.9rem;
     font-weight: bold;
     pointer-events: none;
     z-index: 10000;
     box-shadow: 0 4px 15px rgba(0,0,0,0.6);
     opacity: 0;
-    /* Centered horizontally based on dynamic left coordinate, slightly offset downwards to slide up */
-    transform: translateX(-50%) translateY(10px);
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.toast-notification.show {
+.toast-notification.pos-cursor {
+    transform: translateX(-50%) translateY(10px);
+}
+
+.toast-notification.pos-cursor.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
 
-.top-toast-notification {
-    position: fixed;
-    background: var(--bg-card);
-    color: var(--text-main);
-    padding: 10px 20px;
-    border-radius: 6px;
-    border: 1px solid var(--theme-positive);
-    font-size: 0.9rem;
-    font-weight: bold;
-    pointer-events: none;
-    z-index: 10000;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-    opacity: 0;
+.toast-notification.pos-top {
     top: 20px;
     left: 50%;
     transform: translateX(-50%) translateY(-10px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
 }
-.top-toast-notification.show {
+
+.toast-notification.pos-top.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
-/* --- UTILITY & TEXT COLORS --- */
+
+/* --- UTILITY --- */
 .icon-mask {
     width: 20px;
     height: 20px;
@@ -1694,19 +1685,6 @@ body.targeting-mode .character-token { transform: none !important; }
 .gm-settings-widget.open .settings-trigger .icon-mask {
     transform: rotate(90deg);
 }
-
-.text-positive { color: var(--theme-positive) !important; }
-.text-negative { color: var(--theme-negative) !important; }
-.text-neutral { color: var(--text-main) !important; }
-.text-white { color: #ffffff !important; }
-.text-deaths-door { color: var(--theme-deaths-door) !important; }
-
-.text-hero { color: var(--theme-hero) !important; }
-.text-enemy { color: var(--theme-enemy) !important; }
-.text-other { color: var(--theme-other) !important; }
-.text-special { color: var(--theme-special) !important; }
-
-.ability-success-rate { color: var(--theme-other); }
 
 /* --- PLACEHOLDERS --- */
 .empty-list-placeholder {

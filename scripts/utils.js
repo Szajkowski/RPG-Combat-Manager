@@ -88,8 +88,8 @@ async function reloadServerData() {
             }
         }
         
-        if (typeof showToast === 'function') {
-            showToast(t('data_scripts_reloaded'));
+        if (typeof showNotification === 'function') {
+            showNotification(t('data_scripts_reloaded'));
         }
     } catch (error) {
         console.error("Error reloading server data:", error);
@@ -108,10 +108,10 @@ async function copyInputValue(input) {
     try {
         await navigator.clipboard.writeText(input.value);
         window.lastCopiedRPGValue = input.value;
-        showNotification(`${t('copied')} ${input.value}`);
+        showNotification(`${t('copied')} ${input.value}`, { duration: 1200 });
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'));
+        showNotification(t('copy_error'), { duration: 1200, theme: 'var(--theme-negative)' });
     }
 }
 
@@ -121,10 +121,10 @@ async function copyValue(value) {
         else await navigator.clipboard.writeText(value);
 
         window.lastCopiedRPGValue = typeof value === "number" ? value.toString() : value;
-        showNotification(`${t('copied')} ${value}`);
+        showNotification(`${t('copied')} ${value}`, { duration: 1200 });
     } catch (err) {
         console.error("Failed to copy text: ", err);
-        showNotification(t('copy_error'));
+        showNotification(t('copy_error'), { duration: 1200, theme: 'var(--theme-negative)' });
     }
 }
 
@@ -142,7 +142,7 @@ function pasteValueToInput(input) {
     window.lastCopiedRPGValue = null;
 
     if (typeof showNotification === 'function') {
-        showNotification(`${t('pasted')} ${trimmed}`);
+        showNotification(`${t('pasted')} ${trimmed}`, { duration: 1200 });
     }
 }
 
@@ -157,88 +157,41 @@ document.addEventListener('mousemove', (e) => {
     window.currentMouseY = e.clientY;
 });
 
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.className = 'copy-notification';
-    notification.textContent = message;
-    
-    // Hide initially to measure elements offset dimensions accurately before rendering
-    notification.style.visibility = 'hidden';
-    document.body.appendChild(notification);
+// Unified notification function handling cursor and top-anchored toasts
+function showNotification(message, options = {}) {
+    const {
+        duration = 2500,
+        position = 'cursor', // 'cursor' or 'top'
+        theme = 'var(--theme-other)' // CSS variable or color
+    } = options;
 
-    let left = window.currentMouseX + 15;
-    let top = window.currentMouseY - 35;
-
-    const notificationWidth = notification.offsetWidth;
-    
-    // Prevent overflowing the right edge of the viewport
-    if (left + notificationWidth > window.innerWidth) {
-        left = window.innerWidth - notificationWidth - 15;
-    }
-
-    // Prevent overflowing the left edge of the viewport
-    if (left < 0) left = 10;
-
-    // Prevent overflowing the top edge of the viewport (flip below cursor if needed)
-    if (top < 0) {
-        top = window.currentMouseY + 20;
-    }
-
-    notification.style.left = `${left}px`;
-    notification.style.top = `${top}px`;
-    notification.style.visibility = 'visible';
-
-    // Remove notification after 1.2 seconds
-    setTimeout(() => {
-        notification.remove();
-    }, 1200);
-}
-
-// Non-invasive, non-blocking toast notification displayed near the cursor
-function showToast(message, duration = 2500) {
     const toast = document.createElement('div');
-    toast.className = 'toast-notification';
+    toast.className = `toast-notification pos-${position}`;
     toast.textContent = message;
-    
+    toast.style.borderColor = theme;
+
     document.body.appendChild(toast);
-    
-    const toastWidth = toast.offsetWidth;
-    const toastHeight = toast.offsetHeight;
 
-    let left = window.currentMouseX;
-    let top = window.currentMouseY - toastHeight - 15; // 15px above cursor
+    if (position === 'cursor') {
+        const toastWidth = toast.offsetWidth;
+        const toastHeight = toast.offsetHeight;
 
-    // Boundary checks to keep it on screen
-    if (left - (toastWidth / 2) < 10) left = (toastWidth / 2) + 10;
-    if (left + (toastWidth / 2) > window.innerWidth - 10) left = window.innerWidth - (toastWidth / 2) - 10;
-    if (top < 10) top = window.currentMouseY + 25; // Flip below cursor if too close to top edge
-    
-    toast.style.left = `${left}px`;
-    toast.style.top = `${top}px`;
-    
+        let left = window.currentMouseX;
+        let top = window.currentMouseY - toastHeight - 15; // 15px above cursor
+
+        // Boundary checks to keep it on screen
+        if (left - (toastWidth / 2) < 10) left = (toastWidth / 2) + 10;
+        if (left + (toastWidth / 2) > window.innerWidth - 10) left = window.innerWidth - (toastWidth / 2) - 10;
+        if (top < 10) top = window.currentMouseY + 25; // Flip below cursor if too close to top edge
+        
+        toast.style.left = `${left}px`;
+        toast.style.top = `${top}px`;
+    }
+
     // Trigger reflow to ensure the CSS transition plays correctly
     void toast.offsetWidth;
     toast.classList.add('show');
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-        // Wait for the slide-out animation to finish before removing from DOM
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-}
 
-// Dedicated toast that strictly drops from the top of the screen (ignores cursor position)
-function showTopToast(message, duration = 3000) {
-    const toast = document.createElement('div');
-    toast.className = 'top-toast-notification';
-    toast.textContent = message;
-    
-    document.body.appendChild(toast);
-    
-    // Trigger reflow to ensure the CSS transition plays correctly
-    void toast.offsetWidth;
-    toast.classList.add('show');
-    
     setTimeout(() => {
         toast.classList.remove('show');
         // Wait for the slide-out animation to finish before removing from DOM

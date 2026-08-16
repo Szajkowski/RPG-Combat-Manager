@@ -62,7 +62,7 @@ function connectSocket() {
         if (isDisconnected) {
             isDisconnected = false;
             if (typeof hideDisconnectModal === 'function') hideDisconnectModal();
-            if (typeof showTopToast === 'function') showTopToast(t('connection_restored'));
+            if (typeof showNotification === 'function') showNotification(t('connection_restored'), { duration: 3000, position: 'top', theme: 'var(--theme-positive)' });
             
             // Silently fetch fresh data files so dropdowns and new spawns use the latest stats
             if (typeof reloadAllScripts === 'function') reloadAllScripts();
