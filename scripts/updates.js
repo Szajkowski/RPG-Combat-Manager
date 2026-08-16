@@ -17,44 +17,125 @@ let myClientId = null; // Stored personal client ID assigned by the server
 
 // Variable to track pending promises
 const pendingPromises = {};
+let isDisconnected = false; // Tracks connection state for the UI
+let currentServerInstanceId = null; // Tracks current server run ID
+
+// Heartbeat and connection management variables
+let heartbeatInterval = null;
+let heartbeatTimeout = null;
+let reconnectTimeout = null;
 
 function connectSocket() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${wsProtocol}//${window.location.host}`);
+    const newSocket = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
-    socket.onopen = () => {
-        socket.send(JSON.stringify({
+    // Centralized disconnect handler that executes immediately, regardless of OS TCP timeouts
+    function handleDisconnect() {
+        // CRITICAL FIX: Ignore disconnect events from old, zombie sockets
+        // If the global 'socket' variable points to a newer socket, do not ruin its state.
+        if (typeof socket !== 'undefined' && socket !== newSocket) {
+            return;
+        }
+
+        clearInterval(heartbeatInterval);
+        clearTimeout(heartbeatTimeout);
+
+        if (!isDisconnected) {
+            isDisconnected = true;
+            if (typeof showDisconnectModal === 'function') showDisconnectModal();
+        }
+
+        // Prevent multiple concurrent reconnect loops
+        if (!reconnectTimeout) {
+            reconnectTimeout = setTimeout(() => {
+                reconnectTimeout = null;
+                // Only try to reconnect if we aren't already connected or connecting
+                if (typeof socket !== 'undefined' && socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING) {
+                    socket = connectSocket();
+                }
+            }, 3000);
+        }
+    }
+
+    newSocket.onopen = () => {
+        // Handle UI recovery on reconnect
+        if (isDisconnected) {
+            isDisconnected = false;
+            if (typeof hideDisconnectModal === 'function') hideDisconnectModal();
+            if (typeof showTopToast === 'function') showTopToast(t('connection_restored'));
+            
+            // Silently fetch fresh data files so dropdowns and new spawns use the latest stats
+            if (typeof reloadAllScripts === 'function') reloadAllScripts();
+        }
+
+        // Initialize Heartbeat Engine
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => {
+            if (newSocket.readyState === WebSocket.OPEN) {
+                newSocket.send(JSON.stringify({ type: 'PING' }));
+                
+                // If the server doesn't respond with PONG within 3 seconds, connection is dead
+                heartbeatTimeout = setTimeout(() => {
+                    console.warn("Heartbeat timeout. Forcing UI disconnect.");
+                    handleDisconnect();
+                    
+                    // Attempt to free resources, but don't wait for the close event
+                    if (newSocket.readyState !== WebSocket.CLOSED) {
+                        newSocket.close(); 
+                    }
+                }, 3000);
+            }
+        }, 5000); // Check every 5 seconds
+
+        newSocket.send(JSON.stringify({
             type: "registerConnection",
             clientName: clientName
         }));
     };
 
-    socket.onerror = (error) => {
-        if (typeof showAlertDialog === 'function') {
-            showAlertDialog(t('connection_error'));
-        } else {
-            console.error('Connection error', error);
-        }
+    newSocket.onerror = (error) => {
+        console.warn('WebSocket connection encountered an error.');
     };
 
-    socket.onmessage = async (event) => {
+    newSocket.onclose = () => {
+        // Handles the case where the socket closes gracefully or abruptly before the heartbeat catches it
+        handleDisconnect();
+    };
+
+    newSocket.onmessage = async (event) => {
+        // Ignore ghost messages from old sockets just to be absolutely safe
+        if (typeof socket !== 'undefined' && socket !== newSocket) return;
+
         const data = JSON.parse(event.data);
         
         switch (data.type) {
-            // Receive the unique client ID from the server
-            case 'RESPONSEregisterConnection': {
-                myClientId = data.clientId;
-                socket.send(JSON.stringify({ type: "REQUESTgetFullState" }));
+            case 'PONG': {
+                // Clear the death-timeout because the server responded
+                clearTimeout(heartbeatTimeout);
                 break;
             }
 
-            // Replaces the entire local state with the server's state upon initial connection
-            case 'RESPONSEgetFullState': {
-                activeCombatants = data.activeCombatants;
-                activeEffects = data.activeEffects; // Sync effects
-                rollsHistory = data.rollsHistory || []; // Sync rolls
+            // Receive the unique client ID and the full server state upon initial connection
+            case 'RESPONSEregisterConnection': {
+                if (currentServerInstanceId && currentServerInstanceId !== data.serverInstanceId) {
+                    if (typeof showServerRestartModal === 'function') showServerRestartModal();
+                    return; 
+                }
+                
+                currentServerInstanceId = data.serverInstanceId;
+                myClientId = data.clientId;
+                
+                activeCombatants = data.activeCombatants || [];
+                activeEffects = data.activeEffects || []; 
+                rollsHistory = data.rollsHistory || []; 
                 
                 if (typeof renderToken === 'function') {
+                    // CRITICAL FIX: Empty the arena HTML elements before rendering tokens
+                    const heroTeam = document.getElementById('heroTeam');
+                    const enemyTeam = document.getElementById('enemyTeam');
+                    if (heroTeam) heroTeam.innerHTML = '';
+                    if (enemyTeam) enemyTeam.innerHTML = '';
+
                     activeCombatants.forEach(c => renderToken(c));
                 }
 
@@ -73,6 +154,8 @@ function connectSocket() {
                 }
                 break;
             }
+
+            // ... (reszta kodu updates.js w bloku switch bez zmian)
 
             // Lock responses
             case 'RESPONSEactionGranted': {
@@ -189,7 +272,7 @@ function connectSocket() {
         }
     };
 
-    return socket;
+    return newSocket;
 }
 
 let socket = connectSocket();
@@ -494,10 +577,3 @@ function updateServerEffects(newEffects) {
         }));
     }
 }
-
-// Ping every 30 seconds
-setInterval(() => {
-    if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'PING' }));
-    }
-}, 30000);

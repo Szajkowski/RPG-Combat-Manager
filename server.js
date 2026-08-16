@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+// Unique ID for this specific server run to detect restarts
+const serverInstanceId = Date.now().toString();
+
 // Helper function to get local LAN IPv4 address
 function getLocalIp() {
     const interfaces = os.networkInterfaces();
@@ -327,6 +330,7 @@ async function startServer() {
 
             switch (data.type) {
                 case 'PING': {
+                    socket.send(JSON.stringify({ type: 'PONG' }));
                     break;
                 }
 
@@ -339,20 +343,14 @@ async function startServer() {
                     });
                     console.log(`Connected: ${data.clientName} [ID: ${clientId}] [GM: ${isGM}]`);
                     
-                    // Send registration confirmation with assigned clientId back to the client
+                    // Send registration confirmation along with the full game state and server instance ID
                     socket.send(JSON.stringify({
                         type: 'RESPONSEregisterConnection',
-                        clientId: clientId
-                    }));
-                    break;
-                }
-
-                case 'REQUESTgetFullState': {
-                    socket.send(JSON.stringify({
-                        type: 'RESPONSEgetFullState',
-                        activeCombatants,
-                        activeEffects,
-                        rollsHistory
+                        clientId: clientId,
+                        serverInstanceId: serverInstanceId,
+                        activeCombatants: activeCombatants,
+                        activeEffects: activeEffects,
+                        rollsHistory: rollsHistory
                     }));
                     break;
                 }

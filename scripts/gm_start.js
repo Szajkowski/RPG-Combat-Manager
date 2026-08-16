@@ -336,14 +336,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Failsafe for disconnects
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
-            console.log("Returned to the page, reconnecting...");
-            socket = connectSocket();
+            console.log("Returned to the page. Auto-reconnect loop handles connection.");
+            // Disabled manual connectSocket() call here to prevent duplicate sockets 
+            // since updates.js now has an automatic 3-second reconnect loop.
 
-            // We will update this sync logic later once activeCombatants is fully implemented
             waitForSocket(() => {
                 const playerNames = Array.from(document.querySelectorAll('.character-token[data-type="player"]'))
                 .map(token => token.dataset.name);
-                if (playerNames.length > 0) updateSpecificPlayersStats(playerNames);
+                if (playerNames.length > 0 && typeof updateSpecificPlayersStats === 'function') updateSpecificPlayersStats(playerNames);
             });
         }
     });
