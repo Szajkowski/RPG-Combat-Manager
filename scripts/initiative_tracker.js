@@ -38,11 +38,17 @@ function calculateTotalTurns(combatant) {
 
 // Helper: Calculate the exact reflex steps where the character acts
 function calculateReflexStops(combatant) {
-    const totalTurns = calculateTotalTurns(combatant);
+    let totalTurns = calculateTotalTurns(combatant);
     if (totalTurns === 0) return [];
     
     const baseReflex = parseInt(combatant.stats.reflex) || 0;
     if (baseReflex <= 0) return [];
+
+    // Intentionally cap turns to reflex value to avoid an unnecessary edge case 
+    // where a character has more turns than reflex points.
+    if (totalTurns > baseReflex) {
+        totalTurns = baseReflex;
+    }
 
     let stops = [];
     // Division stops math (e.g. 30 reflex and 4 turns -> 30, 22, 15, 7)
@@ -130,50 +136,19 @@ function renderInitiativeTracker() {
 
     let html = '';
     sortedReflexes.forEach((ref, index) => {
-        // Prepare unique visual entries per reflex step, splitting Stunned turns from Normal turns
-        const uniqueEntries = [];
-        const seenIds = new Set();
-        
-        groups[ref].forEach(entry => {
-            if (!seenIds.has(entry.combatant.id)) {
-                const characterTurns = groups[ref].filter(e => e.combatant.id === entry.combatant.id);
-                const pendingTurns = characterTurns.filter(e => !e.isDone);
-                
-                if (pendingTurns.length === 0) {
-                    // All turns done at this reflex stop
-                    uniqueEntries.push({ combatant: entry.combatant, isDone: true, count: characterTurns.length, isStunned: false });
-                } else {
-                    const c = entry.combatant;
-                    const stunnedPendingCount = pendingTurns.filter(e => e.isStunnedTurn).length;
-                    
-                    if (stunnedPendingCount > 0) {
-                        // The very first pending turn consumes the stun constraint (Separate into two entries)
-                        uniqueEntries.push({ combatant: c, isDone: false, count: 1, isStunned: true });
-                        if (pendingTurns.length > 1) {
-                            // Remaining un-stunned turns pushed as a normal chunk
-                            uniqueEntries.push({ combatant: c, isDone: false, count: pendingTurns.length - 1, isStunned: false });
-                        }
-                    } else {
-                        uniqueEntries.push({ combatant: c, isDone: false, count: pendingTurns.length, isStunned: false });
-                    }
-                }
-                seenIds.add(entry.combatant.id);
-            }
-        });
-
-        // Map names with ' xN' suffix and inject stun color wrappers
-        const namesHtml = uniqueEntries.map(e => {
+        // Since totalTurns can never exceed baseReflex, a character will never have multiple actions 
+        // on the exact same reflex stop. We can just map them linearly without grouping/counting.
+        const namesHtml = groups[ref].map(e => {
             let text = e.combatant.uniqueName;
-            if (e.count > 1) text += ` x${e.count}`;
             
-            if (e.isStunned) {
+            if (e.isStunnedTurn) {
                 return `<span class="init-name-stunned" title="${t('stunned')}">${text}</span>`;
             }
             return text;
         }).join(', ');
         
         const isActive = ref === activeReflex;
-        const isDone = !isActive && uniqueEntries.every(e => e.isDone);
+        const isDone = !isActive && groups[ref].every(e => e.isDone);
 
         let slotClass = 'initiative-slot';
         if (isActive) slotClass += ' active';
@@ -205,7 +180,7 @@ function renderInitiativeTracker() {
     }, 50); 
 }
 
-// Next Turn logic: calculates turn blocks and scales down CDs based on overlapping extra turns
+// Next Turn logic: calculates turn blocks and scales down CDs
 function nextTurn(isSilent = false) {
     if (activeCombatants.length === 0) return;
 
@@ -235,50 +210,39 @@ function nextTurn(isSilent = false) {
 
     // Execute logic for all combatants participating in this reflex threshold
     const actors = groups[activeReflex];
-    
-    // Group them to count how many consecutive turns they are taking AT ONCE (Edge case handling for stacked 1 reflex)
-    const actionsPerCombatant = {};
-    actors.forEach(actor => {
-        if (!actionsPerCombatant[actor.combatant.id]) actionsPerCombatant[actor.combatant.id] = 0;
-        actionsPerCombatant[actor.combatant.id]++;
-    });
-
     const modifiedCombatants = [];
 
-    Object.keys(actionsPerCombatant).forEach(id => {
-        const c = activeCombatants.find(comb => comb.id === id);
-        let turnsToTake = actionsPerCombatant[id];
+    actors.forEach(actor => {
+        const c = activeCombatants.find(comb => comb.id === actor.combatant.id);
+        if (!c) return;
         
         // Stun strictly consumes 1 turn action and clears itself immediately
         if (c.isStunned) {
-            turnsToTake = 1;
             c.isStunned = false; 
         }
 
-        c.turnsTakenThisRound += turnsToTake;
+        c.turnsTakenThisRound += 1;
         
-        // Cooldown reductions multiplied by how many turns they technically took
+        // Cooldown reductions (reduced strictly by 1 since overlapping turns are impossible)
         if (c.abilitiesStates) {
             Object.keys(c.abilitiesStates).forEach(abilityName => {
                 const state = c.abilitiesStates[abilityName];
                 if (typeof state.currentCooldown === 'number' && state.currentCooldown > 0) {
-                    state.currentCooldown = Math.max(0, state.currentCooldown - turnsToTake);
+                    state.currentCooldown = Math.max(0, state.currentCooldown - 1);
                 }
             });
         }
         
-        // Decrement targeted effects matching the turn amount evaluated (ONLY 't' duration states)
+        // Decrement targeted effects
         if (typeof decrementEffects === 'function') {
-            for (let i = 0; i < turnsToTake; i++) {
-                decrementEffects(effect => {
-                    const durStr = String(effect.duration || '').trim();
-                    const type = durStr.slice(-1);
-                    // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
-                    const isTurnBased = type === 't' || !isNaN(type);
-                    const effectiveTarget = effect.target ? effect.target : effect.invoker;
-                    return effectiveTarget === c.uniqueName && isTurnBased;
-                });
-            }
+            decrementEffects(effect => {
+                const durStr = String(effect.duration || '').trim();
+                const type = durStr.slice(-1);
+                // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
+                const isTurnBased = type === 't' || !isNaN(type);
+                const effectiveTarget = effect.target ? effect.target : effect.invoker;
+                return effectiveTarget === c.uniqueName && isTurnBased;
+            });
         }
 
         modifiedCombatants.push(c);

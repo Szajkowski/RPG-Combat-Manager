@@ -123,9 +123,9 @@ var players = {
         ],
     },
     "Shabi Zovalt": {
-        hasDeathsDoor: true,
         lvl: 6,
         name: "Shabi Zovalt",
+        hasDeathsDoor: true,
         hp: 130,
         maxHp: 130,
         vitality: 13,

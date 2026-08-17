@@ -231,7 +231,7 @@ function saveCharacterStats(id) {
     }
 
     if (changeLogs.length === 0) {
-        showAlertDialog(t('no_changes_detected'));
+        showNotification(t('no_changes_detected'));
         return;
     }
 
@@ -287,6 +287,9 @@ function saveCharacterStats(id) {
             if (box && selectedCharacterId === combatant.id) {
                 renderCharMainPanel(combatant.id);
             }
+            
+            // Sync the updated baseline to the server so subsequent page reloads fetch the correct state
+            syncUpdateCombatant(combatant);
             
             showAlertDialog(t('save_success'));
         })

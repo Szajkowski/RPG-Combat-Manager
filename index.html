@@ -15,10 +15,9 @@
     <script id="bosses-data" src="data/bosses.js" defer></script>
     
     <script src="scripts/i18n.js" defer></script>
-    <script src="scripts/gm_settings.js" defer></script>
     <script src="scripts/utils.js" defer></script>
+    <script src="scripts/gm_settings.js" defer></script>
     <script src="scripts/audio.js" defer></script>
-    <script src="scripts/updates.js" defer></script>
     
     <script src="scripts/arena.js" defer></script>
     <script src="scripts/character_main_panel.js" defer></script>
@@ -30,6 +29,7 @@
     <script src="scripts/initiative_tracker.js" defer></script>
     
     <script src="scripts/gm_start.js" defer></script>
+    <script src="scripts/updates.js" defer></script>
 </head>
 <body>
 
@@ -140,32 +140,30 @@
         </div>
 
         <div class="arena">
-            <div class="arena-add-bar hero-bar">
-                <select id="hero-mob-select"><option disabled selected hidden data-i18n="add_mob"></option></select>
-                <select id="hero-npc-select"><option disabled selected hidden data-i18n="add_npc"></option></select>
-                <select id="hero-boss-select"><option disabled selected hidden data-i18n="add_boss"></option></select>
-                <select id="hero-player-select"><option disabled selected hidden data-i18n="add_player"></option></select>
-                <button onclick="addCharacter('character', 'hero')" data-i18n="add_character"></button>
-            </div>
-
-            <div class="arena-board">
-                <div id="heroTeam" class="arena-team">
-                    </div>
-            
-                <div class="rolls-feed" id="rolls-feed">
-                    <div class="rolls-placeholder" data-i18n="placeholder_no_rolls"></div>
-                </div>
-            
-                <div id="enemyTeam" class="arena-team">
-                    </div>
-            </div>
-
             <div class="arena-add-bar enemy-bar">
                 <select id="enemy-mob-select"><option disabled selected hidden data-i18n="add_mob"></option></select>
                 <select id="enemy-npc-select"><option disabled selected hidden data-i18n="add_npc"></option></select>
                 <select id="enemy-boss-select"><option disabled selected hidden data-i18n="add_boss"></option></select>
                 <select id="enemy-player-select"><option disabled selected hidden data-i18n="add_player"></option></select>
                 <button onclick="addCharacter('character', 'enemy')" data-i18n="add_character"></button>
+            </div>
+
+            <div class="arena-board">
+                <div id="enemyTeam" class="arena-team"></div>
+            
+                <div class="rolls-feed" id="rolls-feed">
+                    <div class="rolls-placeholder" data-i18n="placeholder_no_rolls"></div>
+                </div>
+            
+                <div id="heroTeam" class="arena-team"></div>
+            </div>
+
+            <div class="arena-add-bar hero-bar">
+                <select id="hero-mob-select"><option disabled selected hidden data-i18n="add_mob"></option></select>
+                <select id="hero-npc-select"><option disabled selected hidden data-i18n="add_npc"></option></select>
+                <select id="hero-boss-select"><option disabled selected hidden data-i18n="add_boss"></option></select>
+                <select id="hero-player-select"><option disabled selected hidden data-i18n="add_player"></option></select>
+                <button onclick="addCharacter('character', 'hero')" data-i18n="add_character"></button>
             </div>
         </div>
 
