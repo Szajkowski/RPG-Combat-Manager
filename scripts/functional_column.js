@@ -138,9 +138,11 @@ async function reloadCharacterData() {
         });
         
         syncUpdateCombatant(combatant);
+        if (typeof showNotification === 'function') showNotification(t('reload_success'), { theme: 'var(--theme-positive)' });
         
     } catch (error) {
         console.error("Error while reloading character data:", error);
+        if (typeof showNotification === 'function') showNotification(t('reload_error'), { theme: 'var(--theme-negative)' });
     }
 }
 

@@ -8,3 +8,4 @@ server.key
 *.ps1
 monolit*.js
 *.sh
+*.log

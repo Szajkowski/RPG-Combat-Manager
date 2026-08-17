@@ -28,6 +28,8 @@ const i18n = {
         'effect_invoker': 'Od:',
         'target_heroes': 'Drużyna bohaterów',
         'target_enemies': 'Drużyna przeciwników',
+        'gm_view': 'Widok Mistrza Gry',
+        'gm_action': 'Akcja MG',
         
         // Action Menu Details
         'game_master': 'Mistrz Gry',
@@ -227,18 +229,20 @@ const i18n = {
         'pasted': 'Wklejono:',
         'copy_error': 'Błąd kopiowania!',
         'paste_error': 'Błąd wklejania z domyślnego schowka!',
-        'no_stats_error': 'Brak wymaganych pól statystyki!',
         'invalid_url': 'Brak poprawnych graczy w URL!',
         'connection_error': 'Utracono połączenie z serwerem',
         'connection_restored': 'Odzyskano połączenie z serwerem',
         'server_busy': 'Inna akcja w trakcie, spróbuj za chwilę.',
         'server_restarted': 'Serwer został zrestartowany. Wymagane odświeżenie strony, aby poprawnie załadować nowy stan pamięci.',
+        'reload_success': 'Pomyślnie przeładowano postać.',
+        'reload_error': 'Błąd podczas przeładowywania postaci!',
 
         'btn_reload': 'Odśwież stronę',
         'btn_ok': 'OK',
         'btn_yes': 'Tak',
         'btn_no': 'Nie',
 
+        'error_no_stats': 'Brak statystyk wymaganych do rzutu.',
         'error_force_roll_missing': 'Błąd logiki: Akcja wymaga "forceRoll", ale brakuje parametru "forceRollDifficulty"!',
         'error_armor_missing_vals': 'Błąd logiki: Akcja pancerza wymaga przynajmniej jednej wartości (physArmorValue, physArmorValuePerc, itp.).',
         'error_armor_mixed_stats': 'Błąd logiki: Akcja pancerza dodaje i odejmuje statystyki naraz, przy jednoczesnym wymogu rzutu/ów. Wymagana flaga "isActionBeneficial" w obiekcie akcji!',
@@ -277,9 +281,10 @@ const i18n = {
         'target_team_ally': 'Ally team',
         'target_all': 'Everyone',
         'effect_invoker': 'From:',
-
         'target_heroes': 'Hero Team',
         'target_enemies': 'Enemy Team',
+        'gm_view': 'Game Master View',
+        'gm_action': 'GM Action',
 
         // Action Menu Details
         'game_master': 'Game Master',
@@ -482,18 +487,20 @@ const i18n = {
         'pasted': 'Pasted:',
         'copy_error': 'Copy error!',
         'paste_error': 'Paste error from clipboard!',
-        'no_stats_error': 'Required stat fields missing!',
         'invalid_url': 'No valid players in URL!',
         'connection_error': 'Connection to the server was lost', 
         'connection_restored': 'Connection to the server restored',
         'server_busy': 'Another action in progress, please wait.',
         'server_restarted': 'The server was restarted. Page refresh is required to correctly load the new memory state.',
+        'reload_success': 'Character reloaded successfully.',
+        'reload_error': 'Error reloading character!',
 
         'btn_reload': 'Refresh page',
         'btn_ok': 'OK',
         'btn_yes': 'Yes',
         'btn_no': 'No',
 
+        'error_no_stats': 'Stats required for this ability are missing.',
         'error_force_roll_missing': 'Logic Error: Action requires "forceRoll" but "forceRollDifficulty" is missing!',
         'error_armor_missing_vals': 'Logic Error: Armor action requires at least one value field (physArmorValue, physArmorValuePerc, etc.).',
         'error_armor_mixed_stats': 'Logic Error: Armor action applies mixed stats (+ and -) and forced rolls. Requires "isActionBeneficial" flag on the action object!',

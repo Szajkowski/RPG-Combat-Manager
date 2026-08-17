@@ -377,22 +377,33 @@ async function useAbility(combatantId, ability, event) {
         let totalResult = 0;
         let combinedBreakdown = [];
         let hasBase = false;
+        let missingStat = false; // Tracks if the required stat does not exist at all on the character
 
         stats.forEach(stat => {
-            const baseStat = parseInt(updatedCombatant.stats[stat]) || 0;
-            if (baseStat > 0) {
-                hasBase = true;
-                const modValue = parseInt(updatedCombatant.stats[`${stat}Mod`]) || 0;
-                const roll = Math.floor(Math.random() * baseStat) + 1;
-                const finalRes = Math.max(1, roll + modValue);
-                totalResult += finalRes;
-                combinedBreakdown.push({ stat: stat, roll: roll, mod: modValue, total: finalRes });
+            if (updatedCombatant.stats[stat] === undefined && updatedCombatant.stats[`${stat}Mod`] === undefined) {
+                missingStat = true;
+            } else {
+                const baseStat = parseInt(updatedCombatant.stats[stat]) || 0;
+                if (baseStat > 0) {
+                    hasBase = true;
+                    const modValue = parseInt(updatedCombatant.stats[`${stat}Mod`]) || 0;
+                    const roll = Math.floor(Math.random() * baseStat) + 1;
+                    const finalRes = Math.max(1, roll + modValue);
+                    totalResult += finalRes;
+                    combinedBreakdown.push({ stat: stat, roll: roll, mod: modValue, total: finalRes });
+                }
             }
         });
 
+        // Abort the ability entirely if a required stat doesn't exist
+        if (missingStat) {
+            if (typeof showAlertDialog === 'function') showAlertDialog(t('error_no_stats'));
+            return;
+        }
+
         if (hasBase) {
             success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
-            const groupColor = success ? 'text-success' : 'text-fail';
+            const groupColor = success ? 'text-positive' : 'text-negative';
             initialRollsData.push({
                 stat: ability.roll,
                 result: totalResult,

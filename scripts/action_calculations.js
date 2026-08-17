@@ -127,7 +127,7 @@ function validateActionPayload(payload, attacker, rollData) {
         for (const eff of payload.effects) {
             // Forced rolls require effects to explicitly declare if they are beneficial
             if (actionHasForcedRolls && eff.effectIsBeneficial === undefined) {
-                let fallbackName = eff.effectName || eff.name || 'Effect';
+                let fallbackName = eff.effectName || eff.name || t('effect');
                 return t('error_effect_missing_flag').replace('{name}', fallbackName);
             }
             if (eff.effectIsBeneficial === true) hasPositive = true;

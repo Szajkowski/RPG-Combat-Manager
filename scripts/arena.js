@@ -376,22 +376,32 @@ function tryAppendToGroupedRoll(event, feed, animate) {
     
     const defNameClass = event.defenderTeam === 'hero' ? 'text-hero' : (event.defenderTeam === 'enemy' ? 'text-enemy' : 'text-other');
     const defNameHtml = `<div class="roll-char-name ${defNameClass}" title="${event.defenderName}">${event.defenderName}</div>`;
-    const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam)).join('');
     
-    let clashPillarHtml = '';
+    let clashHtmlArray = [];
     if (event.opposedRolls && event.opposedRolls.length > 0) {
-        clashPillarHtml = event.opposedRolls.map(opp => `
+        clashHtmlArray = event.opposedRolls.map(opp => `
             <div class="vs-block">
                 ${createRollPillHtml(opp.attRoll, animate, event.attackerTeam)}
                 <div class="vs-text" data-i18n="vs">${t('vs')}</div>
                 ${createRollPillHtml(opp.defRoll, animate, event.defenderTeam)}
             </div>
-        `).join('');
+        `);
+    }
+    
+    const defSingleHtmlArray = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam));
+    const defBlocks = [...clashHtmlArray, ...defSingleHtmlArray];
+    
+    let defPillarHtml = '';
+    if (defBlocks.length > 0) {
+        // Group the name with the first roll block to prevent visual separation on line wrap
+        defPillarHtml = `<div class="roll-name-group">${defNameHtml}${defBlocks[0]}</div>${defBlocks.slice(1).join('')}`;
+    } else {
+        defPillarHtml = defNameHtml;
     }
 
     const defPillar = document.createElement('div');
     defPillar.className = 'roll-pillar';
-    defPillar.innerHTML = defNameHtml + clashPillarHtml + defSingleHtml;
+    defPillar.innerHTML = defPillarHtml;
     
     container.appendChild(connector);
     container.appendChild(defPillar);
@@ -438,27 +448,41 @@ function buildTargetedRollHtml(event, animate) {
         attRolls.push(...event.defenderSingleRolls);
     }
     
-    const attSingleHtml = attRolls.map(r => createRollPillHtml(r, animate, event.attackerTeam)).join('');
-    const attPillar = `<div class="roll-pillar">${attNameHtml}${attSingleHtml}</div>`;
+    const attSingleHtmlArray = attRolls.map(r => createRollPillHtml(r, animate, event.attackerTeam));
+    
+    let attPillar = '';
+    if (attSingleHtmlArray.length > 0) {
+        attPillar = `<div class="roll-pillar"><div class="roll-name-group">${attNameHtml}${attSingleHtmlArray[0]}</div>${attSingleHtmlArray.slice(1).join('')}</div>`;
+    } else {
+        attPillar = `<div class="roll-pillar">${attNameHtml}</div>`;
+    }
 
     let flowElements = [attPillar];
 
     // Only generate Defender pillar if it's NOT self-targeted
     if (!isSelf) {
-        let clashHtml = '';
+        let clashHtmlArray = [];
         if (event.opposedRolls && event.opposedRolls.length > 0) {
-            clashHtml = event.opposedRolls.map(opp => `
+            clashHtmlArray = event.opposedRolls.map(opp => `
                 <div class="vs-block">
                     ${createRollPillHtml(opp.attRoll, animate, event.attackerTeam)}
                     <div class="vs-text" data-i18n="vs">${t('vs')}</div>
                     ${createRollPillHtml(opp.defRoll, animate, event.defenderTeam)}
                 </div>
-            `).join('');
+            `);
         }
 
         const defNameHtml = `<div class="roll-char-name ${nameColorDef}" title="${event.defenderName}">${event.defenderName}</div>`;
-        const defSingleHtml = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam)).join('');
-        const defPillar = `<div class="roll-pillar">${defNameHtml}${clashHtml}${defSingleHtml}</div>`;
+        const defSingleHtmlArray = (event.defenderSingleRolls || []).map(r => createRollPillHtml(r, animate, event.defenderTeam));
+        
+        const defBlocks = [...clashHtmlArray, ...defSingleHtmlArray];
+        
+        let defPillar = '';
+        if (defBlocks.length > 0) {
+            defPillar = `<div class="roll-pillar"><div class="roll-name-group">${defNameHtml}${defBlocks[0]}</div>${defBlocks.slice(1).join('')}</div>`;
+        } else {
+            defPillar = `<div class="roll-pillar">${defNameHtml}</div>`;
+        }
 
         flowElements.push(defPillar);
     }
@@ -473,18 +497,18 @@ function buildTargetedRollHtml(event, animate) {
 // Builds HTML for standalone rolls
 function buildStandaloneRollHtml(event, animate) {
     const nameColorClass = event.combatantTeam === 'hero' ? 'text-hero' : (event.combatantTeam === 'enemy' ? 'text-enemy' : 'text-other');
+    const nameHtml = `<div class="roll-char-name ${nameColorClass}" title="${event.combatantName}">${event.combatantName}</div>`;
+    
+    const rollsHtmlArray = event.rolls.map(r => createRollPillHtml(r, animate, event.combatantTeam));
 
-    let rollsHtml = '';
-    event.rolls.forEach(r => {
-        rollsHtml += createRollPillHtml(r, animate, event.combatantTeam);
-    });
-
-    return `
-        <div class="roll-char-name ${nameColorClass}" title="${event.combatantName}">${event.combatantName}</div>
-        <div class="roll-results">
-            ${rollsHtml}
-        </div>
-    `;
+    if (rollsHtmlArray.length > 0) {
+        return `
+            <div class="roll-name-group">${nameHtml}${rollsHtmlArray[0]}</div>
+            ${rollsHtmlArray.slice(1).join('')}
+        `;
+    } else {
+        return nameHtml;
+    }
 }
 
 // Retrieves a flat array of all roll objects mapped within the event structure

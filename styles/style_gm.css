@@ -219,7 +219,6 @@ body {
     border-radius: 20px; 
     display: flex; 
     gap: 8px; 
-    align-items: baseline; /* Typographical alignment instead of geometric */
     flex-shrink: 0;
     transition: all 0.3s ease;
 }
@@ -898,20 +897,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .gm-dice-neutral { color: var(--text-main); }
 .gm-dice-hidden { color: transparent !important; }
 
-.arena-rolls-container {
-    background: var(--bg-rolls);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    z-index: 10;
-    height: 114px; 
-    width: 100%; 
-    box-sizing: border-box;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
-}
-
 .rolls-header {
     padding: 4px 15px;
     background: var(--bg-panel);
@@ -927,6 +912,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .rolls-feed {
+    background: var(--bg-rolls);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+    max-height: 114px; 
+    width: 100%; 
+    box-sizing: border-box;
     position: relative;
     padding: 8px;
     overflow-y: auto;
@@ -935,7 +927,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     align-content: flex-start; 
     gap: 8px; 
     flex-grow: 1;
+    flex-shrink: 0;
+    z-index: 10;
     scrollbar-width: thin; 
+    scroll-snap-type: y mandatory; 
+    scroll-padding-bottom: 8px; 
 }
 
 .rolls-placeholder {
@@ -955,15 +951,22 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     pointer-events: none; 
 }
 
- .roll-event-row {
+.roll-event-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap; /* Allows inner elements to wrap naturally */
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 4px 8px;
     gap: 8px;
     animation: slideIn 0.2s ease-out;
+    scroll-snap-align: end;
+}
+
+/* Bypasses flex hierarchy for these containers so their children flow as direct items of .roll-event-row */
+.targeted-roll-container, .roll-pillar {
+    display: contents;
 }
 
 .roll-char-name {
@@ -974,10 +977,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     flex-shrink: 0;
 }
 
-.roll-results {
+.roll-name-group {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
 }
 
 .roll-pill {
@@ -1153,7 +1157,7 @@ body.targeting-mode .arena-add-bar {
     pointer-events: none;
 }
 
-body.targeting-mode .arena-rolls-container {
+body.targeting-mode .rolls-feed {
     opacity: 0.3;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -1161,23 +1165,6 @@ body.targeting-mode .arena-rolls-container {
 
 body.targeting-mode .token-delete-btn { display: none !important; }
 body.targeting-mode .character-token { transform: none !important; }
-
-/* TARGETED ROLLS */
-.targeted-roll-container {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    justify-content: flex-start;
-    gap: 8px;
-    flex-wrap: wrap; 
-}
-
-.roll-pillar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
 
 .vs-block {
     display: flex;

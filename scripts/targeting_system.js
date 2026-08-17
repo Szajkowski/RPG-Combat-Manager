@@ -627,7 +627,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
         // Damage handler natively appends Death's Door checks inside the same visual package block
         const hitSuccess = await resolveDamageAction(attacker, target, payload, evalRes, skipSync);
         if (hitSuccess && payload.effects) {
-            processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
+            processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || t('effect'), "target", evalData);
         }
         return hitSuccess;
     } else {
@@ -649,7 +649,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
             
             // Attach explicitly linked target effects
             if (payload.effects) {
-                processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || "Effect", "target", evalData);
+                processAndSendEffects(attacker.uniqueName, target.uniqueName, payload, payload.name || t('effect'), "target", evalData);
             }
 
             return true;

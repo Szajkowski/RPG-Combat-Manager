@@ -202,7 +202,7 @@ async function executeGmAction(event) {
         const widget = document.querySelector('.gm-action-widget');
         if (widget) widget.classList.add('locked-open');
         
-        startActionPipeline(gmAttacker, [payload], { name: 'GM Action' }, null, event, false);
+        startActionPipeline(gmAttacker, [payload], { name: t('gm_action') }, null, event, false);
     } else {
         syncReleaseActionLock(); // Failsafe
     }
