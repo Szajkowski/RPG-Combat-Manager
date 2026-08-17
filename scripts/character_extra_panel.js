@@ -1,6 +1,6 @@
 // Main entry point for rendering the Extra Panel (Skills & Equipment tabs)
 function renderExtraPanel(combatantId) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
+    const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return;
 
     const extraPanel = document.getElementById('panel-extra');
@@ -200,7 +200,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
 
             // Determine specific logical exceptions checking properties directly
             const isReaction = ability.properties && ability.properties.includes('prop_reaction');
-            const hasTurn = typeof hasCurrentTurn === 'function' ? hasCurrentTurn(combatant.id) : true;
+            const hasTurn = executeSafely(() => hasCurrentTurn(combatant.id)) ?? true;
 
             // Block ability if character is dead
             if (combatant.isDead) {
@@ -360,7 +360,7 @@ function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) 
 
 // Routes abilities, resolves multi-dice arrays securely and prepares sequence pipelines utilizing optimistic locks
 async function useAbility(combatantId, ability, event) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
+    const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return;
 
     // Clone the combatant state before modifying to prepare a bundled request payload for the server
@@ -397,7 +397,7 @@ async function useAbility(combatantId, ability, event) {
 
         // Abort the ability entirely if a required stat doesn't exist
         if (missingStat) {
-            if (typeof showAlertDialog === 'function') showAlertDialog(t('error_no_stats'));
+            executeSafely(() => showAlertDialog(t('error_no_stats')));
             return;
         }
 

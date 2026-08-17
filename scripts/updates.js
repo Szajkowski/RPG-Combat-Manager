@@ -9,7 +9,7 @@ if (rawPath && !rawPath.includes("index.html") && !rawPath.includes("player.html
 }
 
 // --- GLOBAL STATE MOVED TO NETWORK FOR ALL CLIENTS ---
-let activeCombatants = []; // Holds all active characters data and their current stats
+let activeCharacters = []; // Holds all active characters data and their current stats
 let activeEffects = []; // Holds all active effects
 let rollsHistory = []; // Tracks historical roll events
 let selectedCharacterId = null; // Tracks currently selected character token on the arena
@@ -42,7 +42,7 @@ function connectSocket() {
 
         if (!isDisconnected) {
             isDisconnected = true;
-            if (typeof showDisconnectModal === 'function') showDisconnectModal();
+            executeSafely(() => showDisconnectModal());
         }
 
         // Prevent multiple concurrent reconnect loops
@@ -61,11 +61,11 @@ function connectSocket() {
         // Handle UI recovery on reconnect
         if (isDisconnected) {
             isDisconnected = false;
-            if (typeof hideDisconnectModal === 'function') hideDisconnectModal();
-            if (typeof showNotification === 'function') showNotification(t('connection_restored'), { duration: 3000, position: 'top', theme: 'var(--theme-positive)' });
+            executeSafely(() =>  hideDisconnectModal());
+            executeSafely(() => showNotification(t('connection_restored'), { duration: 3000, position: 'top', theme: 'var(--theme-positive)' }));
             
             // Silently fetch fresh data files so dropdowns and new spawns use the latest stats
-            if (typeof reloadAllScripts === 'function') reloadAllScripts();
+            executeSafely(() =>  reloadAllScripts());
         }
 
         // Initialize Heartbeat Engine
@@ -118,44 +118,40 @@ function connectSocket() {
             // Receive the unique client ID and the full server state upon initial connection
             case 'RESPONSEregisterConnection': {
                 if (currentServerInstanceId && currentServerInstanceId !== data.serverInstanceId) {
-                    if (typeof showServerRestartModal === 'function') showServerRestartModal();
+                    executeSafely(() =>  showServerRestartModal());
                     return; 
                 }
                 
                 currentServerInstanceId = data.serverInstanceId;
                 myClientId = data.clientId;
                 
-                activeCombatants = data.activeCombatants || [];
+                activeCharacters = data.activeCharacters || [];
                 activeEffects = data.activeEffects || []; 
                 rollsHistory = data.rollsHistory || []; 
                 
-                if (typeof renderToken === 'function') {
-                    // CRITICAL FIX: Empty the arena HTML elements before rendering tokens
-                    const heroTeam = document.getElementById('heroTeam');
-                    const enemyTeam = document.getElementById('enemyTeam');
-                    if (heroTeam) heroTeam.innerHTML = '';
-                    if (enemyTeam) enemyTeam.innerHTML = '';
+                // Empty the arena HTML elements before rendering tokens
+                const heroTeam = document.getElementById('heroTeam');
+                const enemyTeam = document.getElementById('enemyTeam');
+                if (heroTeam) heroTeam.innerHTML = '';
+                if (enemyTeam) enemyTeam.innerHTML = '';
 
-                    activeCombatants.forEach(c => renderToken(c));
-                }
+                executeSafely(() => activeCharacters.forEach(c => renderToken(c)));
 
                 // Render dynamic HUDs
-                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
-                if (typeof renderEffects === 'function') renderEffects();
-                if (typeof renderRollsFeed === 'function') renderRollsFeed(rollsHistory);
+                executeSafely(() => renderInitiativeTracker());
+                executeSafely(() => renderEffects());
+                executeSafely(() => renderRollsFeed(rollsHistory));
 
                 // Initialize empty states properly
-                if (typeof checkArenaEmptyStates === 'function') checkArenaEmptyStates();
-                if (!selectedCharacterId && typeof checkCharMainPanelEmptyState === 'function') checkCharMainPanelEmptyState();
+                executeSafely(() => checkArenaEmptyStates());
+                if (!selectedCharacterId) executeSafely(() => checkCharMainPanelEmptyState());
 
                 // Load initial characters from config.ini ONLY if the server responded with an empty list
-                if (activeCombatants.length === 0 && clientName === "GM" && typeof loadInitialConfigCharacters === 'function') {
-                    loadInitialConfigCharacters();
+                if (activeCharacters.length === 0 && clientName === "GM") {
+                    executeSafely(() =>loadInitialConfigCharacters());
                 }
                 break;
             }
-
-            // ... (reszta kodu updates.js w bloku switch bez zmian)
 
             // Lock responses
             case 'RESPONSEactionGranted': {
@@ -176,27 +172,25 @@ function connectSocket() {
             }
 
             case 'BROADCASTaddCombatant': {
-                if (!activeCombatants.find(c => c.id === data.combatant.id)) {
-                    activeCombatants.push(data.combatant);
+                if (!activeCharacters.find(c => c.id === data.combatant.id)) {
+                    activeCharacters.push(data.combatant);
                 }
-                if (typeof renderToken === 'function') renderToken(data.combatant);
-                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                executeSafely(() => renderToken(data.combatant));
+                executeSafely(() => renderInitiativeTracker());
                 break;
             }
 
             case 'BROADCASTupdateCombatant': {
-                const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                const index = activeCharacters.findIndex(c => c.id === data.combatant.id);
                 if (index !== -1) {
                     // Play associated system sound if the payload contains it
                     if (data.systemSound) {
-                        if (typeof playSoundEffect === 'function') {
-                            playSoundEffect(`sound/${data.systemSound}.mp3`, 0.5);
-                        }
+                        executeSafely(() => playSoundEffect(`sound/${data.systemSound}.mp3`, 0.5));   
                     }
 
-                    activeCombatants[index] = data.combatant;
-                    refreshCombatantDisplay(activeCombatants[index]);
-                    if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                    activeCharacters[index] = data.combatant;
+                    refreshCombatantDisplay(activeCharacters[index]);
+                    executeSafely(() => renderInitiativeTracker());
                 }
                 break;
             }
@@ -205,23 +199,23 @@ function connectSocket() {
                 // Update local instances in a batch
                 if (Array.isArray(data.combatants)) {
                     data.combatants.forEach(updatedC => {
-                        const index = activeCombatants.findIndex(c => c.id === updatedC.id);
+                        const index = activeCharacters.findIndex(c => c.id === updatedC.id);
                         if (index !== -1) {
-                            activeCombatants[index] = updatedC;
+                            activeCharacters[index] = updatedC;
                         }
                     });
                     
                     // Call the bulk UI refresh function
-                    if (typeof refreshDisplay === 'function') refreshDisplay(data.combatants);
-                    if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                    executeSafely(() => refreshDisplay(data.combatants));
+                    executeSafely(() => renderInitiativeTracker());
                 }
                 break;
             }
 
             case 'BROADCASTremoveCombatant': {
-                const indexToRemove = activeCombatants.findIndex(c => c.id === data.id);
+                const indexToRemove = activeCharacters.findIndex(c => c.id === data.id);
                 if (indexToRemove !== -1) {
-                    activeCombatants.splice(indexToRemove, 1);
+                    activeCharacters.splice(indexToRemove, 1);
                 }
                 
                 const token = document.querySelector(`.character-token[data-id="${data.id}"]`);
@@ -233,37 +227,35 @@ function connectSocket() {
                 }
 
                 // Trigger reactive checks for empty states across the layout
-                if (typeof checkCharMainPanelEmptyState === 'function') checkCharMainPanelEmptyState();
-                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
-                if (typeof checkArenaEmptyStates === 'function') checkArenaEmptyStates();
+                executeSafely(() => checkCharMainPanelEmptyState());
+                executeSafely(() => renderInitiativeTracker());
+                executeSafely(() => checkArenaEmptyStates());
                 break;
             }
 
             case "BROADCASTaddEffect": {
                 activeEffects = data.activeEffects;
-                if (typeof renderEffects === 'function') renderEffects();
-                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                executeSafely(() => renderEffects());
+                executeSafely(() => renderInitiativeTracker());
                 break;
             }
 
             case "BROADCASTupdateEffects": {
                 activeEffects = data.activeEffects;
-                if (typeof renderEffects === 'function') renderEffects();
-                if (typeof renderInitiativeTracker === 'function') renderInitiativeTracker();
+                executeSafely(() => renderEffects());
+                executeSafely(() => renderInitiativeTracker());
                 break;
             }
 
             case 'BROADCASTaddRollEvent': {
                 rollsHistory.push(data.rollEvent);
                 if (rollsHistory.length > 50) rollsHistory.shift();
-                if (typeof appendRollEvent === 'function') appendRollEvent(data.rollEvent, true);
+                executeSafely(() => appendRollEvent(data.rollEvent, true));
                 break;
             }
 
             case 'BROADCASTplayActionSequence': {
-                if (typeof playActionSequence === 'function') {
-                    playActionSequence(data.payload);
-                }
+                executeSafely(() => playActionSequence(data.payload));
                 break;
             }
                 
@@ -389,7 +381,7 @@ function syncPlayActionSequence(payload) {
 // Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
 async function playActionSequence(payload) {
     const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, ddSteps, stepId, isAuto, hasPhysFlat, hasPhysPerc, hasMagFlat, hasMagPerc, isMixedSound, isStunned } = payload;
-    const target = activeCombatants.find(c => c.id === targetId);
+    const target = activeCharacters.find(c => c.id === targetId);
     if (!target) return;
 
     // Define sequenceDelay inline to allow awaiting independent blocks smoothly
@@ -544,7 +536,7 @@ function updateRightPanelDisplay(combatant) {
     safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
 
     // Completely re-render Extra Panel to recalculate formulas and success rates in real-time
-    if (typeof renderExtraPanel === 'function') renderExtraPanel(combatant.id);
+    executeSafely(() => renderExtraPanel(combatant.id));
 
     // Dynamic rebuild of the functional column (ensures Resurrect button appears instantly)
     const charFunctional = document.getElementById('panel-char-functional');
@@ -561,7 +553,7 @@ function refreshDisplay(combatantsArray) {
     });
 
     // Update effects globally once per batch update
-    if (typeof renderEffects === 'function') renderEffects();
+    executeSafely(() => renderEffects());
 }
 
 // Fallback legacy UI Updater routing single updates specifically through batch rendering engine constraints

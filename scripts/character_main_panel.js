@@ -17,7 +17,7 @@ function selectCharacter(id) {
 }
 
 function renderCharMainPanel(id) {
-    const combatant = activeCombatants.find(c => c.id === id);
+    const combatant = activeCharacters.find(c => c.id === id);
     if (!combatant) return;
 
     const mainPanel = document.getElementById('characterDetailsPanel');
@@ -104,7 +104,7 @@ function renderCharMainPanel(id) {
 
     // 3. Render Extra Panel
     bindMainPanelInputs(combatant);
-    if (typeof renderExtraPanel === 'function') renderExtraPanel(id);
+    executeSafely(() => renderExtraPanel(id));
 
     // 4. Render Functional Column (.char-functional-col)
     charFunctional.innerHTML = generateFunctionalColumn(combatant);
@@ -308,7 +308,7 @@ function evaluateFormula(formula, stats) {
     }
 }
 
-// Binds inputs from the Right Panel directly to the activeCombatants state
+// Binds inputs from the Right Panel directly to the activeCharacters state
 function bindMainPanelInputs(combatantData) {
     const charSheet = document.getElementById('panel-char-sheet');
 
@@ -317,7 +317,7 @@ function bindMainPanelInputs(combatantData) {
     if (nameInput) {
         nameInput.addEventListener('change', (e) => {
             // ALWAYS fetch the freshest memory object to avoid overwriting network changes (like HP)
-            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            const freshCombatant = activeCharacters.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
 
             freshCombatant.uniqueName = e.target.value;
@@ -329,7 +329,7 @@ function bindMainPanelInputs(combatantData) {
     const coreInputs = charSheet.querySelectorAll('.stat-val-input:not(.base-damage-input), .stat-mod-input');
     coreInputs.forEach(input => {
         input.addEventListener('change', (e) => {
-            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            const freshCombatant = activeCharacters.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
             
             const statKey = e.target.dataset.stat;
@@ -349,9 +349,7 @@ function bindMainPanelInputs(combatantData) {
 
             freshCombatant.stats[statKey] = val;
             
-            if (typeof recalculateAdditionalStats === 'function') {
-                recalculateAdditionalStats(freshCombatant);
-            }
+            executeSafely(() => recalculateAdditionalStats(freshCombatant));
             
             syncUpdateCombatant(freshCombatant);
         });
@@ -361,7 +359,7 @@ function bindMainPanelInputs(combatantData) {
     const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-phys-armor-mod, .base-mag-armor, .base-mag-armor-mod');
     additionalInputs.forEach(input => {
         input.addEventListener('change', (e) => {
-            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            const freshCombatant = activeCharacters.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
 
             if (e.target.classList.contains('base-damage-input')) freshCombatant.stats.damage = e.target.value;
@@ -378,7 +376,7 @@ function bindMainPanelInputs(combatantData) {
     const hpInputs = charSheet.querySelectorAll('.current-hp-input, .max-hp-input');
     hpInputs.forEach(input => {
         input.addEventListener('change', (e) => {
-            const freshCombatant = activeCombatants.find(c => c.id === combatantData.id);
+            const freshCombatant = activeCharacters.find(c => c.id === combatantData.id);
             if(!freshCombatant) return;
 
             if (e.target.classList.contains('current-hp-input')) freshCombatant.stats.hp = parseInt(e.target.value) || 0;
@@ -446,7 +444,7 @@ function checkCharMainPanelEmptyState() {
     if (!mainPanel) return;
 
     // Determine if the panel should be empty (no character selected or character no longer exists)
-    const isEmpty = !selectedCharacterId || !activeCombatants.some(c => c.id === selectedCharacterId);
+    const isEmpty = !selectedCharacterId || !activeCharacters.some(c => c.id === selectedCharacterId);
 
     const sheetEl = document.getElementById('panel-char-sheet');
     const functionalEl = document.getElementById('panel-char-functional');

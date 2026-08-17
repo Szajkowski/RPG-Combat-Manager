@@ -1,104 +1,3 @@
-// --- RELOADING SCRIPTS ---
-
-// Generic helper to reload a script dynamically
-async function reloadScript(scriptId, srcPath) {
-    const oldScript = document.querySelector(`#${scriptId}`);
-    if (oldScript) oldScript.remove();
-    
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.id = scriptId;
-        // Adding a timestamp prevents the browser from loading a cached version of the file
-        script.src = `${srcPath}?t=${new Date().getTime()}`;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Error loading ${srcPath}`));
-        document.body.appendChild(script);
-    });
-}
-
-// Silently reloads all data scripts without modifying the current active combatants state
-async function reloadAllScripts() {
-    try {
-        // Order is strict: abilities must be loaded first so character templates reference the new ability objects
-        await reloadScript('abilities-data', 'data/abilities.js');
-        await reloadScript('players-data', 'data/players.js');
-        await reloadScript('mobs-data', 'data/mobs.js');
-        await reloadScript('npcs-data', 'data/npcs.js');
-        await reloadScript('bosses-data', 'data/bosses.js');
-        
-        console.log("All data scripts reloaded silently.");
-    } catch (error) {
-        console.error("Error reloading scripts silently:", error);
-    }
-}
-
-// Reloads all data scripts sequentially and applies changes to all active combatants on the board
-async function reloadServerData() {
-    try {
-        await reloadAllScripts();
-        
-        const modifiedCombatants = [];
-        
-        for (let combatant of activeCombatants) {
-            // We can only refresh characters that originate from a data file
-            if (!combatant.baseName) continue;
-            
-            let freshData = null;
-            if (combatant.type === 'player') freshData = players[combatant.baseName];
-            else if (combatant.type === 'mob') freshData = mobs[combatant.baseName];
-            else if (combatant.type === 'npc') freshData = npcs[combatant.baseName];
-            else if (combatant.type === 'boss') freshData = bosses[combatant.baseName];
-
-            if (!freshData) continue;
-
-            // Apply equipment math to get the final stats based on fresh data
-            const finalStats = applyGearBonuses(freshData);
-            if (finalStats.hp === undefined) finalStats.hp = 10;
-            if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
-
-            const currentHp = combatant.stats.hp;
-            
-            combatant.stats = finalStats;
-            combatant.baselineStats = JSON.parse(JSON.stringify(finalStats));
-            combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
-            
-            combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
-            combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
-
-            // Maintain cooldown states for abilities that already existed, initialize new ones
-            combatant.abilities.forEach(ability => {
-                if (!combatant.abilitiesStates[ability.name]) {
-                    const isSingleUse = ability.cooldown === "[cooldown_once]";
-                    const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
-                    combatant.abilitiesStates[ability.name] = {
-                        currentCooldown: 0,
-                        maxCooldown: maxCooldown,
-                        singleUse: isSingleUse
-                    };
-                }
-            });
-
-            modifiedCombatants.push(combatant);
-        }
-        
-        // Broadcast updates dynamically using the batch update function
-        if (modifiedCombatants.length > 0) {
-            if (typeof syncUpdateCombatantsBatch === 'function') {
-                syncUpdateCombatantsBatch(modifiedCombatants);
-            }
-        }
-        
-        if (typeof showNotification === 'function') {
-            showNotification(t('data_scripts_reloaded'));
-        }
-    } catch (error) {
-        console.error("Error reloading server data:", error);
-        if (typeof showAlertDialog === 'function') {
-            showAlertDialog(t('data_scripts_reload_error'));
-        }
-    }
-}
-
 // --- COPYING AND PASTING ---
 
 async function copyInputValue(input) {
@@ -140,10 +39,7 @@ function pasteValueToInput(input) {
     
     // Clear local memory, but don't touch the clipboard. That way you can paste something once, but also ctrl+v it if you need the value multiple times
     window.lastCopiedRPGValue = null;
-
-    if (typeof showNotification === 'function') {
-        showNotification(`${t('pasted')} ${trimmed}`, { duration: 1200 });
-    }
+    showNotification(`${t('pasted')} ${trimmed}`, { duration: 1200 });
 }
 
 // --- NOTIFICATIONS ---
@@ -492,6 +388,101 @@ function showServerRestartModal() {
     updateModalStack();
 }
 
+// --- RELOADING SCRIPTS ---
+
+// Generic helper to reload a script dynamically
+async function reloadScript(scriptId, srcPath) {
+    const oldScript = document.querySelector(`#${scriptId}`);
+    if (oldScript) oldScript.remove();
+    
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.id = scriptId;
+        // Adding a timestamp prevents the browser from loading a cached version of the file
+        script.src = `${srcPath}?t=${new Date().getTime()}`;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`Error loading ${srcPath}`));
+        document.body.appendChild(script);
+    });
+}
+
+// Silently reloads all data scripts without modifying the current active combatants state
+async function reloadAllScripts() {
+    try {
+        // Order is strict: abilities must be loaded first so character templates reference the new ability objects
+        await reloadScript('abilities-data', 'data/abilities.js');
+        await reloadScript('players-data', 'data/players.js');
+        await reloadScript('mobs-data', 'data/mobs.js');
+        await reloadScript('npcs-data', 'data/npcs.js');
+        await reloadScript('bosses-data', 'data/bosses.js');
+        
+        console.log("All data scripts reloaded silently.");
+    } catch (error) {
+        console.error("Error reloading scripts silently:", error);
+    }
+}
+
+// Reloads all data scripts sequentially and applies changes to all active combatants on the board
+async function reloadServerData() {
+    try {
+        await reloadAllScripts();
+        
+        const modifiedCombatants = [];
+        
+        for (let combatant of activeCharacters) {
+            // We can only refresh characters that originate from a data file
+            if (!combatant.baseName) continue;
+            
+            let freshData = null;
+            if (combatant.type === 'player') freshData = players[combatant.baseName];
+            else if (combatant.type === 'mob') freshData = mobs[combatant.baseName];
+            else if (combatant.type === 'npc') freshData = npcs[combatant.baseName];
+            else if (combatant.type === 'boss') freshData = bosses[combatant.baseName];
+
+            if (!freshData) continue;
+
+            // Apply equipment math to get the final stats based on fresh data
+            const finalStats = applyGearBonuses(freshData);
+            if (finalStats.hp === undefined) finalStats.hp = 10;
+            if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
+
+            const currentHp = combatant.stats.hp;
+            
+            combatant.stats = finalStats;
+            combatant.baselineStats = JSON.parse(JSON.stringify(finalStats));
+            combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
+            
+            combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
+            combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
+
+            // Maintain cooldown states for abilities that already existed, initialize new ones
+            combatant.abilities.forEach(ability => {
+                if (!combatant.abilitiesStates[ability.name]) {
+                    const isSingleUse = ability.cooldown === "[cooldown_once]";
+                    const maxCooldown = isSingleUse ? Infinity : (!ability.cooldown && ability.cooldown !== 0 ? 0 : parseInt(ability.cooldown) + 1);
+                    combatant.abilitiesStates[ability.name] = {
+                        currentCooldown: 0,
+                        maxCooldown: maxCooldown,
+                        singleUse: isSingleUse
+                    };
+                }
+            });
+
+            modifiedCombatants.push(combatant);
+        }
+        
+        // Broadcast updates dynamically using the batch update function
+        if (modifiedCombatants.length > 0) {
+            executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
+        }
+        
+        showNotification(t('data_scripts_reloaded'));
+    } catch (error) {
+        console.error("Error reloading server data:", error);
+        showAlertDialog(t('data_scripts_reload_error'));
+    }
+}
+
 // --- RESPONSIVE GLOBAL SCALING ---
 
 // Dynamically scales the entire application UI proportionally like an image 
@@ -557,3 +548,27 @@ window.addEventListener('resize', adjustGlobalScale);
 document.addEventListener('DOMContentLoaded', adjustGlobalScale);
 // Execute immediately in case the script evaluates after DOM is already ready
 adjustGlobalScale();
+
+/**
+ * Safely executes a callback function and catches Reference/Type errors.
+ * Displays a top-anchored error toast if the function call fails.
+ * 
+ * Usage: executeSafely(() => yourFunction(arg1, arg2));
+ * 
+ * @param {Function} callback - The function closure to execute.
+ * @returns The result of the callback execution, or undefined if it fails.
+ */
+function executeSafely(callback) {
+    try {
+        return callback();
+    } catch (error) {
+        console.warn(`[Safeguard] Execution failed: ${error.message}`);
+        showNotification(`[Safeguard] ${error.message}`, { 
+            duration: 3000, 
+            position: 'top', 
+            theme: 'var(--theme-negative)' 
+        });
+        
+        return undefined;
+    }
+}

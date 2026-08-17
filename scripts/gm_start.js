@@ -197,15 +197,11 @@ async function executeGmAction(event) {
         stats: {}
     };
 
-    if (typeof startActionPipeline === 'function') {
-        // Lock the widget open so it doesn't disappear when moving the mouse to target
-        const widget = document.querySelector('.gm-action-widget');
-        if (widget) widget.classList.add('locked-open');
-        
-        startActionPipeline(gmAttacker, [payload], { name: t('gm_action') }, null, event, false);
-    } else {
-        syncReleaseActionLock(); // Failsafe
-    }
+    // Lock the widget open so it doesn't disappear when moving the mouse to target
+    const widget = document.querySelector('.gm-action-widget');
+    if (widget) widget.classList.add('locked-open');
+    
+    executeSafely(() => startActionPipeline(gmAttacker, [payload], { name: t('gm_action') }, null, event, false)) ?? executeSafely(() => syncReleaseActionLock());
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -343,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             waitForSocket(() => {
                 const playerNames = Array.from(document.querySelectorAll('.character-token[data-type="player"]'))
                 .map(token => token.dataset.name);
-                if (playerNames.length > 0 && typeof updateSpecificPlayersStats === 'function') updateSpecificPlayersStats(playerNames);
+                if (playerNames.length > 0) executeSafely(() => updateSpecificPlayersStats(playerNames));
             });
         }
     });
@@ -379,9 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.target.matches('#gm-action-value')) {
             if (val && /^-?\d+$/.test(val.trim())) {
-                if (typeof pasteValueToInput === 'function') {
-                    pasteValueToInput(e.target);
-                }
+                executeSafely(() => pasteValueToInput(e.target));
             } else {
                 // Empty the input only if no numeric value to paste
                 if (e.target.value !== '') {
@@ -391,9 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (e.target.matches('.effect-target')) {
             if (val && !/^-?\d+$/.test(val.trim())) {
-                if (typeof pasteValueToInput === 'function') {
-                    pasteValueToInput(e.target);
-                }
+                executeSafely(() => pasteValueToInput(e.target));
             }
         }
     });

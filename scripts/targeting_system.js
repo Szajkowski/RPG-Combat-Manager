@@ -111,7 +111,7 @@ async function processNextPipelineAction() {
         clearTargetingState();
         currentPipelineContext = null;
         // Release the server lock immediately since the final action finished routing perfectly
-        if (typeof syncReleaseActionLock === 'function') syncReleaseActionLock();
+        executeSafely(() => syncReleaseActionLock());
         return; 
     }
 
@@ -165,11 +165,11 @@ async function executeAutoAction(action, targetType) {
 
     let targets = [];
     if (targetType === 'self') targets = [abilityUser];
-    else if (targetType === 'team_enemy') targets = activeCombatants.filter(c => c.team !== abilityUser.team && !c.isDead);
-    else if (targetType === 'team_ally') targets = activeCombatants.filter(c => c.team === abilityUser.team && !c.isDead);
-    else if (targetType === 'heroes') targets = activeCombatants.filter(c => c.team === 'hero' && !c.isDead);
-    else if (targetType === 'enemies') targets = activeCombatants.filter(c => c.team === 'enemy' && !c.isDead);
-    else if (targetType === 'all' || targetType === 'target_all') targets = activeCombatants.filter(c => !c.isDead);
+    else if (targetType === 'team_enemy') targets = activeCharacters.filter(c => c.team !== abilityUser.team && !c.isDead);
+    else if (targetType === 'team_ally') targets = activeCharacters.filter(c => c.team === abilityUser.team && !c.isDead);
+    else if (targetType === 'heroes') targets = activeCharacters.filter(c => c.team === 'hero' && !c.isDead);
+    else if (targetType === 'enemies') targets = activeCharacters.filter(c => c.team === 'enemy' && !c.isDead);
+    else if (targetType === 'all' || targetType === 'target_all') targets = activeCharacters.filter(c => !c.isDead);
 
     // Parallel execution explicitly maintained to trigger unified broadcasting animations.
     // The opposed roll caching resolves synchronously within processActionExecution before the first await block is hit.
@@ -177,10 +177,8 @@ async function executeAutoAction(action, targetType) {
 
     // Send a single batch update to sync all modified combatants at once
     if (targets.length > 0) {
-        const updatedCombatants = targets.map(t => activeCombatants.find(c => c.id === t.id)).filter(Boolean);
-        if (typeof syncUpdateCombatantsBatch === 'function') {
-            syncUpdateCombatantsBatch(updatedCombatants);
-        }
+        const updatedCombatants = targets.map(t => activeCharacters.find(c => c.id === t.id)).filter(Boolean);
+        executeSafely(() => syncUpdateCombatantsBatch(updatedCombatants));
     }
 }
 
@@ -314,7 +312,7 @@ function buildActionTooltipText(action, attacker, target, rollData) {
             if (action.valuePerc !== undefined) {
                 text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
                 text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
             } else {
                 text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
@@ -325,14 +323,14 @@ function buildActionTooltipText(action, attacker, target, rollData) {
             if (action.valuePerc !== undefined) {
                 text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
                 text = t('action_heal_thresh_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         } else {
             if (action.valuePerc !== undefined) {
                 text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = typeof getFormulaValue === 'function' ? getFormulaValue(action.value, attacker, rollData) : action.value;
+                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
                 text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         }
@@ -342,7 +340,7 @@ function buildActionTooltipText(action, attacker, target, rollData) {
         const checkArmor = (key, isPerc, typeName) => {
             if (action[key] !== undefined && action[key] !== null && action[key] !== '') {
                 let valStr = String(action[key]).replace(/%/g, '');
-                let val = typeof getFormulaValue === 'function' ? getFormulaValue(valStr, attacker, rollData) : parseInt(valStr) || 0;
+                let val = executeSafely(() => getFormulaValue(valStr, attacker, rollData)) ?? (parseInt(valStr) || 0);
                 let verb = val >= 0 ? t('action_armor_add') : t('action_armor_sub');
                 let absVal = Math.abs(val);
                 let symbol = isPerc ? '%' : '';
@@ -485,7 +483,7 @@ function handleTargetingMove(e) {
 
 function handleTargetingHoverEnter(e, targetId) {
     if (!targetingData) return;
-    const target = activeCombatants.find(c => c.id === targetId);
+    const target = activeCharacters.find(c => c.id === targetId);
     if (!target) return;
     
     // Refresh tooltip dynamically swapping base values to the specific target calculation
@@ -538,7 +536,7 @@ async function executeTargetedAction(targetId) {
     // REQUIRED: Prevents async state overlap when spam-clicking tokens
     if (isProcessingTargetClick) return;
 
-    const target = activeCombatants.find(c => c.id === targetId);
+    const target = activeCharacters.find(c => c.id === targetId);
     if (!target || target.isDead) {
         if (!targetingData.isPipeline) cancelTargetingMode();
         return;
@@ -616,7 +614,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
     let shouldStunNonDamage = payload.type !== 'damage' && hasActiveProperty(payload, 'prop_stuns') && (!evalRes.hasForcedRolls || !evalRes.targetPassedChecks);
 
     if (shouldStunNonDamage) {
-        const freshTarget = activeCombatants.find(c => c.id === target.id);
+        const freshTarget = activeCharacters.find(c => c.id === target.id);
         if (freshTarget && !freshTarget.isDead) {
             freshTarget.isStunned = true;
             if (!skipSync) syncUpdateCombatant(freshTarget);
@@ -641,8 +639,8 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
             else if (payload.type === 'armor') await resolveArmorAction(target, payload, attacker, skipSync, shouldStunNonDamage);
             else if (payload.type === 'effect') {
                 // If it's a pure effect action that triggered a stun, broadcast the sequence purely for the sound and visuals
-                if (shouldStunNonDamage && typeof syncPlayActionSequence === 'function') {
-                    syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true });
+                if (shouldStunNonDamage) {
+                    executeSafely(() => syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true }));
                     await delay(400);
                 }
             }
@@ -655,9 +653,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
             return true;
         } else {
             // Execution resisted, broadcast negative visual feedback and exit
-            if (typeof syncPlayActionSequence === 'function') {
-                syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'resist', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStunNonDamage });
-            }
+            executeSafely(() => syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'resist', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStunNonDamage }));
             await delay(400);
             return false;
         }

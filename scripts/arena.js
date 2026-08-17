@@ -5,7 +5,7 @@ function generateId() {
 
 function getUniqueCharacterName(baseName) {
     // Get all existing character names from memory
-    const existingNames = activeCombatants.map(c => c.uniqueName); 
+    const existingNames = activeCharacters.map(c => c.uniqueName); 
 
     let uniqueName = baseName;
     let counter = 2;
@@ -170,7 +170,7 @@ function checkArenaEmptyStates() {
 // Returns only the result and color as an object (payload), without sending to the server.
 // Prepared for integration with more complex rolls.
 function rollDice(combatantId, diceType, difficulty = null) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
+    const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return null;
 
     const baseStat = parseInt(combatant.stats[diceType]) || 0;
@@ -261,7 +261,7 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
 
 // Wrapper to execute and broadcast a single roll directly from the character sheet
 function rollSingleStat(combatantId, diceType, difficulty = null) {
-    const combatant = activeCombatants.find(c => c.id === combatantId);
+    const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return;
 
     const rollData = rollDice(combatantId, diceType, difficulty);

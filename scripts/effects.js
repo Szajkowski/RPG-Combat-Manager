@@ -34,9 +34,7 @@ function cleanUpExpiredEffects() {
     });
     
     activeEffects = filteredEffects;
-    if (typeof updateServerEffects === 'function') {
-        updateServerEffects(activeEffects);
-    }
+    updateServerEffects(activeEffects);
 }
 
 // Render the Active Effects Panel dynamically matching the UI layout
@@ -68,8 +66,8 @@ function renderEffects() {
         }
 
         // Fetch invoker and target combatants
-        const invokerCombatant = activeCombatants.find(c => c.uniqueName === effect.invoker);
-        const targetCombatant = activeCombatants.find(c => c.uniqueName === effect.target);
+        const invokerCombatant = activeCharacters.find(c => c.uniqueName === effect.invoker);
+        const targetCombatant = activeCharacters.find(c => c.uniqueName === effect.target);
 
         // Determine calculation context based on effect.source ("self" [default] vs "target")
         let evalContext = invokerCombatant;
@@ -86,7 +84,7 @@ function renderEffects() {
             descString = propsPrefix + (descString ? ' ' + descString : '');
         }
 
-        const parsedDesc = typeof parseDescription === 'function' ? parseDescription(descString, evalContext) : descString;
+        const parsedDesc = executeSafely(() => parseDescription(descString, evalContext)) ?? descString;
 
         html += `
             <div class="effect-block">
@@ -122,9 +120,7 @@ function updateEffectInvoker(id, newInvoker) {
     const effect = activeEffects.find(e => e.id === id);
     if (effect && effect.invoker !== newInvoker) {
         effect.invoker = newInvoker;
-        if (typeof updateServerEffects === 'function') {
-            updateServerEffects(activeEffects);
-        }
+        updateServerEffects(activeEffects);
     }
 }
 
@@ -133,9 +129,7 @@ function updateEffectTarget(id, newTarget) {
     const effect = activeEffects.find(e => e.id === id);
     if (effect && effect.target !== newTarget) {
         effect.target = newTarget;
-        if (typeof updateServerEffects === 'function') {
-            updateServerEffects(activeEffects);
-        }
+        updateServerEffects(activeEffects);
     }
 }
 
@@ -189,16 +183,14 @@ function processAndSendEffects(invoker, target, sourceData, fallbackName, defaul
     // Batch update to the server to prevent multiple UI re-renders and network spikes
     if (newEffects.length > 0) {
         activeEffects = activeEffects.concat(newEffects);
-        if (typeof updateServerEffects === 'function') {
-            updateServerEffects(activeEffects);
-        }
+        updateServerEffects(activeEffects);
     }
 }
 
 // Safely removes a specific effect and syncs it back through the server
 function removeEffect(id) {
     const filteredEffects = activeEffects.filter(eff => eff.id !== id);
-    if (typeof updateServerEffects === 'function') updateServerEffects(filteredEffects);
+    updateServerEffects(filteredEffects);
 }
 
 // Universal function to completely remove all effects targeting a specific character
@@ -210,8 +202,6 @@ function removeEffectsForTarget(targetName) {
     
     if (filteredEffects.length !== initialLength) {
         activeEffects = filteredEffects;
-        if (typeof updateServerEffects === 'function') {
-            updateServerEffects(activeEffects);
-        }
+        updateServerEffects(activeEffects);
     }
 }

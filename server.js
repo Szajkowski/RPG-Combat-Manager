@@ -5,69 +5,6 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// --- LOGGING SYSTEM ---
-const logsDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-}
-
-// Generate filename based on server start time (YYYY-MM-DD_HH-MM)
-const now = new Date();
-const pad = (n) => n.toString().padStart(2, '0');
-const logFileName = `server_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.log`;
-const logStream = fs.createWriteStream(path.join(logsDir, logFileName), { flags: 'a' });
-
-function logEvent(message) {
-    // Format timestamp for each log line
-    const eventTime = new Date();
-    const timeString = `${eventTime.getFullYear()}-${pad(eventTime.getMonth() + 1)}-${pad(eventTime.getDate())} ${pad(eventTime.getHours())}:${pad(eventTime.getMinutes())}:${pad(eventTime.getSeconds())}`;
-    const formattedMessage = `[${timeString}] ${message}\n`;
-    
-    logStream.write(formattedMessage);
-    console.log(`[LOG] ${message}`);
-}
-
-// Helper to determine exact changes between two combatant states for detailed logging
-function getCombatantDiffLog(oldC, newC) {
-    if (!oldC) return `(Unknown previous state)`;
-    let changes = [];
-    
-    // Check core survival states
-    if (oldC.stats.hp !== newC.stats.hp) changes.push(`HP: ${oldC.stats.hp} -> ${newC.stats.hp}`);
-    if (oldC.stats.maxHp !== newC.stats.maxHp) changes.push(`MaxHP: ${oldC.stats.maxHp} -> ${newC.stats.maxHp}`);
-    if (oldC.isDead !== newC.isDead) changes.push(newC.isDead ? `DIED` : `RESURRECTED`);
-    if (oldC.isStunned !== newC.isStunned) changes.push(newC.isStunned ? `STUNNED` : `STUN REMOVED`);
-    if (oldC.turnsTakenThisRound !== newC.turnsTakenThisRound) changes.push(`Turns taken: ${oldC.turnsTakenThisRound} -> ${newC.turnsTakenThisRound}`);
-    
-    // Check abilities cooldowns changes explicitly for ability usage
-    if (oldC.abilitiesStates && newC.abilitiesStates) {
-        for (let ability in newC.abilitiesStates) {
-            if (oldC.abilitiesStates[ability] && oldC.abilitiesStates[ability].currentCooldown !== newC.abilitiesStates[ability].currentCooldown) {
-                const oldCd = oldC.abilitiesStates[ability].currentCooldown;
-                const newCd = newC.abilitiesStates[ability].currentCooldown;
-                
-                // Identify if the ability was used (cooldown went from 0 to something else)
-                if (oldCd === 0 && newCd !== 0) {
-                    changes.push(`USED ABILITY: [${ability}] (CD: 0 -> ${newCd})`);
-                } else {
-                    changes.push(`CD [${ability}]: ${oldCd} -> ${newCd}`);
-                }
-            }
-        }
-    }
-    
-    // Check extra stats (damage, armor)
-    const extraStats = ['damage', 'physArmor', 'magArmor', 'physArmorMod', 'magArmorMod'];
-    for (let stat of extraStats) {
-        if (oldC.stats[stat] !== newC.stats[stat]) {
-            changes.push(`${stat}: ${oldC.stats[stat]} -> ${newC.stats[stat]}`);
-        }
-    }
-
-    return changes.length > 0 ? changes.join(', ') : 'No tracked visual changes';
-}
-// --- END LOGGING SYSTEM ---
-
 // Unique ID for this specific server run to detect restarts
 const serverInstanceId = Date.now().toString();
 
@@ -382,7 +319,7 @@ async function startServer() {
     const wss = new WebSocket.Server({ server });
 
     // Store global game state
-    let activeCombatants = []; // Single source of truth for all characters
+    let activeCharacters = []; // Single source of truth for all characters
     let activeEffects = []; // Kept separate for now
     let rollsHistory = []; // Global roll history feed array
     const connectedClients = new Map(); // Maps socket to client details { clientId, clientName, isGM }
@@ -416,7 +353,7 @@ async function startServer() {
                         type: 'RESPONSEregisterConnection',
                         clientId: clientId,
                         serverInstanceId: serverInstanceId,
-                        activeCombatants: activeCombatants,
+                        activeCharacters: activeCharacters,
                         activeEffects: activeEffects,
                         rollsHistory: rollsHistory
                     }));
@@ -436,12 +373,12 @@ async function startServer() {
 
                     // Process and broadcast the bundled state modifications immediately while granting the lock
                     if (data.combatant) {
-                        const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                        const index = activeCharacters.findIndex(c => c.id === data.combatant.id);
                         if (index !== -1) {
-                            const diffLog = getCombatantDiffLog(activeCombatants[index], data.combatant);
+                            const diffLog = getCombatantDiffLog(activeCharacters[index], data.combatant);
                             logEvent(`ACTION INITIATED by "${data.combatant.uniqueName}" | Changes: ${diffLog}`);
                             
-                            activeCombatants[index] = data.combatant;
+                            activeCharacters[index] = data.combatant;
                             wss.clients.forEach(client => {
                                 if (client.readyState === WebSocket.OPEN) {
                                     client.send(JSON.stringify({
@@ -491,7 +428,7 @@ async function startServer() {
                 }
 
                 case 'REQUESTaddCombatant': {
-                    activeCombatants.push(data.combatant);
+                    activeCharacters.push(data.combatant);
                     logEvent(`ADDED COMBATANT: "${data.combatant.uniqueName}" (Type: ${data.combatant.type}, Team: ${data.combatant.team}, HP: ${data.combatant.stats.hp}/${data.combatant.stats.maxHp})`);
 
                     wss.clients.forEach(client => {
@@ -507,12 +444,12 @@ async function startServer() {
                 }
 
                 case 'REQUESTupdateCombatant': {
-                    const index = activeCombatants.findIndex(c => c.id === data.combatant.id);
+                    const index = activeCharacters.findIndex(c => c.id === data.combatant.id);
                     if (index !== -1) {
-                        const diffLog = getCombatantDiffLog(activeCombatants[index], data.combatant);
+                        const diffLog = getCombatantDiffLog(activeCharacters[index], data.combatant);
                         logEvent(`UPDATED COMBATANT: "${data.combatant.uniqueName}" | Changes: ${diffLog}`);
                         
-                        activeCombatants[index] = data.combatant;
+                        activeCharacters[index] = data.combatant;
                         
                         wss.clients.forEach(client => {
                             if (client.readyState === WebSocket.OPEN) {
@@ -534,11 +471,11 @@ async function startServer() {
                         logEvent(`BATCH UPDATE for ${data.combatants.length} combatants.`);
                         
                         data.combatants.forEach(updatedC => {
-                            const index = activeCombatants.findIndex(c => c.id === updatedC.id);
+                            const index = activeCharacters.findIndex(c => c.id === updatedC.id);
                             if (index !== -1) {
-                                const diffLog = getCombatantDiffLog(activeCombatants[index], updatedC);
+                                const diffLog = getCombatantDiffLog(activeCharacters[index], updatedC);
                                 logEvent(` -> "${updatedC.uniqueName}" | Changes: ${diffLog}`);
-                                activeCombatants[index] = updatedC;
+                                activeCharacters[index] = updatedC;
                             }
                         });
                         
@@ -556,10 +493,10 @@ async function startServer() {
                 }
 
                 case 'REQUESTremoveCombatant': {
-                    const indexToRemove = activeCombatants.findIndex(c => c.id === data.id);
+                    const indexToRemove = activeCharacters.findIndex(c => c.id === data.id);
                     if (indexToRemove !== -1) {
-                        logEvent(`REMOVED COMBATANT: "${activeCombatants[indexToRemove].uniqueName}" (ID: ${data.id})`);
-                        activeCombatants.splice(indexToRemove, 1);
+                        logEvent(`REMOVED COMBATANT: "${activeCharacters[indexToRemove].uniqueName}" (ID: ${data.id})`);
+                        activeCharacters.splice(indexToRemove, 1);
                     }
 
                     wss.clients.forEach(client => {
@@ -689,6 +626,69 @@ async function startServer() {
         });
     });
 }
+
+// --- LOGGING SYSTEM ---
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Generate filename based on server start time (YYYY-MM-DD_HH-MM)
+const now = new Date();
+const pad = (n) => n.toString().padStart(2, '0');
+const logFileName = `server_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.log`;
+const logStream = fs.createWriteStream(path.join(logsDir, logFileName), { flags: 'a' });
+
+function logEvent(message) {
+    // Format timestamp for each log line
+    const eventTime = new Date();
+    const timeString = `${eventTime.getFullYear()}-${pad(eventTime.getMonth() + 1)}-${pad(eventTime.getDate())} ${pad(eventTime.getHours())}:${pad(eventTime.getMinutes())}:${pad(eventTime.getSeconds())}`;
+    const formattedMessage = `[${timeString}] ${message}\n`;
+    
+    logStream.write(formattedMessage);
+    console.log(`[LOG] ${message}`);
+}
+
+// Helper to determine exact changes between two combatant states for detailed logging
+function getCombatantDiffLog(oldC, newC) {
+    if (!oldC) return `(Unknown previous state)`;
+    let changes = [];
+    
+    // Check core survival states
+    if (oldC.stats.hp !== newC.stats.hp) changes.push(`HP: ${oldC.stats.hp} -> ${newC.stats.hp}`);
+    if (oldC.stats.maxHp !== newC.stats.maxHp) changes.push(`MaxHP: ${oldC.stats.maxHp} -> ${newC.stats.maxHp}`);
+    if (oldC.isDead !== newC.isDead) changes.push(newC.isDead ? `DIED` : `RESURRECTED`);
+    if (oldC.isStunned !== newC.isStunned) changes.push(newC.isStunned ? `STUNNED` : `STUN REMOVED`);
+    if (oldC.turnsTakenThisRound !== newC.turnsTakenThisRound) changes.push(`Turns taken: ${oldC.turnsTakenThisRound} -> ${newC.turnsTakenThisRound}`);
+    
+    // Check abilities cooldowns changes explicitly for ability usage
+    if (oldC.abilitiesStates && newC.abilitiesStates) {
+        for (let ability in newC.abilitiesStates) {
+            if (oldC.abilitiesStates[ability] && oldC.abilitiesStates[ability].currentCooldown !== newC.abilitiesStates[ability].currentCooldown) {
+                const oldCd = oldC.abilitiesStates[ability].currentCooldown;
+                const newCd = newC.abilitiesStates[ability].currentCooldown;
+                
+                // Identify if the ability was used (cooldown went from 0 to something else)
+                if (oldCd === 0 && newCd !== 0) {
+                    changes.push(`USED ABILITY: [${ability}] (CD: 0 -> ${newCd})`);
+                } else {
+                    changes.push(`CD [${ability}]: ${oldCd} -> ${newCd}`);
+                }
+            }
+        }
+    }
+    
+    // Check extra stats (damage, armor)
+    const extraStats = ['damage', 'physArmor', 'magArmor', 'physArmorMod', 'magArmorMod'];
+    for (let stat of extraStats) {
+        if (oldC.stats[stat] !== newC.stats[stat]) {
+            changes.push(`${stat}: ${oldC.stats[stat]} -> ${newC.stats[stat]}`);
+        }
+    }
+
+    return changes.length > 0 ? changes.join(', ') : 'No tracked visual changes';
+}
+// --- END LOGGING SYSTEM ---
 
 // Initialize the application
 startServer();

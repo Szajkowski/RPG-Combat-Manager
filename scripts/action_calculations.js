@@ -548,9 +548,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         }
 
         // Push the entire sequence calculation to all clients simultaneously to drive UI identically
-        if (typeof syncPlayActionSequence === 'function') {
-            syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: subTypeFinal, repeats: actualRepeats, stepValues: stepValues, deadSteps: deadSteps, ddSteps: ddSteps, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStun });
-        }
+        executeSafely(() => syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: subTypeFinal, repeats: actualRepeats, stepValues: stepValues, deadSteps: deadSteps, ddSteps: ddSteps, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStun }));
 
         // Wait exactly long enough for the broadcast sequence to finish visually before unlocking the pipeline
         await delay((actualRepeats * 300) + 100);
@@ -558,20 +556,18 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         // Ensure state is perfectly finalized locally to prevent edge-case de-syncs if network lagged
         if (stepValues.length > 0) {
             // Pull fresh reference to prevent overwriting updates that occurred during the delay
-            const freshTarget = activeCombatants.find(c => c.id === target.id);
+            const freshTarget = activeCharacters.find(c => c.id === target.id);
             if (freshTarget) {
                 freshTarget.stats.hp = stepValues[stepValues.length - 1];
                 if (targetKilled) {
                     freshTarget.isDead = true;
                     freshTarget.isStunned = false;
                     // Clean up effects targeting this dead character
-                    if (typeof removeEffectsForTarget === 'function') {
-                        removeEffectsForTarget(freshTarget.uniqueName);
-                    }
+                    executeSafely(() => removeEffectsForTarget(freshTarget.uniqueName));
                 } else if (shouldStun) {
                     freshTarget.isStunned = true;
                 }
-                if (!skipSync) syncUpdateCombatant(freshTarget); 
+                if (!skipSync) executeSafely(() => syncUpdateCombatant(freshTarget)); 
             }
         }
     } else {
@@ -580,9 +576,7 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
             syncAddRollEvent(buildRollEvent(attacker, target, evalRes.rolls, payload, skipSync));
         }
 
-        if (typeof syncPlayActionSequence === 'function') {
-            syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: evalRes.subType || 'dodge', repeats: 1, stepId: payload.stepId, isAuto: skipSync });
-        }
+        syncPlayActionSequence({ targetId: target.id, actionType: 'damage', subType: evalRes.subType || 'dodge', repeats: 1, stepId: payload.stepId, isAuto: skipSync });
         await delay(400); 
     }
     
@@ -634,7 +628,7 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
         stepValues.push(tempHp);
     }
 
-    if (stepValues.length > 0 && typeof syncPlayActionSequence === 'function') {
+    if (stepValues.length > 0) {
         syncPlayActionSequence({ targetId: combatant.id, actionType: 'heal', subType: type, repeats: stepValues.length, stepValues: stepValues, stepId: stepId, isAuto: skipSync, isStunned: isStunned });
         await delay((stepValues.length * 300) + 100);
     }
@@ -642,7 +636,7 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
     // Ensure state is perfectly finalized locally
     if (stepValues.length > 0) {
         // Pull fresh reference
-        const freshCombatant = activeCombatants.find(c => c.id === combatant.id);
+        const freshCombatant = activeCharacters.find(c => c.id === combatant.id);
         if (freshCombatant) {
             freshCombatant.stats.hp = stepValues[stepValues.length - 1];
             if (!skipSync) syncUpdateCombatant(freshCombatant); 
@@ -653,7 +647,7 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
 // Prepares armor modifications steps and delegates network playback execution sequentially bridging multiple target properties 
 async function resolveArmorAction(combatant, payload, attacker = null, skipSync = false, isStunned = false) {
     let evalContext = attacker || combatant;
-    let freshCombatant = activeCombatants.find(c => c.id === combatant.id);
+    let freshCombatant = activeCharacters.find(c => c.id === combatant.id);
     if (!freshCombatant) return;
 
     let rollData = typeof currentPipelineContext !== 'undefined' && currentPipelineContext 
@@ -723,24 +717,22 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
         stepValues.push(stepState);
     }
 
-    if (typeof syncPlayActionSequence === 'function') {
-        syncPlayActionSequence({ 
-            targetId: freshCombatant.id, 
-            actionType: 'armor', 
-            repeats: repeats, 
-            isAdding: isAdding, 
-            stepValues: stepValues, 
-            stepId: payload.stepId, 
-            isAuto: skipSync,
-            hasPhysFlat: payload.physArmorValue !== undefined,
-            hasPhysPerc: payload.physArmorValuePerc !== undefined,
-            hasMagFlat: payload.magArmorValue !== undefined,
-            hasMagPerc: payload.magArmorValuePerc !== undefined,
-            isMixedSound,
-            isStunned: isStunned
-        });
-        await delay((repeats * 300) + 100);
-    }
+    syncPlayActionSequence({ 
+        targetId: freshCombatant.id, 
+        actionType: 'armor', 
+        repeats: repeats, 
+        isAdding: isAdding, 
+        stepValues: stepValues, 
+        stepId: payload.stepId, 
+        isAuto: skipSync,
+        hasPhysFlat: payload.physArmorValue !== undefined,
+        hasPhysPerc: payload.physArmorValuePerc !== undefined,
+        hasMagFlat: payload.magArmorValue !== undefined,
+        hasMagPerc: payload.magArmorValuePerc !== undefined,
+        isMixedSound,
+        isStunned: isStunned
+    });
+    await delay((repeats * 300) + 100);
 
     // Finalize state locally mapping back from the last step state
     if (stepValues.length > 0) {

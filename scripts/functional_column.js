@@ -24,7 +24,7 @@ async function removeCharacterById(id, event) {
     if (event) event.stopPropagation(); // Stop event propagation to prevent unintended slot selection toggle
     if (!id) return;
 
-    const combatant = activeCombatants.find(c => c.id === id);
+    const combatant = activeCharacters.find(c => c.id === id);
     if (!combatant) return;
 
     // 1. Remove effects tied to this character (Server sync)
@@ -33,22 +33,20 @@ async function removeCharacterById(id, event) {
         const filteredEffects = activeEffects.filter(effect => effect.target !== combatant.uniqueName);
         
         // Only trigger network update if something was actually deleted
-        if (filteredEffects.length !== activeEffects.length && typeof updateServerEffects === 'function') {
-            updateServerEffects(filteredEffects);
+        if (filteredEffects.length !== activeEffects.length) {
+            executeSafely(() => updateServerEffects(filteredEffects));
         }
     }
 
     // 2. Request removal from server. Server will broadcast removal and clients will automatically delete token and clear panel.
-    if (typeof syncRemoveCombatant === 'function') {
-        syncRemoveCombatant(id);
-    }
+    executeSafely(() => syncRemoveCombatant(id));
 }
 
 // Toggles stun state via the functional column button
 function toggleStun() {
     if (!selectedCharacterId) return;
     
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const combatant = activeCharacters.find(c => c.id === selectedCharacterId);
     if (!combatant || combatant.isDead) return;
     
     combatant.isStunned = !combatant.isStunned;
@@ -61,23 +59,21 @@ function toggleStun() {
 function resurrectCharacter() {
     if (!selectedCharacterId) return;
 
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const combatant = activeCharacters.find(c => c.id === selectedCharacterId);
     if (!combatant || !combatant.isDead) return;
 
     combatant.isDead = false;
     combatant.stats.hp = combatant.stats.maxHp || 10;
     
     // Send update to server to globally broadcast the resurrection alongside the audio effect
-    if (typeof syncUpdateCombatant === 'function') {
-        syncUpdateCombatant(combatant, 'revive');
-    }
+    executeSafely(() => syncUpdateCombatant(combatant, 'revive'));
 }
 
 // Reloads the corresponding data file and recalculates the currently selected character's stats
 async function reloadCharacterData() {
     if (!selectedCharacterId) return;
     
-    const combatant = activeCombatants.find(c => c.id === selectedCharacterId);
+    const combatant = activeCharacters.find(c => c.id === selectedCharacterId);
     // We can only reload named characters that originate from a file
     if (!combatant || combatant.baseName === '') return;
 
@@ -138,17 +134,17 @@ async function reloadCharacterData() {
         });
         
         syncUpdateCombatant(combatant);
-        if (typeof showNotification === 'function') showNotification(t('reload_success'), { theme: 'var(--theme-positive)' });
+        executeSafely(() => showNotification(t('reload_success'), { theme: 'var(--theme-positive)' }));
         
     } catch (error) {
         console.error("Error while reloading character data:", error);
-        if (typeof showNotification === 'function') showNotification(t('reload_error'), { theme: 'var(--theme-negative)' });
+        executeSafely(() => showNotification(t('reload_error'), { theme: 'var(--theme-negative)' }));
     }
 }
 
 // Compares current modified stats to initial baseline stats and applies delta modifications to backend files via API request
 function saveCharacterStats(id) {
-    const combatant = activeCombatants.find(c => c.id === id);
+    const combatant = activeCharacters.find(c => c.id === id);
     if (!combatant || !combatant.baseName) return;
 
     let targetDict = null;

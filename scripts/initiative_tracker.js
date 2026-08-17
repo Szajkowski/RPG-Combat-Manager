@@ -61,10 +61,10 @@ function calculateReflexStops(combatant) {
 
 // Helper: Determine if it's currently a specific combatant's turn
 function hasCurrentTurn(combatantId) {
-    if (!activeCombatants || activeCombatants.length === 0) return false;
+    if (!activeCharacters || activeCharacters.length === 0) return false;
 
     const groups = {};
-    activeCombatants.forEach(c => {
+    activeCharacters.forEach(c => {
         if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
         const stops = calculateReflexStops(c);
         const turnsTaken = c.turnsTakenThisRound || 0;
@@ -90,7 +90,7 @@ function renderInitiativeTracker() {
     if (!tracker) return;
 
     // Filter alive combatants with valid reflex
-    const validCombatants = activeCombatants.filter(c => 
+    const validCombatants = activeCharacters.filter(c => 
         !c.isDead && 
         c.stats.reflex !== undefined && 
         c.stats.reflex !== null && 
@@ -174,20 +174,20 @@ function renderInitiativeTracker() {
             activeSlot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
         // Force refresh the Extra Panel for the currently selected character to update turn-based ability locks globally
-        if (typeof selectedCharacterId !== 'undefined' && selectedCharacterId !== null && typeof renderExtraPanel === 'function') {
-            renderExtraPanel(selectedCharacterId);
+        if (typeof selectedCharacterId !== 'undefined' && selectedCharacterId !== null) {
+            executeSafely(() => renderExtraPanel(selectedCharacterId));
         }
     }, 50); 
 }
 
 // Next Turn logic: calculates turn blocks and scales down CDs
 function nextTurn(isSilent = false) {
-    if (activeCombatants.length === 0) return;
+    if (activeCharacters.length === 0) return;
 
     const groups = {}; 
     
     // Check pending stops ONLY for the entire board
-    activeCombatants.forEach(c => {
+    activeCharacters.forEach(c => {
         if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
         
         const stops = calculateReflexStops(c);
@@ -213,7 +213,7 @@ function nextTurn(isSilent = false) {
     const modifiedCombatants = [];
 
     actors.forEach(actor => {
-        const c = activeCombatants.find(comb => comb.id === actor.combatant.id);
+        const c = activeCharacters.find(comb => comb.id === actor.combatant.id);
         if (!c) return;
         
         // Stun strictly consumes 1 turn action and clears itself immediately
@@ -234,23 +234,21 @@ function nextTurn(isSilent = false) {
         }
         
         // Decrement targeted effects
-        if (typeof decrementEffects === 'function') {
-            decrementEffects(effect => {
+        executeSafely(() => decrementEffects(effect => {
                 const durStr = String(effect.duration || '').trim();
                 const type = durStr.slice(-1);
                 // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
                 const isTurnBased = type === 't' || !isNaN(type);
                 const effectiveTarget = effect.target ? effect.target : effect.invoker;
                 return effectiveTarget === c.uniqueName && isTurnBased;
-            });
-        }
+            }));
 
         modifiedCombatants.push(c);
     });
 
     // Batch update the server to avoid spamming network requests per combatant
     if (!isSilent && modifiedCombatants.length > 0) {
-        if (typeof syncUpdateCombatantsBatch === 'function') syncUpdateCombatantsBatch(modifiedCombatants);
+        executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
     }
 
     // Check if we hit the end of the round natively
@@ -266,7 +264,7 @@ function newRound() {
     isProcessingRoundTransition = true;
 
     // Fast forward verification
-    let hasNotActed = activeCombatants.some(c => {
+    let hasNotActed = activeCharacters.some(c => {
         if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
         const totalTurns = calculateTotalTurns(c);
         return (c.turnsTakenThisRound || 0) < totalTurns;
@@ -274,7 +272,7 @@ function newRound() {
     
     while (hasNotActed) {
         nextTurn(true); // Silent fast-forward till end
-        hasNotActed = activeCombatants.some(c => {
+        hasNotActed = activeCharacters.some(c => {
             if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
             const totalTurns = calculateTotalTurns(c);
             return (c.turnsTakenThisRound || 0) < totalTurns;
@@ -283,7 +281,7 @@ function newRound() {
 
     // Full round reset
     const modifiedCombatants = [];
-    activeCombatants.forEach(c => {
+    activeCharacters.forEach(c => {
         if (!c.isDead) {
             c.turnsTakenThisRound = 0; // Wipe history state
             modifiedCombatants.push(c);
@@ -291,26 +289,24 @@ function newRound() {
     });
 
     // Batch update the server
-    if (modifiedCombatants.length > 0 && typeof syncUpdateCombatantsBatch === 'function') {
-        syncUpdateCombatantsBatch(modifiedCombatants);
+    if (modifiedCombatants.length > 0) {
+        executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
     }
 
     // Handle global round effect decrement logic (Round based 'r', and missing targets for 't')
-    const activeNames = activeCombatants.map(c => c.uniqueName);
-    if (typeof decrementEffects === 'function') {
-        decrementEffects(effect => {
-            const durStr = String(effect.duration || '').trim();
-            const type = durStr.slice(-1);
-            const isRoundBased = type === 'r';
-            const isTurnBased = type === 't' || !isNaN(type);
-            
-            const effectiveTarget = effect.target ? effect.target : effect.invoker;
-            const isOrphaned = !activeNames.includes(effectiveTarget);
-            
-            // Evaluates TRUE if the effect explicitly tracks rounds, or tracks turns but the target is gone
-            return isRoundBased || (isTurnBased && isOrphaned);
-        });
-    }
+    const activeNames = activeCharacters.map(c => c.uniqueName);
+    executeSafely(() => decrementEffects(effect => {
+        const durStr = String(effect.duration || '').trim();
+        const type = durStr.slice(-1);
+        const isRoundBased = type === 'r';
+        const isTurnBased = type === 't' || !isNaN(type);
+        
+        const effectiveTarget = effect.target ? effect.target : effect.invoker;
+        const isOrphaned = !activeNames.includes(effectiveTarget);
+        
+        // Evaluates TRUE if the effect explicitly tracks rounds, or tracks turns but the target is gone
+        return isRoundBased || (isTurnBased && isOrphaned);
+    }));
 
     isProcessingRoundTransition = false;
 }
@@ -319,9 +315,9 @@ function newRound() {
 function endCombat() {
     const modifiedCombatants = [];
 
-    activeCombatants.forEach(c => {
-        if (c.team === 'enemy' && typeof syncRemoveCombatant === 'function') {
-            syncRemoveCombatant(c.id);
+    activeCharacters.forEach(c => {
+        if (c.team === 'enemy') {
+            executeSafely(() => syncRemoveCombatant(c.id));
         } else if (!c.isDead) {
             if (c.abilitiesStates) {
                 Object.keys(c.abilitiesStates).forEach(abilityName => {
@@ -334,11 +330,6 @@ function endCombat() {
         }
     });
     
-    if (modifiedCombatants.length > 0 && typeof syncUpdateCombatantsBatch === 'function') {
-        syncUpdateCombatantsBatch(modifiedCombatants);
-    }
-
-    if (typeof updateServerEffects === 'function') {
-        updateServerEffects([]);
-    }
+    if (modifiedCombatants.length > 0) executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
+    executeSafely(() => updateServerEffects([]));
 }
