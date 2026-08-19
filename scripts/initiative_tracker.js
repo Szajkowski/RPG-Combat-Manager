@@ -27,7 +27,7 @@ function calculateTotalTurns(combatant) {
         activeEffects.forEach(effect => {
             // Null target automatically implies the effect affects the invoker
             const effectiveTarget = effect.target ? effect.target : effect.invoker;
-            if (effectiveTarget === combatant.uniqueName && effect.effectProperties && effect.effectProperties.includes(tag)) {
+            if (effectiveTarget === combatant.uniqueName && effect.properties && effect.properties.includes(tag)) {
                 extraTurns++;
             }
         });
@@ -41,7 +41,7 @@ function calculateReflexStops(combatant) {
     let totalTurns = calculateTotalTurns(combatant);
     if (totalTurns === 0) return [];
     
-    const baseReflex = parseInt(combatant.stats.reflex) || 0;
+    const baseReflex = parseInt(combatant.currentStats.reflex) || 0;
     if (baseReflex <= 0) return [];
 
     // Intentionally cap turns to reflex value to avoid an unnecessary edge case 
@@ -65,7 +65,7 @@ function hasCurrentTurn(combatantId) {
 
     const groups = {};
     activeCharacters.forEach(c => {
-        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
+        if (c.isDead || c.currentStats.reflex === undefined || c.currentStats.reflex === null || c.currentStats.reflex === '') return;
         const stops = calculateReflexStops(c);
         const turnsTaken = c.turnsTakenThisRound || 0;
         
@@ -92,9 +92,9 @@ function renderInitiativeTracker() {
     // Filter alive combatants with valid reflex
     const validCombatants = activeCharacters.filter(c => 
         !c.isDead && 
-        c.stats.reflex !== undefined && 
-        c.stats.reflex !== null && 
-        c.stats.reflex !== ''
+        c.currentStats.reflex !== undefined && 
+        c.currentStats.reflex !== null && 
+        c.currentStats.reflex !== ''
     );
 
     if (validCombatants.length === 0) {
@@ -175,7 +175,7 @@ function renderInitiativeTracker() {
         }
         // Force refresh the Extra Panel for the currently selected character to update turn-based ability locks globally
         if (typeof selectedCharacterId !== 'undefined' && selectedCharacterId !== null) {
-            executeSafely(() => renderExtraPanel(selectedCharacterId));
+            renderExtraPanel(selectedCharacterId);
         }
     }, 50); 
 }
@@ -188,7 +188,7 @@ function nextTurn(isSilent = false) {
     
     // Check pending stops ONLY for the entire board
     activeCharacters.forEach(c => {
-        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return;
+        if (c.isDead || c.currentStats.reflex === undefined || c.currentStats.reflex === null || c.currentStats.reflex === '') return;
         
         const stops = calculateReflexStops(c);
         const turnsTaken = c.turnsTakenThisRound || 0;
@@ -234,21 +234,21 @@ function nextTurn(isSilent = false) {
         }
         
         // Decrement targeted effects
-        executeSafely(() => decrementEffects(effect => {
+        decrementEffects(effect => {
                 const durStr = String(effect.duration || '').trim();
                 const type = durStr.slice(-1);
                 // Turn-based logic: string explicitly ends with 't' or is purely numeric (legacy compatibility)
                 const isTurnBased = type === 't' || !isNaN(type);
                 const effectiveTarget = effect.target ? effect.target : effect.invoker;
                 return effectiveTarget === c.uniqueName && isTurnBased;
-            }));
+            });
 
         modifiedCombatants.push(c);
     });
 
     // Batch update the server to avoid spamming network requests per combatant
     if (!isSilent && modifiedCombatants.length > 0) {
-        executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
+        syncUpdateCombatantsBatch(modifiedCombatants);
     }
 
     // Check if we hit the end of the round natively
@@ -265,7 +265,7 @@ function newRound() {
 
     // Fast forward verification
     let hasNotActed = activeCharacters.some(c => {
-        if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
+        if (c.isDead || c.currentStats.reflex === undefined || c.currentStats.reflex === null || c.currentStats.reflex === '') return false;
         const totalTurns = calculateTotalTurns(c);
         return (c.turnsTakenThisRound || 0) < totalTurns;
     });
@@ -273,7 +273,7 @@ function newRound() {
     while (hasNotActed) {
         nextTurn(true); // Silent fast-forward till end
         hasNotActed = activeCharacters.some(c => {
-            if (c.isDead || c.stats.reflex === undefined || c.stats.reflex === null || c.stats.reflex === '') return false;
+            if (c.isDead || c.currentStats.reflex === undefined || c.currentStats.reflex === null || c.currentStats.reflex === '') return false;
             const totalTurns = calculateTotalTurns(c);
             return (c.turnsTakenThisRound || 0) < totalTurns;
         });
@@ -290,12 +290,12 @@ function newRound() {
 
     // Batch update the server
     if (modifiedCombatants.length > 0) {
-        executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
+        syncUpdateCombatantsBatch(modifiedCombatants);
     }
 
     // Handle global round effect decrement logic (Round based 'r', and missing targets for 't')
     const activeNames = activeCharacters.map(c => c.uniqueName);
-    executeSafely(() => decrementEffects(effect => {
+    decrementEffects(effect => {
         const durStr = String(effect.duration || '').trim();
         const type = durStr.slice(-1);
         const isRoundBased = type === 'r';
@@ -306,7 +306,7 @@ function newRound() {
         
         // Evaluates TRUE if the effect explicitly tracks rounds, or tracks turns but the target is gone
         return isRoundBased || (isTurnBased && isOrphaned);
-    }));
+    });
 
     isProcessingRoundTransition = false;
 }
@@ -317,7 +317,7 @@ function endCombat() {
 
     activeCharacters.forEach(c => {
         if (c.team === 'enemy') {
-            executeSafely(() => syncRemoveCombatant(c.id));
+            syncRemoveCombatant(c.id);
         } else if (!c.isDead) {
             if (c.abilitiesStates) {
                 Object.keys(c.abilitiesStates).forEach(abilityName => {
@@ -330,6 +330,6 @@ function endCombat() {
         }
     });
     
-    if (modifiedCombatants.length > 0) executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
-    executeSafely(() => updateServerEffects([]));
+    if (modifiedCombatants.length > 0) syncUpdateCombatantsBatch(modifiedCombatants);
+    updateServerEffects([]);
 }

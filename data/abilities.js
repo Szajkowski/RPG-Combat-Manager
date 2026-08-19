@@ -16,7 +16,7 @@ var ability = {
         difficulty: 4,
         cooldown: 0,
         effect: "Rozpalony. Zwiększa żywotność o [5].",
-        effectDuration: "8t"
+        duration: "8t"
     },
     "Kula ognia": {
         name: "Kula ognia",
@@ -32,7 +32,7 @@ var ability = {
         difficulty: 6,
         cooldown: 1,
         effect: "Ognista tarcza. Zadaje [50]% obrażeń ataku wręcz. Maksymalnie [8 * vitality]",
-        effectDuration: "-"
+        duration: "-"
     },
     "Oślepiający rozbłysk": {
         name: "Oślepiający rozbłysk",
@@ -41,7 +41,7 @@ var ability = {
         difficulty: 6,
         cooldown: 0,
         effect: "Oślepiony. [-5] do rzutów na celność",
-        effectDuration: "1t"
+        duration: "1t"
     },
     "Mały smok": {
         name: "Mały smok",
@@ -57,7 +57,7 @@ var ability = {
         difficulty: 8,
         cooldown: 1,
         effect: "Podpalony. Otrzymuje [1 * vitality] obrażeń co turę",
-        effectDuration: "-"
+        duration: "-"
     },
     "Ognisty sabotaż": {
         name: "Ognisty sabotaż",
@@ -66,7 +66,7 @@ var ability = {
         difficulty: "X",
         cooldown: 2,
         effect: "Rozgrzana broń. Niemożność podniesienia broni.",
-        effectDuration: "2t"
+        duration: "2t"
     },
 
 
@@ -146,7 +146,7 @@ var ability = {
         difficulty: 20,
         cooldown: "[cooldown_once]",
         effect: "Feniks. Możliwość lotu. W razie śmierci eksploduje za [10 * vitality] i wraca z pełnym zdrowiem.",
-        effectDuration: "-"
+        duration: "-"
     },
 
 
@@ -172,7 +172,7 @@ var ability = {
         difficulty: 3,
         cooldown: 0,
         effect: "Podmrożony. [-4] do rzutów na zwinność",
-        effectDuration: "2t"
+        duration: "2t"
     },
     "Wodny bicz": {
         name: "Wodny bicz",
@@ -181,7 +181,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         effect: "Podmrożony. [-4] do rzutów na zwinność",
-        effectDuration: "2t"
+        duration: "2t"
     },
     "Regeneracja": {
         name: "Regeneracja",
@@ -190,7 +190,7 @@ var ability = {
         difficulty: 6,
         cooldown: 1,
         effect: "Regeneracja. Uleczony za [2 * intuition] na początku następnej tury.",
-        effectDuration: "-"
+        duration: "-"
     },
     "Lodowe wiertło": {
         name: "Lodowe wiertło",
@@ -206,7 +206,7 @@ var ability = {
         difficulty: 9,
         cooldown: 2,
         effect: "Skupiony. [-4] do trudności rzucania zaklęć",
-        effectDuration: "2t"
+        duration: "2t"
     },
     "Pazur oceanu": {
         name: "Pazur oceanu",
@@ -222,7 +222,7 @@ var ability = {
         difficulty: 10,
         cooldown: 2,
         effect: "Lodowe lustro. Odbija [50]% następnych magicznych obrażeń",
-        effectDuration: "-"
+        duration: "-"
     },
     "Oczyszczenie": {
         name: "Oczyszczenie",
@@ -250,7 +250,7 @@ var ability = {
         difficulty: 12,
         cooldown: 3,
         effect: "Zmrożony. [-6] do rzutów na zwinność",
-        effectDuration: "2t"
+        duration: "2t"
     },
     "Wodna powłoka": {
         name: "Wodna powłoka",
@@ -290,7 +290,7 @@ var ability = {
         difficulty: 30,
         cooldown: 5,
         effect: "Duszenie. Narastająca trudność rzutów na nieustępliwość. [5] -> [10] -> [15] itd.",
-        effectDuration: "-"
+        duration: "-"
     },
     "Przepływ losu Artursa": {
         name: "Przepływ losu Artursa",
@@ -299,7 +299,7 @@ var ability = {
         difficulty: 18,
         cooldown: 6,
         effect: "Losowość. Wszystkie rzuty są [50]:[50]",
-        effectDuration: "5r"
+        duration: "5r"
     },
 
 
@@ -313,11 +313,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         effects: [
-            { 
-                "effectName": "Lodowy miecz",
-                "effectDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                "effectDuration": "3t",
-            },
+            effect["Lodowy miecz"],
         ],
     },
     "Lodowy arsenał": {
@@ -327,21 +323,9 @@ var ability = {
         difficulty: 10,
         cooldown: 1,
         effects: [
-            { 
-                "effectName": "Lodowy miecz",
-                "effectDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                "effectDuration": "3t",
-            },
-            { 
-                "effectName": "Lodowy miecz",
-                "effectDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                "effectDuration": "3t",
-            },
-            { 
-                "effectName": "Lodowy miecz",
-                "effectDescription": "Zadaje [1 * intuition] po turze maga przez [3] tury albo, gdy zostanie uderzony.",
-                "effectDuration": "3t",
-            },
+            effect["Lodowy miecz"],
+            effect["Lodowy miecz"],
+            effect["Lodowy miecz"],
         ],
     },
     "Miecze: Atak!": {
@@ -359,9 +343,9 @@ var ability = {
         cooldown: 2,
         effects: [
             { 
-                "effectName": "Ostre lodowe miecze",
-                "effectDescription": "Lodowe miecze zadają obrażenia penetrujące.",
-                "effectDuration": "3t",
+                name: "Ostre lodowe miecze",
+                description: "Lodowe miecze zadają obrażenia penetrujące.",
+                duration: "3t",
             },
         ],
     },
@@ -391,7 +375,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         effect: "Zdeterminowany. Rzuty na nieustępliwość mnożone x[2]",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Pomoc ziemi": {
         name: "Pomoc ziemi",
@@ -400,7 +384,7 @@ var ability = {
         difficulty: 6,
         cooldown: 1,
         effect: "Kamienna bariera. Redukcja następnych obrażeń fizycznych o [50]%",
-        effectDuration: "-"
+        duration: "-"
     },
     "Spadająca bryła": {
         name: "Spadająca bryła",
@@ -416,7 +400,7 @@ var ability = {
         difficulty: 8,
         cooldown: 3,
         effect: "Unieruchomiony. Redukcja obrażeń fizycznych o [50]%",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Pędzący głaz": {
         name: "Pędzący głaz",
@@ -432,7 +416,7 @@ var ability = {
         difficulty: 10,
         cooldown: 2,
         effect: "Ubłocony. Ograniczony ruch. Wymaga całej kolejki na wyjście z błota",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Kamienny chwyt": {
         name: "Kamienny chwyt",
@@ -441,7 +425,7 @@ var ability = {
         difficulty: "X",
         cooldown: 2,
         effect: "Unieruchomiony przez kamienne ręce.",
-        effectDuration: "1t"
+        duration: "1t"
     },
 
 
@@ -456,14 +440,14 @@ var ability = {
         cooldown: 2,
         effects: [
             { 
-                "effectName": "Skupiony na celu",
-                "effectDescription": "Jeśli jest blisko postaci ze stanem 'Cel skupienia', zada jej [5 * strength] nieunikalnych obrażeń z 20% szansą na ogłuszenie, za każdym razem gdy ta postać zaatakuje kogokolwiek innego niż cel tego stanu.",
-                "effectDuration": "2r",
+                name: "Skupiony na celu",
+                description: "Jeśli jest blisko postaci ze stanem 'Cel skupienia', zada jej [5 * strength] nieunikalnych obrażeń z 20% szansą na ogłuszenie, za każdym razem gdy ta postać zaatakuje kogokolwiek innego niż cel tego stanu.",
+                duration: "2r",
             },
             { 
-                "effectName": "Cel skupienia",
-                "effectDescription": "Zaatakowanie kogokolwiek innego niż postaci ze stanem 'Skupiony na celu' skończy się silnym nieunikalnym ciosem z szansą ogłuszenia.",
-                "effectDuration": "2r",
+                name: "Cel skupienia",
+                description: "Zaatakowanie kogokolwiek innego niż postaci ze stanem 'Skupiony na celu' skończy się silnym nieunikalnym ciosem z szansą ogłuszenia.",
+                duration: "2r",
             }
         ],
     },
@@ -481,7 +465,7 @@ var ability = {
         difficulty: 15,
         cooldown: 4,
         effect: "Krwawienie. [1 * strength] obrażeń penetrujących na początku tury.",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Niszczyciel zbroi": {
         name: "Niszczyciel zbroi",
@@ -490,7 +474,7 @@ var ability = {
         difficulty: "X",
         cooldown: 4,
         effect: "Osłabiony. [-2 * roll] pancerza fizycznego.",
-        effectDuration: "-"
+        duration: "-"
     },
 
 
@@ -537,7 +521,7 @@ var ability = {
         difficulty: 25,
         cooldown: 3,
         effect: "Nadziany na kolec. Brak możliwości ruchu i uników",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Wzniesienie": {
         name: "Wzniesienie",
@@ -558,7 +542,7 @@ var ability = {
         difficulty: 4,
         cooldown: 0,
         effect: "Dezorientacja. [-6] do rzutów na celność i unik",
-        effectDuration: "1t"
+        duration: "1t"
     },
     "Tnące łuki": {
         name: "Tnące łuki",
@@ -574,7 +558,7 @@ var ability = {
         difficulty: 6,
         cooldown: 1,
         effect: "Naenergetyzowany. Następny rzut na unik mnożony x[2]",
-        effectDuration: "-"
+        duration: "-"
     },
     "Rozpędzony cios": {
         name: "Rozpędzony cios",
@@ -590,7 +574,7 @@ var ability = {
         difficulty: 8,
         cooldown: 0,
         effect: "Powietrzna tarcza. Przekierowanie [1] ataku dystansowego",
-        effectDuration: "-"
+        duration: "-"
     },
     "Małe przyspieszenie": {
         name: "Małe przyspieszenie",
@@ -599,7 +583,7 @@ var ability = {
         difficulty: 9,
         cooldown: 2,
         effect: "[prop_extra_turn] Działa przez [2] tury.",
-        effectDuration: "2t",
+        duration: "2t",
     },
     "Wir pięści": {
         name: "Wir pięści",
@@ -653,7 +637,7 @@ var ability = {
         difficulty: 5,
         cooldown: 0,
         effect: "Łagodne lądowanie. Brak obrażeń od upadku",
-        effectDuration: "-"
+        duration: "-"
     },
     "Oddech życia": {
         name: "Oddech życia",
@@ -674,7 +658,7 @@ var ability = {
         difficulty: 25,
         cooldown: 8,
         effect: "[prop_extra_turn] Przyśpieszenie. Dodatkowa akcja, pierwszeństwo ruchu, x[2] do uników",
-        effectDuration: "3t"
+        duration: "3t"
     },
     "Tornado": {
         name: "Tornado",
@@ -683,7 +667,7 @@ var ability = {
         difficulty: 35,
         cooldown: 10,
         effect: "Porwany przez tornado. Brak kontroli ruchu",
-        effectDuration: "2t"
+        duration: "2t"
     },
 
 
@@ -741,11 +725,11 @@ var ability = {
                 forceRollDifficulty: 15,
                 effects: [
                     {
-                        effectName: "Stan po rzucie na wiele rzeczy",
-                        effectDescription: "Cel zaliczył rzut na żywotność, zwinność i celność z trudnością 15.",
-                        effectDuration: "2t",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Stan po rzucie na wiele rzeczy",
+                        description: "Cel zaliczył rzut na żywotność, zwinność i celność z trudnością 15.",
+                        duration: "2t",
+                        source: "self",
+                        isBeneficial: true,
                     },
                 ]
             },
@@ -760,11 +744,11 @@ var ability = {
                 forceRollDifficulty: 10,
                 effects: [
                     {
-                        effectName: "Stan po rzucie na wiele rzeczy vs",
-                        effectDescription: "Cel przegrał rzut na vitality + agility + vitality vs accuracy + agility LUB rzut siła + zwinność z trudnością 10.",
-                        effectDuration: "2t",
-                        effectSource: "self",
-                        effectIsBeneficial: false,
+                        name: "Stan po rzucie na wiele rzeczy vs",
+                        description: "Cel przegrał rzut na vitality + agility + vitality vs accuracy + agility LUB rzut siła + zwinność z trudnością 10.",
+                        duration: "2t",
+                        source: "self",
+                        isBeneficial: false,
                     },
                 ]
             },
@@ -794,18 +778,18 @@ var ability = {
                 isEffectSuccessBeneficial: true, // calculates success chance for effects
                 effects: [
                     {
-                        effectName: "Dobry stan po uderzeniu celu",
-                        effectDescription: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
-                        effectDuration: "2t",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Dobry stan po uderzeniu celu",
+                        description: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
+                        duration: "2t",
+                        source: "self",
+                        isBeneficial: true,
                     },
                     {
-                        effectName: "Stan po beneficial uderzeniu celu",
-                        effectDescription: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
-                        effectDuration: "2t",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Stan po beneficial uderzeniu celu",
+                        description: "Powinien się pojawić tylko jeśli cel został trafiony i zaliczył roll na żywotność.",
+                        duration: "2t",
+                        source: "self",
+                        isBeneficial: true,
                     }
                 ]
             },
@@ -819,18 +803,18 @@ var ability = {
                 forceRollVS: "vitality vs reflex",
                 effects: [
                     {
-                        effectName: "Pozytywny stan po uderzeniu siebie",
-                        effectDescription: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
-                        effectDuration: "2r",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Pozytywny stan po uderzeniu siebie",
+                        description: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
+                        duration: "2r",
+                        source: "self",
+                        isBeneficial: true,
                     },
                     {
-                        effectName: "Negatywny stan po uderzeniu siebie",
-                        effectDescription: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
-                        effectDuration: "2r",
-                        effectSource: "self",
-                        effectIsBeneficial: false,
+                        name: "Negatywny stan po uderzeniu siebie",
+                        description: "Teoretycznie powinien sie pojawic po wyrzuceniu wiecej niz 5 intuicji oraz wyrzuceniu wiecej zywotnosci niz refleksu.",
+                        duration: "2r",
+                        source: "self",
+                        isBeneficial: false,
                     }
                 ]
             },
@@ -844,18 +828,18 @@ var ability = {
                 forceRollVS: "strength vs strength",
                 effects: [
                     {
-                        effectName: "Stan po uderzeniu celu",
-                        effectDescription: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz wygraniu przez niego obu rolli. Stan bierze dane od wywołującego. [1 * strength]",
-                        effectDuration: "2t",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Stan po uderzeniu celu",
+                        description: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz wygraniu przez niego obu rolli. Stan bierze dane od wywołującego. [1 * strength]",
+                        duration: "2t",
+                        source: "self",
+                        isBeneficial: true,
                     },
                     {
-                        effectName: "Stan po uderzeniu celu 2",
-                        effectDescription: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz zawaleniu przez niego obu rolli. Stan bierze dane od celu. [1 * strength]",
-                        effectDuration: "2t",
-                        effectSource: "target",
-                        effectIsBeneficial: false,
+                        name: "Stan po uderzeniu celu 2",
+                        description: "Powinien się pojawić tylko po trafieniu celu obrazeń oraz zawaleniu przez niego obu rolli. Stan bierze dane od celu. [1 * strength]",
+                        duration: "2t",
+                        source: "target",
+                        isBeneficial: false,
                     },
                 ]
             },
@@ -869,11 +853,11 @@ var ability = {
                 forceRollDifficulty: 9,
                 effects: [
                     {
-                        effectName: "Stan po masowym uderzeniu",
-                        effectDescription: "Powinien się pojawić tylko na tych, którzy zostali trafieni i uwalili roll na siłę. Trwa 2 rundy.",
-                        effectDuration: "2r",
-                        effectSource: "self",
-                        effectIsBeneficial: false,
+                        name: "Stan po masowym uderzeniu",
+                        description: "Powinien się pojawić tylko na tych, którzy zostali trafieni i uwalili roll na siłę. Trwa 2 rundy.",
+                        duration: "2r",
+                        source: "self",
+                        isBeneficial: false,
                     }
                 ]
             },
@@ -899,10 +883,10 @@ var ability = {
                 value: 500,
                 effects: [
                     {
-                        effectName: "Stan po uleczeniu siebie",
-                        effectDescription: "Powinien się pojawić zawsze, jako że nie ma forced rolla. Powinien także nie mieć wgl celu, bo akcja ma target self.",
-                        effectDuration: "2t",
-                        effectSource: "self",
+                        name: "Stan po uleczeniu siebie",
+                        description: "Powinien się pojawić zawsze, jako że nie ma forced rolla. Powinien także nie mieć wgl celu, bo akcja ma target self.",
+                        duration: "2t",
+                        source: "self",
                     },
                 ]
             },
@@ -913,16 +897,16 @@ var ability = {
                 value: 50,
                 effects: [
                     {
-                        effectName: "Stan po uleczeniu",
-                        effectDescription: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
-                        effectDuration: "2t",
-                        effectSource: "target",
+                        name: "Stan po uleczeniu",
+                        description: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
+                        duration: "2t",
+                        source: "target",
                     },
                     {
-                        effectName: "Stan po uleczeniu 2",
-                        effectDescription: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
-                        effectDuration: "2t",
-                        effectSource: "target",
+                        name: "Stan po uleczeniu 2",
+                        description: "Powinien się pojawić zawsze dla danego celu, jako że nie ma forced rolla.",
+                        duration: "2t",
+                        source: "target",
                     },
                 ]
             },
@@ -945,11 +929,11 @@ var ability = {
                 forceRollVS: "vitality vs vitality",
                 effects: [
                     {
-                        effectName: "Stan po masowym leczeniu",
-                        effectDescription: "Powinien się pojawić tylko na tych, którzy wygrali roll żywotność vs żywotność. Trwa 2 rundy.",
-                        effectDuration: "2r",
-                        effectSource: "self",
-                        effectIsBeneficial: true,
+                        name: "Stan po masowym leczeniu",
+                        description: "Powinien się pojawić tylko na tych, którzy wygrali roll żywotność vs żywotność. Trwa 2 rundy.",
+                        duration: "2r",
+                        source: "self",
+                        isBeneficial: true,
                     }
                 ]
             },
@@ -986,14 +970,14 @@ var ability = {
                 isEffectSuccessBeneficial: true, // Required due to mixed effects AND a forced roll
                 effects: [
                     {
-                        effectName: "Good Armor Buff",
-                        effectDuration: "2t",
-                        effectIsBeneficial: true
+                        name: "Good Armor Buff",
+                        duration: "2t",
+                        isBeneficial: true
                     },
                     {
-                        effectName: "Bad Armor Side-effect",
-                        effectDuration: "2t",
-                        effectIsBeneficial: false
+                        name: "Bad Armor Side-effect",
+                        duration: "2t",
+                        isBeneficial: false
                     }
                 ]
             },
@@ -1063,17 +1047,17 @@ var ability = {
                 isEffectSuccessBeneficial: false, 
                 effects: [
                     { 
-                        effectName: "Przyspieszenie", 
-                        effectDescription: "Powinno się zawsze pokazać jeśli postać zaliczy wymuszone rolle.", 
-                        effectDuration: "1r",
-                        effectProperties: ["prop_extra_turn"],
-                        effectIsBeneficial: true,
+                        name: "Przyspieszenie", 
+                        description: "Powinno się zawsze pokazać jeśli postać zaliczy wymuszone rolle.", 
+                        duration: "1r",
+                        properties: ["prop_extra_turn"],
+                        isBeneficial: true,
                     },
                     { 
-                        effectName: "Nieudane przyspieszenie", 
-                        effectDescription: "Powinno się zawsze pokazać jeśli postać zawali wymuszone rolle.", 
-                        effectDuration: "1r",
-                        effectIsBeneficial: false,
+                        name: "Nieudane przyspieszenie", 
+                        description: "Powinno się zawsze pokazać jeśli postać zawali wymuszone rolle.", 
+                        duration: "1r",
+                        isBeneficial: false,
                     }
                 ],
             },
@@ -1089,17 +1073,17 @@ var ability = {
                 isEffectSuccessBeneficial: true,
                 effects: [
                     { 
-                        effectName: "Przyspieszenie", 
-                        effectDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
-                        effectDuration: "1r",
-                        effectProperties: ["prop_extra_turn"],
-                        effectIsBeneficial: true,
+                        name: "Przyspieszenie", 
+                        description: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
+                        duration: "1r",
+                        properties: ["prop_extra_turn"],
+                        isBeneficial: true,
                     },
                     { 
-                        effectName: "Nieudane przyspieszenie", 
-                        effectDescription: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
-                        effectDuration: "1r",
-                        effectIsBeneficial: false,
+                        name: "Nieudane przyspieszenie", 
+                        description: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
+                        duration: "1r",
+                        isBeneficial: false,
                     }
                 ],
             },
@@ -1111,24 +1095,24 @@ var ability = {
                 isEffectSuccessBeneficial: true,
                 effects: [ // check if the chance displays correctly
                     { 
-                        effectName: "Dwa przyspieszenia", 
-                        effectDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
-                        effectDuration: "1r",
-                        effectProperties: ["prop_extra_turn"],
-                        effectIsBeneficial: true,
+                        name: "Dwa przyspieszenia", 
+                        description: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
+                        duration: "1r",
+                        properties: ["prop_extra_turn"],
+                        isBeneficial: true,
                     },
                     { 
-                        effectName: "Dwa przyspieszenia", 
-                        effectDescription: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
-                        effectDuration: "1r",
-                        effectProperties: ["prop_extra_turn"],
-                        effectIsBeneficial: true,
+                        name: "Dwa przyspieszenia", 
+                        description: "Powinno się pojawić po zaliczeniu obu rzutów przez cel.", 
+                        duration: "1r",
+                        properties: ["prop_extra_turn"],
+                        isBeneficial: true,
                     },
                     { 
-                        effectName: "Nieudane przyspieszenie", 
-                        effectDescription: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
-                        effectDuration: "1r",
-                        effectIsBeneficial: false,
+                        name: "Nieudane przyspieszenie", 
+                        description: "Powinno się pojawić po uwaleniu obu rzutów przez cel", 
+                        duration: "1r",
+                        isBeneficial: false,
                     }
                 ],
             },
@@ -1138,9 +1122,9 @@ var ability = {
                 // Tests applying effect to the whole ally team. Without any rolls etc.
                 effects: [
                     { 
-                        effectName: "Masowy bonus", 
-                        effectDescription: "Każdy sojusznik dostaje", 
-                        effectDuration: "1t",
+                        name: "Masowy bonus", 
+                        description: "Każdy sojusznik dostaje", 
+                        duration: "1t",
                     },
                 ],
             },
@@ -1220,9 +1204,9 @@ var ability = {
                 ignoresAbilityProperties: true,
                 effects: [
                     {
-                        effectName: "Dummy Effect",
-                        effectDuration: "1t",
-                        effectIsBeneficial: true
+                        name: "Dummy Effect",
+                        duration: "1t",
+                        isBeneficial: true
                     }
                 ]
             }
@@ -1292,7 +1276,7 @@ var ability = {
                 effects: [] 
             },
             {
-                // 6. error_effect_missing_flag: action with forced roll but the effect lacks effectIsBeneficial flag
+                // 6. error_effect_missing_flag: action with forced roll but the effect lacks isBeneficial flag
                 type: "damage",
                 target: "single",
                 damageType: "phys",
@@ -1301,8 +1285,8 @@ var ability = {
                 forceRollDifficulty: 10,
                 effects: [
                     {
-                        effectName: "Stan bez flagi",
-                        effectDuration: "1t"
+                        name: "Stan bez flagi",
+                        duration: "1t"
                     }
                 ]
             },
@@ -1314,14 +1298,14 @@ var ability = {
                 forceRollDifficulty: 10,
                 effects: [
                     {
-                        effectName: "Good Condition",
-                        effectDuration: "1t",
-                        effectIsBeneficial: true
+                        name: "Good Condition",
+                        duration: "1t",
+                        isBeneficial: true
                     },
                     {
-                        effectName: "Bad Condition",
-                        effectDuration: "1t",
-                        effectIsBeneficial: false
+                        name: "Bad Condition",
+                        duration: "1t",
+                        isBeneficial: false
                     }
                 ]
             },

@@ -44,12 +44,15 @@ function addCharacter(type, team, stats = {}, image = null) {
         uniqueName = getUniqueCharacterName(stats.name);
     }
 
-    // Update stats based on equipment
-    const finalStats = applyGearBonuses(stats);
+    // Prepare robust independent state copies
+    const initialStats = JSON.parse(JSON.stringify(stats));
+    const baselineStats = JSON.parse(JSON.stringify(stats));
 
     // Set default HP values if missing
-    if (finalStats.hp === undefined) finalStats.hp = 10;
-    if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
+    if (baselineStats.hp === undefined) baselineStats.hp = 10;
+    if (baselineStats.maxHp === undefined) baselineStats.maxHp = 10;
+    if (initialStats.hp === undefined) initialStats.hp = 10;
+    if (initialStats.maxHp === undefined) initialStats.maxHp = 10;
 
     // Initialize abilities states directly in memory
     const initialAbilitiesStates = {};
@@ -74,16 +77,23 @@ function addCharacter(type, team, stats = {}, image = null) {
         type: type,
         team: team,
         image: image,
-        stats: finalStats,
-        baselineStats: JSON.parse(JSON.stringify(finalStats)), // Keep initial state after gear bonuses for future template diff comparison
+        initialStats: initialStats,
+        baselineStats: baselineStats, 
+        currentStats: {},
         equipment: stats.equipment ? JSON.parse(JSON.stringify(stats.equipment)) : [],
         abilities: stats.abilities ? JSON.parse(JSON.stringify(stats.abilities)) : [],
         abilitiesStates: initialAbilitiesStates,
-        isDead: finalStats.isDead === true || finalStats.isDead === "true",
-        hasDeathsDoor: finalStats.hasDeathsDoor === true || finalStats.hasDeathsDoor === "true",
-        turnsTakenThisRound: 0, // Swapped from hasActedThisRound
+        isDead: initialStats.isDead === true || initialStats.isDead === "true",
+        hasDeathsDoor: initialStats.hasDeathsDoor === true || initialStats.hasDeathsDoor === "true",
+        turnsTakenThisRound: 0, 
         isStunned: false
     };
+
+    // Calculate pipeline modifiers starting from a fresh slate
+    recalculateCurrentStats(combatant);
+    
+    // Automatically enforce full HP relative to the gear calculations upon spawn
+    combatant.currentStats.hp = combatant.currentStats.maxHp;
 
     // Push to server -> which will broadcast it back to everyone (including GM) and trigger renderToken()
     syncAddCombatant(combatant);
@@ -105,7 +115,7 @@ function renderToken(combatant) {
 
     const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
     const imgAlt = combatant.image ? combatant.image : t('unknown_character');
-    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+    const hpPercentage = (combatant.currentStats.hp / combatant.currentStats.maxHp) * 100;
 
     tokenDiv.innerHTML = `
         <div class="token-stun-icon ${combatant.isStunned ? 'visible' : ''}">
@@ -138,7 +148,7 @@ function checkArenaEmptyStates() {
     const heroTeam = document.getElementById('heroTeam');
     const enemyTeam = document.getElementById('enemyTeam');
     
-    if (heroTeam) { // Checks like this one aren't really necessary for normal users, but they could be useful when someone wants to cause problems by deleting UI elements.
+    if (heroTeam) { 
         if (heroTeam.querySelectorAll('.character-token').length === 0) {
             if (!heroTeam.querySelector('.arena-placeholder')) {
                 const placeholder = document.createElement('div');
@@ -173,11 +183,11 @@ function rollDice(combatantId, diceType, difficulty = null) {
     const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return null;
 
-    const baseStat = parseInt(combatant.stats[diceType]) || 0;
-    const modValue = parseInt(combatant.stats[`${diceType}Mod`]) || 0;
+    const baseStat = parseInt(combatant.currentStats[diceType]) || 0;
+    const modValue = parseInt(combatant.currentStats[`${diceType}Mod`]) || 0;
 
     // Safely check if stat exists at all
-    if (combatant.stats[diceType] === undefined && combatant.stats[`${diceType}Mod`] === undefined) {
+    if (combatant.currentStats[diceType] === undefined && combatant.currentStats[`${diceType}Mod`] === undefined) {
         showAlertDialog(t('no_stats_error'));
         return null;
     }
@@ -215,10 +225,10 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
         hasAttBase = true;
     } else {
         for (let stat of attStats) {
-            const base = parseInt(attacker.stats[stat]) || 0;
+            const base = parseInt(attacker.currentStats[stat]) || 0;
             if (base > 0) {
                 hasAttBase = true;
-                const mod = parseInt(attacker.stats[`${stat}Mod`]) || 0;
+                const mod = parseInt(attacker.currentStats[`${stat}Mod`]) || 0;
                 const roll = Math.floor(Math.random() * base) + 1;
                 const total = Math.max(1, roll + mod);
                 attRes += total;
@@ -232,10 +242,10 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
     let defBreakdown = [];
     
     for (let stat of defStats) {
-        const base = parseInt(defender.stats[stat]) || 0;
+        const base = parseInt(defender.currentStats[stat]) || 0;
         if (base > 0) {
             hasDefBase = true;
-            const mod = parseInt(defender.stats[`${stat}Mod`]) || 0;
+            const mod = parseInt(defender.currentStats[`${stat}Mod`]) || 0;
             const roll = Math.floor(Math.random() * base) + 1;
             const total = Math.max(1, roll + mod);
             defRes += total;
@@ -313,7 +323,7 @@ function buildRollEvent(attacker, target, rollsObj, payload = null, skipSync = f
 
 // Rolls Death's Door chance for the combatant and returns the result object. DOES NOT broadcast to server independently!
 function rollDeathsDoor(combatant) {
-    const resilience = parseInt(combatant.stats.resilience) || 0;
+    const resilience = parseInt(combatant.currentStats.resilience) || 0;
     
     // Survival chance is strictly equal to resilience, clamped between 20% and 80%
     const survivalChance = Math.max(20, Math.min(80, resilience));

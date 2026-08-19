@@ -441,16 +441,18 @@ async function reloadServerData() {
 
             if (!freshData) continue;
 
-            // Apply equipment math to get the final stats based on fresh data
-            const finalStats = applyGearBonuses(freshData);
-            if (finalStats.hp === undefined) finalStats.hp = 10;
-            if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
-
-            const currentHp = combatant.stats.hp;
+            // Update initial logic directly to reset baseline safely without causing gear loop synergies
+            combatant.initialStats = JSON.parse(JSON.stringify(freshData));
+            combatant.baselineStats = JSON.parse(JSON.stringify(freshData));
             
-            combatant.stats = finalStats;
-            combatant.baselineStats = JSON.parse(JSON.stringify(finalStats));
-            combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
+            if (combatant.baselineStats.hp === undefined) combatant.baselineStats.hp = 10;
+            if (combatant.baselineStats.maxHp === undefined) combatant.baselineStats.maxHp = 10;
+
+            const currentHp = combatant.currentStats.hp;
+            
+            // Generate final derived stats dynamically
+            combatant.currentStats = applyGearStats(combatant.baselineStats, freshData.equipment || []);
+            combatant.currentStats.hp = Math.min(currentHp, combatant.currentStats.maxHp);
             
             combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
             combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
@@ -473,7 +475,7 @@ async function reloadServerData() {
         
         // Broadcast updates dynamically using the batch update function
         if (modifiedCombatants.length > 0) {
-            executeSafely(() => syncUpdateCombatantsBatch(modifiedCombatants));
+            syncUpdateCombatantsBatch(modifiedCombatants);
         }
         
         showNotification(t('data_scripts_reloaded'));
@@ -548,27 +550,3 @@ window.addEventListener('resize', adjustGlobalScale);
 document.addEventListener('DOMContentLoaded', adjustGlobalScale);
 // Execute immediately in case the script evaluates after DOM is already ready
 adjustGlobalScale();
-
-/**
- * Safely executes a callback function and catches Reference/Type errors.
- * Displays a top-anchored error toast if the function call fails.
- * 
- * Usage: executeSafely(() => yourFunction(arg1, arg2));
- * 
- * @param {Function} callback - The function closure to execute.
- * @returns The result of the callback execution, or undefined if it fails.
- */
-function executeSafely(callback) {
-    try {
-        return callback();
-    } catch (error) {
-        console.warn(`[Safeguard] Execution failed: ${error.message}`);
-        showNotification(`[Safeguard] ${error.message}`, { 
-            duration: 3000, 
-            position: 'top', 
-            theme: 'var(--theme-negative)' 
-        });
-        
-        return undefined;
-    }
-}

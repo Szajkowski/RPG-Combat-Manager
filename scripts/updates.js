@@ -29,6 +29,14 @@ function connectSocket() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const newSocket = new WebSocket(`${wsProtocol}//${window.location.host}`);
 
+    // Force connection timeout to prevent 30s OS-level hangs on dead servers
+    const connectionTimeout = setTimeout(() => {
+        if (newSocket.readyState === WebSocket.CONNECTING) {
+            console.warn("Connection attempt timed out. Forcing close.");
+            try { newSocket.close(); } catch(e) {}
+        }
+    }, 1500);
+
     // Centralized disconnect handler that executes immediately, regardless of OS TCP timeouts
     function handleDisconnect() {
         // CRITICAL FIX: Ignore disconnect events from old, zombie sockets
@@ -42,7 +50,7 @@ function connectSocket() {
 
         if (!isDisconnected) {
             isDisconnected = true;
-            executeSafely(() => showDisconnectModal());
+            showDisconnectModal();
         }
 
         // Prevent multiple concurrent reconnect loops
@@ -58,14 +66,16 @@ function connectSocket() {
     }
 
     newSocket.onopen = () => {
+        clearTimeout(connectionTimeout);
+
         // Handle UI recovery on reconnect
         if (isDisconnected) {
             isDisconnected = false;
-            executeSafely(() =>  hideDisconnectModal());
-            executeSafely(() => showNotification(t('connection_restored'), { duration: 3000, position: 'top', theme: 'var(--theme-positive)' }));
+            hideDisconnectModal();
+            showNotification(t('connection_restored'), { duration: 3000, position: 'top', theme: 'var(--theme-positive)' });
             
             // Silently fetch fresh data files so dropdowns and new spawns use the latest stats
-            executeSafely(() =>  reloadAllScripts());
+            reloadAllScripts();
         }
 
         // Initialize Heartbeat Engine
@@ -118,7 +128,7 @@ function connectSocket() {
             // Receive the unique client ID and the full server state upon initial connection
             case 'RESPONSEregisterConnection': {
                 if (currentServerInstanceId && currentServerInstanceId !== data.serverInstanceId) {
-                    executeSafely(() =>  showServerRestartModal());
+                    showServerRestartModal();
                     return; 
                 }
                 
@@ -135,20 +145,20 @@ function connectSocket() {
                 if (heroTeam) heroTeam.innerHTML = '';
                 if (enemyTeam) enemyTeam.innerHTML = '';
 
-                executeSafely(() => activeCharacters.forEach(c => renderToken(c)));
+                activeCharacters.forEach(c => renderToken(c));
 
                 // Render dynamic HUDs
-                executeSafely(() => renderInitiativeTracker());
-                executeSafely(() => renderEffects());
-                executeSafely(() => renderRollsFeed(rollsHistory));
+                renderInitiativeTracker();
+                renderEffects();
+                renderRollsFeed(rollsHistory);
 
                 // Initialize empty states properly
-                executeSafely(() => checkArenaEmptyStates());
-                if (!selectedCharacterId) executeSafely(() => checkCharMainPanelEmptyState());
+                checkArenaEmptyStates();
+                if (!selectedCharacterId) checkCharMainPanelEmptyState();
 
                 // Load initial characters from config.ini ONLY if the server responded with an empty list
                 if (activeCharacters.length === 0 && clientName === "GM") {
-                    executeSafely(() =>loadInitialConfigCharacters());
+                    loadInitialConfigCharacters();
                 }
                 break;
             }
@@ -175,8 +185,8 @@ function connectSocket() {
                 if (!activeCharacters.find(c => c.id === data.combatant.id)) {
                     activeCharacters.push(data.combatant);
                 }
-                executeSafely(() => renderToken(data.combatant));
-                executeSafely(() => renderInitiativeTracker());
+                renderToken(data.combatant);
+                renderInitiativeTracker();
                 break;
             }
 
@@ -185,12 +195,12 @@ function connectSocket() {
                 if (index !== -1) {
                     // Play associated system sound if the payload contains it
                     if (data.systemSound) {
-                        executeSafely(() => playSoundEffect(`sound/${data.systemSound}.mp3`, 0.5));   
+                        playSoundEffect(`sound/${data.systemSound}.mp3`, 0.5);   
                     }
 
                     activeCharacters[index] = data.combatant;
                     refreshCombatantDisplay(activeCharacters[index]);
-                    executeSafely(() => renderInitiativeTracker());
+                    renderInitiativeTracker();
                 }
                 break;
             }
@@ -206,8 +216,8 @@ function connectSocket() {
                     });
                     
                     // Call the bulk UI refresh function
-                    executeSafely(() => refreshDisplay(data.combatants));
-                    executeSafely(() => renderInitiativeTracker());
+                    refreshDisplay(data.combatants);
+                    renderInitiativeTracker();
                 }
                 break;
             }
@@ -227,35 +237,43 @@ function connectSocket() {
                 }
 
                 // Trigger reactive checks for empty states across the layout
-                executeSafely(() => checkCharMainPanelEmptyState());
-                executeSafely(() => renderInitiativeTracker());
-                executeSafely(() => checkArenaEmptyStates());
+                checkCharMainPanelEmptyState();
+                renderInitiativeTracker();
+                checkArenaEmptyStates();
                 break;
             }
 
             case "BROADCASTaddEffect": {
                 activeEffects = data.activeEffects;
-                executeSafely(() => renderEffects());
-                executeSafely(() => renderInitiativeTracker());
+                // Recalculate stats dynamically for everyone
+                activeCharacters.forEach(c => recalculateCurrentStats(c));
+                refreshDisplay(activeCharacters);
+                
+                renderEffects();
+                renderInitiativeTracker();
                 break;
             }
 
             case "BROADCASTupdateEffects": {
                 activeEffects = data.activeEffects;
-                executeSafely(() => renderEffects());
-                executeSafely(() => renderInitiativeTracker());
+                // Recalculate stats dynamically for everyone
+                activeCharacters.forEach(c => recalculateCurrentStats(c));
+                refreshDisplay(activeCharacters);
+                
+                renderEffects();
+                renderInitiativeTracker();
                 break;
             }
 
             case 'BROADCASTaddRollEvent': {
                 rollsHistory.push(data.rollEvent);
                 if (rollsHistory.length > 50) rollsHistory.shift();
-                executeSafely(() => appendRollEvent(data.rollEvent, true));
+                appendRollEvent(data.rollEvent, true);
                 break;
             }
 
             case 'BROADCASTplayActionSequence': {
-                executeSafely(() => playActionSequence(data.payload));
+                playActionSequence(data.payload);
                 break;
             }
                 
@@ -391,17 +409,17 @@ async function playActionSequence(payload) {
         // Apply deterministic stat updates chunk by chunk
         if (stepValues && stepValues[i] !== undefined) {
             if (actionType === 'damage' || actionType === 'heal') {
-                target.stats.hp = stepValues[i];
+                target.currentStats.hp = stepValues[i];
                 // IMPORTANT: Only set isDead if explicitly flagged by the math logic in deadSteps, preserving Death's Door checks
                 if (actionType === 'damage' && deadSteps && deadSteps[i]) {
                     target.isDead = true;
                 }
             } else if (actionType === 'armor') {
                 const sv = stepValues[i];
-                if (sv.physFlat !== undefined) target.stats.physArmor = sv.physFlat;
-                if (sv.physPerc !== undefined) target.stats.physArmorMod = `${sv.physPerc}%`;
-                if (sv.magFlat !== undefined) target.stats.magArmor = sv.magFlat;
-                if (sv.magPerc !== undefined) target.stats.magArmorMod = `${sv.magPerc}%`;
+                if (sv.physFlat !== undefined) target.currentStats.physArmor = sv.physFlat;
+                if (sv.physPerc !== undefined) target.currentStats.physArmorMod = `${sv.physPerc}%`;
+                if (sv.magFlat !== undefined) target.currentStats.magArmor = sv.magFlat;
+                if (sv.magPerc !== undefined) target.currentStats.magArmorMod = `${sv.magPerc}%`;
             }
             refreshCombatantDisplay(target);
         }
@@ -468,7 +486,7 @@ function updateTokenDisplay(combatant) {
     const token = document.querySelector(`.character-token[data-id="${combatant.id}"]`);
     if (!token) return;
 
-    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+    const hpPercentage = (combatant.currentStats.hp / combatant.currentStats.maxHp) * 100;
     const hpClass = getHpClass(hpPercentage, combatant.isDead);
     
     const tokenFill = token.querySelector('.token-hp-fill');
@@ -495,7 +513,7 @@ function updateTokenDisplay(combatant) {
 function updateRightPanelDisplay(combatant) {
     if (selectedCharacterId !== combatant.id) return;
 
-    const hpPercentage = (combatant.stats.hp / combatant.stats.maxHp) * 100;
+    const hpPercentage = (combatant.currentStats.hp / combatant.currentStats.maxHp) * 100;
     const hpClass = getHpClass(hpPercentage, combatant.isDead);
     
     // HP Visuals
@@ -518,25 +536,25 @@ function updateRightPanelDisplay(combatant) {
     };
 
     safeUpdateInput('.char-name-input', combatant.uniqueName);
-    safeUpdateInput('.current-hp-input', combatant.stats.hp);
-    safeUpdateInput('.max-hp-input', combatant.stats.maxHp);
+    safeUpdateInput('.current-hp-input', combatant.currentStats.hp);
+    safeUpdateInput('.max-hp-input', combatant.currentStats.maxHp);
 
     // Core Stats
     const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
     allStats.forEach(stat => {
-        safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.stats[stat] || '');
-        safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.stats[`${stat}Mod`] || '');
+        safeUpdateInput(`.stat-val-input[data-stat="${stat}"]`, combatant.currentStats[stat] || '');
+        safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.currentStats[`${stat}Mod`] || '');
     });
 
     // Armor & Damage
-    safeUpdateInput('.base-damage-input', combatant.stats.damage || 0);
-    safeUpdateInput('.base-phys-armor', combatant.stats.physArmor || 0);
-    safeUpdateInput('.base-phys-armor-mod', combatant.stats.physArmorMod || '');
-    safeUpdateInput('.base-mag-armor', combatant.stats.magArmor || 0);
-    safeUpdateInput('.base-mag-armor-mod', combatant.stats.magArmorMod || '');
+    safeUpdateInput('.base-damage-input', combatant.currentStats.damage || 0);
+    safeUpdateInput('.base-phys-armor', combatant.currentStats.physArmor || 0);
+    safeUpdateInput('.base-phys-armor-mod', combatant.currentStats.physArmorMod || '');
+    safeUpdateInput('.base-mag-armor', combatant.currentStats.magArmor || 0);
+    safeUpdateInput('.base-mag-armor-mod', combatant.currentStats.magArmorMod || '');
 
     // Completely re-render Extra Panel to recalculate formulas and success rates in real-time
-    executeSafely(() => renderExtraPanel(combatant.id));
+    renderExtraPanel(combatant.id);
 
     // Dynamic rebuild of the functional column (ensures Resurrect button appears instantly)
     const charFunctional = document.getElementById('panel-char-functional');
@@ -553,7 +571,7 @@ function refreshDisplay(combatantsArray) {
     });
 
     // Update effects globally once per batch update
-    executeSafely(() => renderEffects());
+    renderEffects();
 }
 
 // Fallback legacy UI Updater routing single updates specifically through batch rendering engine constraints

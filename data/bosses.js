@@ -68,7 +68,7 @@ var bosses = {
             {
                 type: "gear",
                 name: "Potworna tarcza zegarowa",
-                description: "[+2 reflex]. Raz dziennie pozwala użytkownikowi na chwilę się mocno przyspieszyć. Użytkownik zyskuje 2 dodatkowe akcje w swojej kolejce. Sama aktywacja tarczy nie kosztuje akcji",
+                description: "+2 reflex. Raz dziennie pozwala użytkownikowi na chwilę się mocno przyspieszyć. Użytkownik zyskuje 2 dodatkowe akcje w swojej kolejce. Sama aktywacja tarczy nie kosztuje akcji",
                 physArmor: 5,
                 magArmor: 8,
                 value: "20 Z",

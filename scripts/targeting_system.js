@@ -111,7 +111,7 @@ async function processNextPipelineAction() {
         clearTargetingState();
         currentPipelineContext = null;
         // Release the server lock immediately since the final action finished routing perfectly
-        executeSafely(() => syncReleaseActionLock());
+        syncReleaseActionLock();
         return; 
     }
 
@@ -178,7 +178,7 @@ async function executeAutoAction(action, targetType) {
     // Send a single batch update to sync all modified combatants at once
     if (targets.length > 0) {
         const updatedCombatants = targets.map(t => activeCharacters.find(c => c.id === t.id)).filter(Boolean);
-        executeSafely(() => syncUpdateCombatantsBatch(updatedCombatants));
+        syncUpdateCombatantsBatch(updatedCombatants);
     }
 }
 
@@ -312,7 +312,7 @@ function buildActionTooltipText(action, attacker, target, rollData) {
             if (action.valuePerc !== undefined) {
                 text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
+                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
                 text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
             } else {
                 text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
@@ -323,14 +323,14 @@ function buildActionTooltipText(action, attacker, target, rollData) {
             if (action.valuePerc !== undefined) {
                 text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
+                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
                 text = t('action_heal_thresh_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         } else {
             if (action.valuePerc !== undefined) {
                 text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
             } else if (action.value !== undefined) {
-                let val = executeSafely(() => getFormulaValue(action.value, attacker, rollData)) ?? action.value;
+                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
                 text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         }
@@ -340,7 +340,7 @@ function buildActionTooltipText(action, attacker, target, rollData) {
         const checkArmor = (key, isPerc, typeName) => {
             if (action[key] !== undefined && action[key] !== null && action[key] !== '') {
                 let valStr = String(action[key]).replace(/%/g, '');
-                let val = executeSafely(() => getFormulaValue(valStr, attacker, rollData)) ?? (parseInt(valStr) || 0);
+                let val = getFormulaValue(valStr, attacker, rollData) ?? (parseInt(valStr) || 0);
                 let verb = val >= 0 ? t('action_armor_add') : t('action_armor_sub');
                 let absVal = Math.abs(val);
                 let symbol = isPerc ? '%' : '';
@@ -506,7 +506,7 @@ function handleTargetingHoverEnter(e, targetId) {
         let focus = getEffectSuccessFocus(targetingData.payload);
         let count = 0;
         if (targetingData.payload.effects) {
-            count = targetingData.payload.effects.filter(e => e.effectIsBeneficial === focus).length;
+            count = targetingData.payload.effects.filter(e => e.isBeneficial === focus).length;
         }
         
         let textKey = focus ? 
@@ -640,7 +640,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
             else if (payload.type === 'effect') {
                 // If it's a pure effect action that triggered a stun, broadcast the sequence purely for the sound and visuals
                 if (shouldStunNonDamage) {
-                    executeSafely(() => syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true }));
+                    syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: 'success', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: true });
                     await delay(400);
                 }
             }
@@ -653,7 +653,7 @@ async function processActionExecution(attacker, target, payload, skipSync = fals
             return true;
         } else {
             // Execution resisted, broadcast negative visual feedback and exit
-            executeSafely(() => syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'resist', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStunNonDamage }));
+            syncPlayActionSequence({ targetId: target.id, actionType: payload.type, subType: evalRes.subType || 'resist', repeats: 1, stepId: payload.stepId, isAuto: skipSync, isStunned: shouldStunNonDamage });
             await delay(400);
             return false;
         }

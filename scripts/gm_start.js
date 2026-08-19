@@ -172,7 +172,6 @@ async function executeGmAction(event) {
         if (isPercentage) payload.valuePerc = finalValue;
         else payload.value = finalValue;
     } else if (type === 'armor') {
-        // Funnel to distinct properties strictly matching armor specifications
         if (subtype === 'phys') {
             if (isPercentage) payload.physArmorValuePerc = finalValue;
             else payload.physArmorValue = finalValue;
@@ -194,14 +193,14 @@ async function executeGmAction(event) {
         id: 'GM-Entity',
         uniqueName: t('game_master'),
         team: 'gm',
-        stats: {}
+        currentStats: {} 
     };
 
     // Lock the widget open so it doesn't disappear when moving the mouse to target
     const widget = document.querySelector('.gm-action-widget');
     if (widget) widget.classList.add('locked-open');
     
-    executeSafely(() => startActionPipeline(gmAttacker, [payload], { name: t('gm_action') }, null, event, false)) ?? executeSafely(() => syncReleaseActionLock());
+    startActionPipeline(gmAttacker, [payload], { name: t('gm_action') }, null, event, false);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -329,21 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDropdown('hero-player-select', players, 'player', 'hero');
     setupDropdown('enemy-player-select', players, 'player', 'enemy');
 
-    // Failsafe for disconnects
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && socket.readyState !== WebSocket.OPEN) {
-            console.log("Returned to the page. Auto-reconnect loop handles connection.");
-            // Disabled manual connectSocket() call here to prevent duplicate sockets 
-            // since updates.js now has an automatic 3-second reconnect loop.
-
-            waitForSocket(() => {
-                const playerNames = Array.from(document.querySelectorAll('.character-token[data-type="player"]'))
-                .map(token => token.dataset.name);
-                if (playerNames.length > 0) executeSafely(() => updateSpecificPlayersStats(playerNames));
-            });
-        }
-    });
-
     // --- INPUT VALIDATION AND CUT-PASTE MECHANICS FOR GM WIDGET ---
     document.addEventListener('keydown', (e) => {
         if (e.target.matches('#gm-action-value')) {
@@ -375,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.target.matches('#gm-action-value')) {
             if (val && /^-?\d+$/.test(val.trim())) {
-                executeSafely(() => pasteValueToInput(e.target));
+                pasteValueToInput(e.target);
             } else {
                 // Empty the input only if no numeric value to paste
                 if (e.target.value !== '') {
@@ -385,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (e.target.matches('.effect-target')) {
             if (val && !/^-?\d+$/.test(val.trim())) {
-                executeSafely(() => pasteValueToInput(e.target));
+                pasteValueToInput(e.target);
             }
         }
     });

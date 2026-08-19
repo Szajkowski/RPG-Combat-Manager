@@ -7,28 +7,41 @@
 
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-    <!-- Added 'defer' attribute to all scripts to guarantee execution order and DOM readiness -->
+    <!-- 1. DATA (Referenced in other data) -->
+    <script id="effects-data" src="data/effects.js" defer></script>
     <script id="abilities-data" src="data/abilities.js" defer></script>
+    <script id="items-data" src="data/items.js" defer></script>
+
+    <!-- 2. CHARACTER DATA -->
     <script id="players-data" src="data/players.js" defer></script>
     <script id="mobs-data" src="data/mobs.js" defer></script>
     <script id="npcs-data" src="data/npcs.js" defer></script>
     <script id="bosses-data" src="data/bosses.js" defer></script>
     
+    <!-- 3. CORE UTILS (Independent tools used everywhere) -->
     <script src="scripts/i18n.js" defer></script>
     <script src="scripts/utils.js" defer></script>
-    <script src="scripts/gm_settings.js" defer></script>
     <script src="scripts/audio.js" defer></script>
-    
-    <script src="scripts/arena.js" defer></script>
-    <script src="scripts/character_main_panel.js" defer></script>
-    <script src="scripts/character_extra_panel.js" defer></script>
-    <script src="scripts/effects.js" defer></script>
+
+    <!-- 4. LOGIC ENGINES (Math and rules) -->
     <script src="scripts/action_calculations.js" defer></script>
-    <script src="scripts/targeting_system.js" defer></script>
+    <script src="scripts/effects.js" defer></script>
+
+    <!-- 5. UI COMPONENTS (DOM Manipulation) -->
     <script src="scripts/functional_column.js" defer></script>
+    <script src="scripts/character_extra_panel.js" defer></script>
+    <script src="scripts/character_main_panel.js" defer></script>
+    <script src="scripts/arena.js" defer></script>
     <script src="scripts/initiative_tracker.js" defer></script>
-    
+
+    <!-- 6. COMPLEX SYSTEMS (Relies on Logic + UI) -->
+    <script src="scripts/targeting_system.js" defer></script>
+
+    <!-- 7. INIT (Entry points bridging everything together) -->
+    <script src="scripts/gm_settings.js" defer></script>
     <script src="scripts/gm_start.js" defer></script>
+
+    <!-- 8. NETWORK & STATE (Connects to the server so needs to be last) -->
     <script src="scripts/updates.js" defer></script>
 </head>
 <body>

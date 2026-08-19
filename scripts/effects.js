@@ -79,12 +79,13 @@ function renderEffects() {
 
         // Aggregate effect properties as prefixes
         let descString = effect.description || "";
-        if (effect.effectProperties && effect.effectProperties.length > 0) {
-            const propsPrefix = effect.effectProperties.map(p => `[${p}]`).join(' ');
+        if (effect.properties && effect.properties.length > 0) {
+            const propsPrefix = effect.properties.map(p => `[${p}]`).join(' ');
             descString = propsPrefix + (descString ? ' ' + descString : '');
         }
 
-        const parsedDesc = executeSafely(() => parseDescription(descString, evalContext)) ?? descString;
+        // Pass the actual effect object as the source object for dynamic data binding templates { ... }
+        const parsedDesc = parseDescription(descString, evalContext, effect) ?? descString;
 
         html += `
             <div class="effect-block">
@@ -133,7 +134,7 @@ function updateEffectTarget(id, newTarget) {
     }
 }
 
-function buildEffectObject(invoker, target, name, description, duration, source = "self", effectProperties = []) {
+function buildEffectObject(invoker, target, name, description, duration, source = "self", properties = []) {
     // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
     return {
         id: `effect-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -143,7 +144,7 @@ function buildEffectObject(invoker, target, name, description, duration, source 
         source: source || "self",
         description: description,
         duration: duration,
-        effectProperties: effectProperties
+        properties: properties
     };
 }
 
@@ -153,7 +154,7 @@ function processAndSendEffects(invoker, target, sourceData, fallbackName, defaul
 
     if (sourceData.effects && Array.isArray(sourceData.effects)) {
         for (const effect of sourceData.effects) {
-            const isEffBeneficial = effect.effectIsBeneficial;
+            const isEffBeneficial = effect.isBeneficial;
 
             // Evaluates if this specific effect should apply based on its beneficial flag and force roll results
             if (evalData && evalData.hasForcedRolls) {
@@ -162,10 +163,10 @@ function processAndSendEffects(invoker, target, sourceData, fallbackName, defaul
                 }
             }
 
-            const effName = effect.effectName || effect.name || fallbackName;
-            const effDesc = effect.effectDescription || effect.description || '';
-            const effDuration = effect.effectDuration || effect.duration || '-';
-            const effSource = effect.effectSource !== undefined ? effect.effectSource : defaultSource;
+            const effName = effect.name || fallbackName;
+            const effDesc = effect.description || '';
+            const effDuration = effect.duration || '-';
+            const effSource = effect.source !== undefined ? effect.source : defaultSource;
             
             let effTarget = effect.target !== undefined ? effect.target : target;
             
@@ -174,7 +175,7 @@ function processAndSendEffects(invoker, target, sourceData, fallbackName, defaul
                 effTarget = null; 
             }
             
-            const effProps = effect.effectProperties || effect.properties || [];
+            const effProps = effect.properties || [];
             
             newEffects.push(buildEffectObject(invoker, effTarget, effName, effDesc, effDuration, effSource, effProps));
         }

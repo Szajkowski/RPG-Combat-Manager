@@ -34,12 +34,12 @@ async function removeCharacterById(id, event) {
         
         // Only trigger network update if something was actually deleted
         if (filteredEffects.length !== activeEffects.length) {
-            executeSafely(() => updateServerEffects(filteredEffects));
+            updateServerEffects(filteredEffects);
         }
     }
 
     // 2. Request removal from server. Server will broadcast removal and clients will automatically delete token and clear panel.
-    executeSafely(() => syncRemoveCombatant(id));
+    syncRemoveCombatant(id);
 }
 
 // Toggles stun state via the functional column button
@@ -63,10 +63,10 @@ function resurrectCharacter() {
     if (!combatant || !combatant.isDead) return;
 
     combatant.isDead = false;
-    combatant.stats.hp = combatant.stats.maxHp || 10;
+    combatant.currentStats.hp = combatant.currentStats.maxHp || 10;
     
     // Send update to server to globally broadcast the resurrection alongside the audio effect
-    executeSafely(() => syncUpdateCombatant(combatant, 'revive'));
+    syncUpdateCombatant(combatant, 'revive');
 }
 
 // Reloads the corresponding data file and recalculates the currently selected character's stats
@@ -97,28 +97,28 @@ async function reloadCharacterData() {
 
         if (!freshData) return;
 
-        // Apply equipment math to get the final stats
-        const finalStats = applyGearBonuses(freshData);
+        // Apply fallback base HP if missing
+        if (freshData.hp === undefined) freshData.hp = 10;
+        if (freshData.maxHp === undefined) freshData.maxHp = 10;
 
-        // Keep default HP fallback
-        if (finalStats.hp === undefined) finalStats.hp = 10;
-        if (finalStats.maxHp === undefined) finalStats.maxHp = 10;
-
-        // Preserve current health to prevent unwanted full heals, but clamp to new max HP
-        const currentHp = combatant.stats.hp;
+        const currentHp = combatant.currentStats.hp;
         const wasDead = combatant.isDead;
-        const turnsTaken = combatant.turnsTakenThisRound || 0; // Migrated state variable
+        const turnsTaken = combatant.turnsTakenThisRound || 0; 
         
-        // Update memory core stats
-        combatant.stats = finalStats;
-        combatant.baselineStats = JSON.parse(JSON.stringify(finalStats)); // Reset baseline stats upon character reloads
-        combatant.stats.hp = Math.min(currentHp, finalStats.maxHp);
+        // Clean reset of baseline states to the content directly from the server file
+        combatant.initialStats = JSON.parse(JSON.stringify(freshData));
+        combatant.baselineStats = JSON.parse(JSON.stringify(freshData)); 
+        
         combatant.isDead = wasDead;
         combatant.turnsTakenThisRound = turnsTaken;
         
-        // Deep copy fresh equipment and abilities
         combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
         combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
+
+        // Recalculate pipeline from scratch with updated baseline and items
+        recalculateCurrentStats(combatant);
+        // Protect current health state
+        combatant.currentStats.hp = Math.min(currentHp, combatant.currentStats.maxHp);
 
         // Check if any new abilities were added and assign them default memory states
         combatant.abilities.forEach(ability => {
@@ -134,11 +134,11 @@ async function reloadCharacterData() {
         });
         
         syncUpdateCombatant(combatant);
-        executeSafely(() => showNotification(t('reload_success'), { theme: 'var(--theme-positive)' }));
+        showNotification(t('reload_success'), { theme: 'var(--theme-positive)' });
         
     } catch (error) {
         console.error("Error while reloading character data:", error);
-        executeSafely(() => showNotification(t('reload_error'), { theme: 'var(--theme-negative)' }));
+        showNotification(t('reload_error'), { theme: 'var(--theme-negative)' });
     }
 }
 
@@ -174,9 +174,9 @@ function saveCharacterStats(id) {
     let stateDeltas = {};
 
     statsToTrack.forEach(stat => {
-        // Fallback to 0 if the stat is missing or undefined in current state, with explicit NaN validation
-        let currentVal = combatant.stats[stat] !== undefined ? parseInt(combatant.stats[stat]) : 0;
-        if (isNaN(currentVal)) currentVal = 0;
+        // Fallback to 0 if the stat is missing or undefined in initial state, with explicit NaN validation
+        let initialVal = combatant.initialStats[stat] !== undefined ? parseInt(combatant.initialStats[stat]) : 0;
+        if (isNaN(initialVal)) initialVal = 0;
 
         // Fallback to 0 if the stat was missing or undefined in baseline state, with explicit NaN validation
         let baselineVal = combatant.baselineStats[stat] !== undefined ? parseInt(combatant.baselineStats[stat]) : 0;
@@ -184,12 +184,12 @@ function saveCharacterStats(id) {
         
         // Enforce a minimum threshold value of 1 for core main stats to prevent them from dropping to 0
         if (coreAttributes.includes(stat)) {
-            if (currentVal <= 0) currentVal = 1;
             if (baselineVal <= 0) baselineVal = 1;
+            if (initialVal <= 0) initialVal = 1;
         }
         
-        if (currentVal !== baselineVal) {
-            const diff = currentVal - baselineVal;
+        if (baselineVal !== initialVal) {
+            const diff = baselineVal - initialVal;
             const prefix = diff > 0 ? '+' : '';
             
             // Dynamic translation parsing for suffixes like Mod and Perc
@@ -205,24 +205,25 @@ function saveCharacterStats(id) {
             }
             
             // Format delta log linearly treating missing values as zero, preserving custom file removal mechanics behind the scenes
-            changeLogs.push(` - ${localizedStatName}: ${baselineVal} -> ${currentVal} (${prefix}${diff})`);
+            changeLogs.push(` - ${localizedStatName}: ${initialVal} -> ${baselineVal} (${prefix}${diff})`);
             stateDeltas[stat] = diff;
         }
     });
 
-    // Automatically sync HP if it matches MaxHP in baseline
+    // Automatically sync HP if it matches MaxHP in initial
     if (stateDeltas['maxHp']) {
-        let baselineHp = combatant.baselineStats['hp'] !== undefined ? parseInt(combatant.baselineStats['hp']) : 0;
-        if (isNaN(baselineHp)) baselineHp = 0;
+        let initialHp = combatant.initialStats['hp'] !== undefined ? parseInt(combatant.initialStats['hp']) : 0;
+        if (isNaN(initialHp)) initialHp = 0;
 
-        let baselineMaxHp = combatant.baselineStats['maxHp'] !== undefined ? parseInt(combatant.baselineStats['maxHp']) : 0;
-        if (isNaN(baselineMaxHp)) baselineMaxHp = 0;
+        let initialMaxHp = combatant.initialStats['maxHp'] !== undefined ? parseInt(combatant.initialStats['maxHp']) : 0;
+        if (isNaN(initialMaxHp)) initialMaxHp = 0;
         
-        if (baselineHp === baselineMaxHp) {
+        // Failsafe for full health values - if the file considered HP to be full, auto sync saves the logic
+        if (initialHp === initialMaxHp) {
             stateDeltas['hp'] = stateDeltas['maxHp'];
-            const currentHpVal = baselineHp + stateDeltas['hp'];
+            const currentHpVal = initialHp + stateDeltas['hp'];
             const prefix = stateDeltas['hp'] > 0 ? '+' : '';
-            changeLogs.push(` - ${t('health') || 'hp'}: ${baselineHp} -> ${currentHpVal} (${prefix}${stateDeltas['hp']}) [Auto-Sync]`);
+            changeLogs.push(` - ${t('health') || 'hp'}: ${initialHp} -> ${currentHpVal} (${prefix}${stateDeltas['hp']}) [Auto-Sync]`);
         }
     }
 
@@ -274,11 +275,12 @@ function saveCharacterStats(id) {
 
             // Update current HP in memory if it was auto-synced
             if (stateDeltas['hp']) {
-                combatant.stats.hp += stateDeltas['hp'];
+                combatant.currentStats.hp += stateDeltas['hp'];
             }
 
-            // Set the new shifted configuration as our baseline configuration parameters
-            combatant.baselineStats = JSON.parse(JSON.stringify(combatant.stats));
+            // Sync successfully written server config back into our local initial memory marker
+            combatant.initialStats = JSON.parse(JSON.stringify(combatant.baselineStats));
+            
             box = document.querySelector('.char-name-input');
             if (box && selectedCharacterId === combatant.id) {
                 renderCharMainPanel(combatant.id);

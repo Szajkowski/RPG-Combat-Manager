@@ -35,21 +35,21 @@ var players = {
             {
                 type: "gear",
                 name: "Miecz dostrojonej żywotności",
-                description: "[+2 vitality], [+2 attunement]",
+                description: "+2 vitality, +2 attunement",
                 damage: 50,
                 value: 300
             },
             {
                 type: "gear",
                 name: "Pierścień nieustępliwości",
-                description: "[+2 resilience]",
+                description: "+2 resilience",
                 magArmor: 5,
                 value: 1
             },
             {
                 type: "gear",
                 name: "Amulet Evranda",
-                description: "[+1 vitality], [+1 accuracy], [+1 resilience]",
+                description: "Dodaje +1 agility, +1 accuracy, +1 resilience",
                 value: 1000,
             },
             {
@@ -95,14 +95,14 @@ var players = {
             {
                 type: "gear",
                 name: "Gobliński kostur szamana",
-                description: "[+1 intuition]",
+                description: "+1 intuition",
                 damage: 30,
                 value: 10,
             },
             {
                 type: "gear",
                 name: "Buty niezłomnej intuicji",
-                description: "[+2 intuition], [+2 resilience]",
+                description: "+2 intuition, +2 resilience",
                 physArmor: 3,
                 magArmor: 3,
                 value: 300,
@@ -110,7 +110,7 @@ var players = {
             {
                 type: "gear",
                 name: "Amulet Evranda",
-                description: "[+1 intuition], [+1 accuracy], [+1 resilience]",
+                description: "+1 intuition, +1 accuracy, +1 resilience",
                 value: 1000,
             },
             {
@@ -159,20 +159,20 @@ var players = {
             {
                 type: "gear",
                 name: "Gobliński ciachacz wodza",
-                description: "[+1 strength]",
+                description: "+1 strength",
                 damage: 40,
                 value: 10,
             },
             {
                 type: "gear",
                 name: "Sygnet ziemi",
-                description: "[+1 strength mod]",
+                description: "+1 strength mod",
                 value: 300,
             },
             {
                 type: "gear",
                 name: "Amulet Evranda",
-                description: "[+1 strength], [+1 accuracy], [+1 resilience]",
+                description: "+1 strength, +1 accuracy, +1 resilience",
                 value: 1000,
             },
             {

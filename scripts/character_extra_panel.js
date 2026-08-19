@@ -1,3 +1,5 @@
+// FILE character_extra_panel.js
+
 // Main entry point for rendering the Extra Panel (Skills & Equipment tabs)
 function renderExtraPanel(combatantId) {
     const combatant = activeCharacters.find(c => c.id === combatantId);
@@ -11,8 +13,8 @@ function renderExtraPanel(combatantId) {
 
     // Calculate maximum number of abilities based on current dynamically stored attunement
     let attunement = 1000; // if there is no attunement stat, you can have as many abilities as you want.
-    if (combatant.stats.attunement !== undefined) {
-        attunement = parseInt(combatant.stats.attunement) || 0;
+    if (combatant.currentStats.attunement !== undefined) {
+        attunement = parseInt(combatant.currentStats.attunement) || 0;
     }
 
     let maxAbilities = 3;  // Base 3 abilities
@@ -200,7 +202,7 @@ function fillAbilitiesPanel(abilities, combatant, container) {
 
             // Determine specific logical exceptions checking properties directly
             const isReaction = ability.properties && ability.properties.includes('prop_reaction');
-            const hasTurn = executeSafely(() => hasCurrentTurn(combatant.id)) ?? true;
+            const hasTurn = hasCurrentTurn(combatant.id) ?? true;
 
             // Block ability if character is dead
             if (combatant.isDead) {
@@ -266,34 +268,41 @@ function fillEquipmentPanel(equipment, combatant, container) {
             }
 
             if (descString) {
-                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant)}</div>`;
+                // Pass item directly as sourceObject to allow {stats.hp} dynamic data binding
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant, item)}</div>`;
             }
 
             html += `<div class="char-extra-card-meta">`;
             
-            if (item.damage !== undefined) {
-                const val = getFormulaValue(item.damage, combatant);
-                const breakdown = getFormulaBreakdown(item.damage);
+            // Minimalist fallback to prevent cards from crashing the render while waiting for a full item UI refactor
+            const itemDamage = item.stats ? item.stats.damage : item.damage;
+            if (itemDamage !== undefined) {
+                const val = getFormulaValue(itemDamage, combatant);
+                const breakdown = getFormulaBreakdown(itemDamage);
                 html += `<div>${t('damage')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
-            if (item.physArmor !== undefined) {
-                const val = getFormulaValue(item.physArmor, combatant);
-                const breakdown = getFormulaBreakdown(item.physArmor);
+            const itemPhysArmor = item.stats ? item.stats.physArmor : item.physArmor;
+            if (itemPhysArmor !== undefined) {
+                const val = getFormulaValue(itemPhysArmor, combatant);
+                const breakdown = getFormulaBreakdown(itemPhysArmor);
                 html += `<div>${t('phys_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
-            if (item.physArmorPerc !== undefined) {
-                const val = getFormulaValue(item.physArmorPerc, combatant);
-                const breakdown = getFormulaBreakdown(item.physArmorPerc);
+            const itemPhysArmorPerc = item.stats ? item.stats.physArmorPerc : item.physArmorPerc;
+            if (itemPhysArmorPerc !== undefined) {
+                const val = getFormulaValue(itemPhysArmorPerc, combatant);
+                const breakdown = getFormulaBreakdown(itemPhysArmorPerc);
                 html += `<div>${t('phys_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
-            if (item.magArmor !== undefined) {
-                const val = getFormulaValue(item.magArmor, combatant);
-                const breakdown = getFormulaBreakdown(item.magArmor);
+            const itemMagArmor = item.stats ? item.stats.magArmor : item.magArmor;
+            if (itemMagArmor !== undefined) {
+                const val = getFormulaValue(itemMagArmor, combatant);
+                const breakdown = getFormulaBreakdown(itemMagArmor);
                 html += `<div>${t('mag_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
-            if (item.magArmorPerc !== undefined) {
-                const val = getFormulaValue(item.magArmorPerc, combatant);
-                const breakdown = getFormulaBreakdown(item.magArmorPerc);
+            const itemMagArmorPerc = item.stats ? item.stats.magArmorPerc : item.magArmorPerc;
+            if (itemMagArmorPerc !== undefined) {
+                const val = getFormulaValue(itemMagArmorPerc, combatant);
+                const breakdown = getFormulaBreakdown(itemMagArmorPerc);
                 html += `<div>${t('mag_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             }
             if (item.value !== undefined) {
@@ -322,7 +331,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             }
 
             if (descString) {
-                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant)}</div>`;
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant, item)}</div>`;
             }
             
             html += `
@@ -380,13 +389,13 @@ async function useAbility(combatantId, ability, event) {
         let missingStat = false; // Tracks if the required stat does not exist at all on the character
 
         stats.forEach(stat => {
-            if (updatedCombatant.stats[stat] === undefined && updatedCombatant.stats[`${stat}Mod`] === undefined) {
+            if (updatedCombatant.currentStats[stat] === undefined && updatedCombatant.currentStats[`${stat}Mod`] === undefined) {
                 missingStat = true;
             } else {
-                const baseStat = parseInt(updatedCombatant.stats[stat]) || 0;
+                const baseStat = parseInt(updatedCombatant.currentStats[stat]) || 0;
                 if (baseStat > 0) {
                     hasBase = true;
-                    const modValue = parseInt(updatedCombatant.stats[`${stat}Mod`]) || 0;
+                    const modValue = parseInt(updatedCombatant.currentStats[`${stat}Mod`]) || 0;
                     const roll = Math.floor(Math.random() * baseStat) + 1;
                     const finalRes = Math.max(1, roll + modValue);
                     totalResult += finalRes;
@@ -397,7 +406,7 @@ async function useAbility(combatantId, ability, event) {
 
         // Abort the ability entirely if a required stat doesn't exist
         if (missingStat) {
-            executeSafely(() => showAlertDialog(t('error_no_stats')));
+            showAlertDialog(t('error_no_stats'));
             return;
         }
 
@@ -494,25 +503,36 @@ function parsePropertyTags(description) {
 }
 
 /**
- * Replaces stat modifier tags with translated and formatted HTML strings.
- * Example Input: "Grants [+2 strength] and [-1 agility mod]."
- * Example Output (PL): "Grants <strong class="stat-bonus">+2 siły</strong> and <strong class="stat-bonus">-1 do wyniku zwinności</strong>."
+ * Replaces {path.to.value} tags with dynamically extracted values from the source object.
+ * Supports 1-based indexing for action arrays (e.g., {action.1.value}).
  */
- function parseStatTags(description) {
-    return description.replace(/\[([+-]?\d+(?:\.\d+)?)\s+([a-zA-Z0-9_]+)(?:\s+(mod))?\]/gi, (match, value, stat, isMod) => {
-        const statKey = stat.toLowerCase();
-        let statTranslated;
+function parseDataBindings(description, sourceObject) {
+    if (!sourceObject) return description;
 
-        if (isMod) {
-            // Dynamically build the modifier string using the {stat} placeholder
-            statTranslated = t('to_result').replace('{stat}', t('desc_' + statKey));
-        } else {
-            statTranslated = t('desc_' + statKey);
+    return description.replace(/\{([\w.]+)\}/g, (match, path) => {
+        const parts = path.split('.');
+        let current = sourceObject;
+
+        for (let i = 0; i < parts.length; i++) {
+            let part = parts[i];
+            if (current === undefined || current === null) return match;
+
+            // Handle 'action' or 'actions' explicitly pointing to the actions array
+            if ((part === 'action' || part === 'actions') && current['actions']) {
+                current = current['actions'];
+                continue;
+            }
+
+            // Handle 1-based indexing for arrays natively
+            if (Array.isArray(current) && !isNaN(part)) {
+                part = parseInt(part) - 1;
+            }
+
+            current = current[part];
         }
-        
-        const numVal = parseFloat(value);
-        const prefix = numVal > 0 ? '+' : '';
-        return `<strong class="stat-bonus">${prefix}${numVal} ${statTranslated}</strong>`;
+
+        // Return the extracted value, or fall back to the original {tag} string if not found
+        return current !== undefined ? current : match;
     });
 }
 
@@ -579,19 +599,19 @@ function getFormulaBreakdown(statValue) {
  * Extracts comprehensive math structures supporting infinite sums/subtractions directly replacing roll/over bounds.
  * Wraps dynamic results (e.g., Min - Max) sequentially in fully functional format.
  */
-function parseFormulaTags(description, combatant, ability = null) {
+function parseFormulaTags(description, combatant, sourceObject = null) {
     return description.replace(/\[(.*?)\]/g, (match, formula) => {
         try {
             const cleanFormula = formula.replace(/\s+/g, ' ').trim();
 
             // Intercept complex dynamically structured ability elements heavily depending on multiple parameters
             if (/roll|over/i.test(cleanFormula)) {
-                if (!ability || !ability.roll) {
+                if (!sourceObject || !sourceObject.roll) {
                     showAlertDialog(t('error_ability_roll_missing'));
-                    console.error("Missing 'roll' property on requested ability formula resolution.");
+                    console.error("Missing 'roll' property on requested formula resolution.");
                     return match;
                 }
-                if (/over/i.test(cleanFormula) && (!ability.difficulty || ability.difficulty === "X")) {
+                if (/over/i.test(cleanFormula) && (!sourceObject.difficulty || sourceObject.difficulty === "X")) {
                     showAlertDialog(t('error_ability_diff_missing'));
                     console.error("Missing 'difficulty' property parsing margin offset 'over' calculation.");
                     return match;
@@ -599,7 +619,7 @@ function parseFormulaTags(description, combatant, ability = null) {
 
                 // Extrapolate bounds across potential multi-stat array inputs natively
                 let minRollSum = 0, maxRollSum = 0;
-                const statsArray = parseRollStats(ability.roll);
+                const statsArray = parseRollStats(sourceObject.roll);
                 
                 statsArray.forEach(stat => {
                     const base = getStatValue(combatant, stat);
@@ -608,7 +628,7 @@ function parseFormulaTags(description, combatant, ability = null) {
                     maxRollSum += Math.max(1, base + mod); // Maximum boundary mapping
                 });
                 
-                const diff = parseInt(ability.difficulty) || 0;
+                const diff = parseInt(sourceObject.difficulty) || 0;
                 const minOverSum = Math.max(0, minRollSum - diff);
                 const maxOverSum = Math.max(0, maxRollSum - diff);
 
@@ -669,26 +689,26 @@ function parseFormulaTags(description, combatant, ability = null) {
 
 /**
  * Master wrapper used strictly for formatting text blocks (e.g., item or ability descriptions).
- * Sequentially applies property highlights, stat highlights, and formula calculations passing active ability structures dynamically.
+ * Sequentially applies property highlights, data bindings, and formula calculations passing active structures dynamically.
  */
-function parseDescription(description, combatant, ability = null) {
+function parseDescription(description, combatant, sourceObject = null) {
     if (typeof description === "number") return description;
 
     let processedDescription = parsePropertyTags(String(description));
-    processedDescription = parseStatTags(processedDescription);
-    processedDescription = parseFormulaTags(processedDescription, combatant, ability);
+    processedDescription = parseDataBindings(processedDescription, sourceObject);
+    processedDescription = parseFormulaTags(processedDescription, combatant, sourceObject);
 
     return processedDescription;
 }
 
 // Retrieves only the value of the statistic itself, without counting the additional bonus.
 function getStatValue(combatant, stat) {
-    if (!combatant || !combatant.stats) return 0;
-    return parseInt(combatant.stats[stat]) || 0; 
+    if (!combatant || !combatant.currentStats) return 0;
+    return parseInt(combatant.currentStats[stat]) || 0; 
 }
 
 // Retrieves the value of the stat bonus.
 function getModValue(combatant, stat) {
-    if (!combatant || !combatant.stats) return 0;
-    return parseInt(combatant.stats[`${stat}Mod`]) || 0; 
+    if (!combatant || !combatant.currentStats) return 0;
+    return parseInt(combatant.currentStats[`${stat}Mod`]) || 0; 
 }

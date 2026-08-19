@@ -104,7 +104,7 @@ var mobs = {
             {
                 type: "gear",
                 name: "Gobliński ciachacz wodza",
-                description: "[+1 strength]",
+                description: "+1 strength",
                 damage: 40,
                 value: "10S",
             },
@@ -139,7 +139,7 @@ var mobs = {
             {
                 type: "gear",
                 name: "Gobliński kostur szamana",
-                description: "[+1 intuition]",
+                description: "+1 intuition",
                 damage: 40,
                 value: "10S",
             },
@@ -259,12 +259,12 @@ var mobs = {
             {
                 type: "gear",
                 name: "Szata kultysty",
-                description: "[+2 vitality]",
+                description: "+2 vitality",
                 value: 50,
             },
         ],
     },
-"Kultysta Edeusa (elita)": {
+    "Kultysta Edeusa (elita)": {
         name: "Kultysta Edeusa (elita)",
         hp: 250,
         maxHp: 250,
@@ -294,13 +294,13 @@ var mobs = {
             {
                 type: "gear",
                 name: "Szata elitarnego kultysty",
-                description: "[+30 hp], [+2 strength]",
+                description: "+30 hp, +2 strength",
                 value: 300,
             },
             {
                 type: "gear",
                 name: "Młot elitarnego kultysty",
-                description: "[+2 vitality], [+2 strength]. Wymaga 18 siły. Możesz rzucić na żywotność (trudność 10), aby rozpalić młot, zwiększając jego obrażenia o 50%.",
+                description: "+2 vitality, +2 strength. Wymaga 18 siły. Możesz rzucić na żywotność (trudność 10), aby rozpalić młot, zwiększając jego obrażenia o 50%.",
                 damage: 80,
                 value: 500,
             },
@@ -327,13 +327,13 @@ var mobs = {
             {
                 type: "gear",
                 name: "Szata kultysty proroka",
-                description: "[+2 vitality], [+1 vitality mod]",
+                description: "+2 vitality, +1 vitality mod",
                 value: 300,
             },
             {
                 type: "gear",
                 name: "Kostur kultysty proroka",
-                description: "[+2 vitality]. Możesz rzucić na żywotność (trudność 10), aby rozpalić kostur, zwiększając dodając sobie bonus +2 do rzutów na żywotność",
+                description: "+2 vitality. Możesz rzucić na żywotność (trudność 10), aby rozpalić kostur, zwiększając dodając sobie bonus +2 do rzutów na żywotność",
                 damage: 40,
                 value: 500,
             },

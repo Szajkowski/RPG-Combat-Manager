@@ -429,7 +429,7 @@ async function startServer() {
 
                 case 'REQUESTaddCombatant': {
                     activeCharacters.push(data.combatant);
-                    logEvent(`ADDED COMBATANT: "${data.combatant.uniqueName}" (Type: ${data.combatant.type}, Team: ${data.combatant.team}, HP: ${data.combatant.stats.hp}/${data.combatant.stats.maxHp})`);
+                    logEvent(`ADDED COMBATANT: "${data.combatant.uniqueName}" (Type: ${data.combatant.type}, Team: ${data.combatant.team}, HP: ${data.combatant.currentStats.hp}/${data.combatant.currentStats.maxHp})`);
 
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
@@ -655,8 +655,8 @@ function getCombatantDiffLog(oldC, newC) {
     let changes = [];
     
     // Check core survival states
-    if (oldC.stats.hp !== newC.stats.hp) changes.push(`HP: ${oldC.stats.hp} -> ${newC.stats.hp}`);
-    if (oldC.stats.maxHp !== newC.stats.maxHp) changes.push(`MaxHP: ${oldC.stats.maxHp} -> ${newC.stats.maxHp}`);
+    if (oldC.currentStats.hp !== newC.currentStats.hp) changes.push(`HP: ${oldC.currentStats.hp} -> ${newC.currentStats.hp}`);
+    if (oldC.currentStats.maxHp !== newC.currentStats.maxHp) changes.push(`MaxHP: ${oldC.currentStats.maxHp} -> ${newC.currentStats.maxHp}`);
     if (oldC.isDead !== newC.isDead) changes.push(newC.isDead ? `DIED` : `RESURRECTED`);
     if (oldC.isStunned !== newC.isStunned) changes.push(newC.isStunned ? `STUNNED` : `STUN REMOVED`);
     if (oldC.turnsTakenThisRound !== newC.turnsTakenThisRound) changes.push(`Turns taken: ${oldC.turnsTakenThisRound} -> ${newC.turnsTakenThisRound}`);
@@ -681,8 +681,8 @@ function getCombatantDiffLog(oldC, newC) {
     // Check extra stats (damage, armor)
     const extraStats = ['damage', 'physArmor', 'magArmor', 'physArmorMod', 'magArmorMod'];
     for (let stat of extraStats) {
-        if (oldC.stats[stat] !== newC.stats[stat]) {
-            changes.push(`${stat}: ${oldC.stats[stat]} -> ${newC.stats[stat]}`);
+        if (oldC.currentStats[stat] !== newC.currentStats[stat]) {
+            changes.push(`${stat}: ${oldC.currentStats[stat]} -> ${newC.currentStats[stat]}`);
         }
     }
 
