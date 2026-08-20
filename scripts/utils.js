@@ -243,7 +243,13 @@ function showPropertyTooltip(anchorEl, propKey) {
         document.body.appendChild(tooltip);
     }
 
-    tooltip.innerHTML = t('desc_' + propKey);
+    // Exception for item_baseline_hint since it doesn't use the desc_ prefix
+    if (propKey === 'item_baseline_hint') {
+        tooltip.innerHTML = t(propKey);
+    } else {
+        tooltip.innerHTML = t('desc_' + propKey);
+    }
+    
     tooltip.style.display = 'block';
 
     const rect = anchorEl.getBoundingClientRect();
@@ -265,7 +271,7 @@ function hidePropertyTooltip() {
 }
 
 document.addEventListener('mouseover', (e) => {
-    if (e.target.classList.contains('highlighted-property')) {
+    if (e.target.classList.contains('highlighted-property') || e.target.classList.contains('info-icon')) {
         const propKey = e.target.dataset.prop;
         if (propKey) {
             propertyHoverTimeout = setTimeout(() => {
@@ -276,7 +282,7 @@ document.addEventListener('mouseover', (e) => {
 });
 
 document.addEventListener('mouseout', (e) => {
-    if (e.target.classList.contains('highlighted-property')) {
+    if (e.target.classList.contains('highlighted-property') || e.target.classList.contains('info-icon')) {
         clearTimeout(propertyHoverTimeout);
         hidePropertyTooltip();
     }

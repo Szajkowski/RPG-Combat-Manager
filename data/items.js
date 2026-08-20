@@ -21,6 +21,7 @@ var item = {
         name: "Ostateczny Item Testowy 2",
         description: "Jest wredny, odejmuje -70 hp.",
         properties: ["prop_extra_turn"],
+        value: 100,
         stats: {
             maxHp: "[-1 * attunement + 2 * vitality]",
             damage: "[1 * resilience]",

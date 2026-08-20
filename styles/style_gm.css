@@ -433,13 +433,17 @@ body {
 
 /* Fixed select dropdowns to remain small and clamp text when squeezed */
 .arena-add-bar select { 
-    background: var(--bg-card); color: var(--text-main); border: 1px solid var(--text-muted); padding: 6px; 
-    border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+    background: var(--bg-card); 
+    color: var(--text-main); 
+    border: 1px solid var(--text-muted); 
+    padding: 6px; 
+    border-radius: 4px; 
+    font-size: 0.75rem; 
+    cursor: pointer;
     
-    /* Force flexbox to ignore intrinsic option widths and strictly obey these limits */
-    width: 100%;
+    flex: 1 1 0px; 
+    min-width: 110px; 
     max-width: 150px; 
-    flex: 1 1 150px;
     
     white-space: nowrap;
     overflow: hidden;
@@ -782,6 +786,55 @@ body {
 
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+.item-stats-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+.expand-details-btn {
+    background: var(--border-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.expand-details-btn:hover {
+    background: var(--text-muted);
+    color: var(--text-main);
+}
+.info-icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--border-dark);
+    border: 1px solid var(--border-color);
+    color: var(--theme-special);
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: help;
+}
+.item-stats-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+}
+.item-stats-details.hidden {
+    display: none;
+}
 
 .top-bar-divider {
     width: 1px;
@@ -1583,7 +1636,7 @@ body.targeting-mode .character-token { transform: none !important; }
 /* PROPERTY TOOLTIP */
 #property-tooltip {
     position: fixed;
-    background: var(--bg-darker);
+    background: var(--bg-card);
     border: 1px solid var(--theme-special);
     border-radius: 6px;
     padding: 10px;

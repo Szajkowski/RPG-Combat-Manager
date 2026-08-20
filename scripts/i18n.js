@@ -181,6 +181,8 @@ const i18n = {
         'dead': 'Nie żyje',
         'stunned': 'Ogłuszenie',
         'wait': 'Czekaj',
+        'show_stats': 'Pokaż statystyki',
+        'hide_stats': 'Ukryj statystyki',
 
         // --- Properties (will be highlighted in description when used) --- 
         'prop_undodgeable': 'Nieunikalna.',
@@ -196,6 +198,8 @@ const i18n = {
         'desc_prop_non_combat': 'Umiejętność przeznaczona do użytku poza bezpośrednią walką.',
         'desc_prop_stuns': 'Nakłada na cel ogłuszenie. W przypadku akcji z wymuszonymi rzutami, ogłusza tylko przy niepowodzeniu obrońcy.',
         'desc_prop_lethal': 'Ignoruje mechanikę Wrót Śmierci. Cel ginie natychmiast, gdy jego zdrowie spadnie do zera.',
+
+        'item_baseline_hint': 'Statystyki przedmiotu są obliczane na podstawie bazowych, niezmodyfikowanych statystyk postaci.',
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'PPM aby anulować',
@@ -438,6 +442,8 @@ const i18n = {
         'dead': 'Dead',
         'stunned': 'Stunned',
         'wait': 'Wait',
+        'show_stats': 'Show stats',
+        'hide_stats': 'Hide stats',
 
         // --- Abilities and equipment properties (will be highlighted in description when used) --- 
         'prop_undodgeable': 'Undodgeable.',
@@ -453,6 +459,8 @@ const i18n = {
         'desc_prop_non_combat': 'An ability meant to be used outside of direct combat.',
         'desc_prop_stuns': 'Stuns the target. For actions with forced rolls, it stuns only if the defender fails the check.',
         'desc_prop_lethal': 'Ignores Death\'s Door mechanics. The target dies instantly if their health drops to zero.',
+
+        'item_baseline_hint': 'Item stats are calculated based on the character\'s base, unmodified stats.',
 
         // --- TARGETING SYSTEM ---
         'targeting_cancel_hint': 'RMB to cancel',

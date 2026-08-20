@@ -136,6 +136,9 @@ function connectSocket() {
                 myClientId = data.clientId;
                 
                 activeCharacters = data.activeCharacters || [];
+                // Force derived state pipeline to evaluate purely local structures immediately after loading 
+                activeCharacters.forEach(c => recalculateCurrentStats(c));
+                
                 activeEffects = data.activeEffects || []; 
                 rollsHistory = data.rollsHistory || []; 
                 
@@ -183,6 +186,8 @@ function connectSocket() {
 
             case 'BROADCASTaddCombatant': {
                 if (!activeCharacters.find(c => c.id === data.combatant.id)) {
+                    // Make sure stats are accurately resolved before inserting into local game instance
+                    recalculateCurrentStats(data.combatant);
                     activeCharacters.push(data.combatant);
                 }
                 renderToken(data.combatant);
@@ -199,6 +204,10 @@ function connectSocket() {
                     }
 
                     activeCharacters[index] = data.combatant;
+                    
+                    // Implement strict derived-state recalculations on any modification
+                    recalculateCurrentStats(activeCharacters[index]); 
+                    
                     refreshCombatantDisplay(activeCharacters[index]);
                     renderInitiativeTracker();
                 }
@@ -212,6 +221,8 @@ function connectSocket() {
                         const index = activeCharacters.findIndex(c => c.id === updatedC.id);
                         if (index !== -1) {
                             activeCharacters[index] = updatedC;
+                            // Explicit recalculation hook securing derived architecture
+                            recalculateCurrentStats(activeCharacters[index]); 
                         }
                     });
                     
@@ -243,17 +254,7 @@ function connectSocket() {
                 break;
             }
 
-            case "BROADCASTaddEffect": {
-                activeEffects = data.activeEffects;
-                // Recalculate stats dynamically for everyone
-                activeCharacters.forEach(c => recalculateCurrentStats(c));
-                refreshDisplay(activeCharacters);
-                
-                renderEffects();
-                renderInitiativeTracker();
-                break;
-            }
-
+            case "BROADCASTaddEffect": 
             case "BROADCASTupdateEffects": {
                 activeEffects = data.activeEffects;
                 // Recalculate stats dynamically for everyone

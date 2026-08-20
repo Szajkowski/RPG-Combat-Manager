@@ -121,97 +121,111 @@ function generateStatRow(combatantId, statName, value, mod) {
     `;
 }
 
+// Sub-function explicitly handling items
+function applyEquipmentStats(combatant, updatedStats, multipliers) {
+    if (!combatant.equipment || !Array.isArray(combatant.equipment)) return;
+
+    combatant.equipment.forEach(item => {
+        if (item.type !== 'gear' || !item.stats) return;
+
+        Object.keys(item.stats).forEach(statKey => {
+            let statVal = item.stats[statKey];
+            let numericVal = 0;
+
+            if (typeof statVal === 'string' && statVal.includes('[')) {
+                // Evaluate formula strictly against the UNMODIFIED baselineStats to prevent item synergy
+                numericVal = evaluateFormula(statVal, combatant.baselineStats);
+            } else {
+                numericVal = parseFloat(statVal) || 0;
+            }
+
+            // Handle percentage armors specifically to maintain multiplicative diminishing returns
+            if (statKey === 'physArmorPerc') {
+                multipliers.phys *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
+            } else if (statKey === 'magArmorPerc') {
+                multipliers.mag *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
+            } else {
+                updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
+                
+                // Vitality secretly adds 10 HP per point dynamically
+                if (statKey === "vitality") {
+                    updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
+                }
+            }
+        });
+    });
+}
+
+// Sub-function explicitly handling active effects
+function applyEffectsStats(combatant, updatedStats, multipliers) {
+    if (typeof activeEffects === 'undefined' || !Array.isArray(activeEffects)) return;
+
+    activeEffects.forEach(effect => {
+        // Evaluate if the effect modifies stats AND actively targets the current combatant
+        const targetName = effect.target ? effect.target : effect.invoker;
+        if (targetName !== combatant.uniqueName) return; 
+        if (!effect.stats) return; 
+
+        // Determine evaluation context based on effect source ("self" uses invoker's stats for math formulas)
+        let contextCombatant = combatant; 
+        if (effect.source === "self" || effect.source === "invoker") {
+            const invoker = activeCharacters.find(c => c.uniqueName === effect.invoker);
+            if (invoker) contextCombatant = invoker;
+        }
+        
+        const evalContextStats = contextCombatant.baselineStats;
+
+        Object.keys(effect.stats).forEach(statKey => {
+            let statVal = effect.stats[statKey];
+            let numericVal = 0;
+
+            if (typeof statVal === 'string' && statVal.includes('[')) {
+                numericVal = evaluateFormula(statVal, evalContextStats);
+            } else {
+                numericVal = parseFloat(statVal) || 0;
+            }
+
+            if (statKey === 'physArmorPerc') {
+                multipliers.phys *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
+            } else if (statKey === 'magArmorPerc') {
+                multipliers.mag *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
+            } else {
+                updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
+                
+                if (statKey === "vitality") {
+                    updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
+                }
+            }
+        });
+    });
+}
+
+// Wrapper applying all statistical modifiers dynamically
 function applyAllModifiers(combatant) {
     const updatedStats = JSON.parse(JSON.stringify(combatant.baselineStats));
     
-    let physDamageMult = 1.0;
-    let magDamageMult = 1.0;
+    let multipliers = {
+        phys: 1.0,
+        mag: 1.0
+    };
 
     if (updatedStats.physArmorPerc) {
         const basePhysPerc = parseFloat(updatedStats.physArmorPerc);
-        physDamageMult *= basePhysPerc > 0 ? (1 - basePhysPerc / 100) : (1 + Math.abs(basePhysPerc) / 100);
+        multipliers.phys *= basePhysPerc > 0 ? (1 - basePhysPerc / 100) : (1 + Math.abs(basePhysPerc) / 100);
     }
     if (updatedStats.magArmorPerc) {
         const baseMagPerc = parseFloat(updatedStats.magArmorPerc);
-        magDamageMult *= baseMagPerc > 0 ? (1 - baseMagPerc / 100) : (1 + Math.abs(baseMagPerc) / 100);
+        multipliers.mag *= baseMagPerc > 0 ? (1 - baseMagPerc / 100) : (1 + Math.abs(baseMagPerc) / 100);
     }
 
     // 1. Apply equipment modifiers
-    if (combatant.equipment && Array.isArray(combatant.equipment)) {
-        combatant.equipment.forEach(item => {
-            if (item.type !== 'gear' || !item.stats) return;
-
-            Object.keys(item.stats).forEach(statKey => {
-                let statVal = item.stats[statKey];
-                let numericVal = 0;
-
-                if (typeof statVal === 'string' && statVal.includes('[')) {
-                    // Evaluate formula strictly against the UNMODIFIED baselineStats to prevent item synergy
-                    numericVal = evaluateFormula(statVal, combatant.baselineStats);
-                } else {
-                    numericVal = parseFloat(statVal) || 0;
-                }
-
-                // Handle percentage armors specifically to maintain multiplicative diminishing returns
-                if (statKey === 'physArmorPerc') {
-                    physDamageMult *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-                } else if (statKey === 'magArmorPerc') {
-                    magDamageMult *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-                } else {
-                    updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
-                    
-                    // Vitality secretly adds 10 HP per point dynamically
-                    if (statKey === "vitality") {
-                        updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
-                    }
-                }
-            });
-        });
-    }
+    applyEquipmentStats(combatant, updatedStats, multipliers);
 
     // 2. Apply active effects modifiers
-    if (typeof activeEffects !== 'undefined' && Array.isArray(activeEffects)) {
-        activeEffects.forEach(effect => {
-            const targetName = effect.target ? effect.target : effect.invoker;
-            if (targetName !== combatant.uniqueName) return; 
-            if (!effect.stats) return; 
+    applyEffectsStats(combatant, updatedStats, multipliers);
 
-            // Determine evaluation context based on effect source
-            let contextCombatant = combatant; 
-            if (effect.source === "self" || effect.source === "invoker") {
-                const invoker = activeCharacters.find(c => c.uniqueName === effect.invoker);
-                if (invoker) contextCombatant = invoker;
-            }
-            
-            const evalContextStats = contextCombatant.baselineStats;
-
-            Object.keys(effect.stats).forEach(statKey => {
-                let statVal = effect.stats[statKey];
-                let numericVal = 0;
-
-                if (typeof statVal === 'string' && statVal.includes('[')) {
-                    numericVal = evaluateFormula(statVal, evalContextStats);
-                } else {
-                    numericVal = parseFloat(statVal) || 0;
-                }
-
-                if (statKey === 'physArmorPerc') {
-                    physDamageMult *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-                } else if (statKey === 'magArmorPerc') {
-                    magDamageMult *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-                } else {
-                    updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
-                    
-                    if (statKey === "vitality") {
-                        updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
-                    }
-                }
-            });
-        });
-    }
-
-    const finalPhysPercent = (1 - physDamageMult) * 100;
-    const finalMagPercent = (1 - magDamageMult) * 100;
+    const finalPhysPercent = (1 - multipliers.phys) * 100;
+    const finalMagPercent = (1 - multipliers.mag) * 100;
 
     updatedStats.physArmorMod = Math.round(finalPhysPercent) !== 0 ? `${Math.round(finalPhysPercent)}%` : '';
     updatedStats.magArmorMod = Math.round(finalMagPercent) !== 0 ? `${Math.round(finalMagPercent)}%` : '';

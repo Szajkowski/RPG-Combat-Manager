@@ -654,6 +654,39 @@ function getCombatantDiffLog(oldC, newC) {
     if (!oldC) return `(Unknown previous state)`;
     let changes = [];
     
+    // Check Baseline & Initial Stats explicitly
+    if (oldC.baselineStats && newC.baselineStats) {
+        for (let k of Object.keys(newC.baselineStats)) {
+            if (k === 'abilities' || k === 'equipment') {
+                const oldNames = (oldC.baselineStats[k] || []).map(i => i.name).sort().join(', ');
+                const newNames = (newC.baselineStats[k] || []).map(i => i.name).sort().join(', ');
+                if (oldNames !== newNames) {
+                    changes.push(`[Baseline] ${k}: [${oldNames || 'None'}] -> [${newNames || 'None'}]`);
+                }
+            } else if (typeof newC.baselineStats[k] !== 'object' && typeof oldC.baselineStats[k] !== 'object') {
+                if (oldC.baselineStats[k] !== newC.baselineStats[k]) {
+                    changes.push(`[Baseline] ${k}: ${oldC.baselineStats[k]} -> ${newC.baselineStats[k]}`);
+                }
+            }
+        }
+    }
+    
+    if (oldC.initialStats && newC.initialStats) {
+        for (let k of Object.keys(newC.initialStats)) {
+            if (k === 'abilities' || k === 'equipment') {
+                const oldNames = (oldC.initialStats[k] || []).map(i => i.name).sort().join(', ');
+                const newNames = (newC.initialStats[k] || []).map(i => i.name).sort().join(', ');
+                if (oldNames !== newNames) {
+                    changes.push(`[Initial] ${k}: [${oldNames || 'None'}] -> [${newNames || 'None'}]`);
+                }
+            } else if (typeof newC.initialStats[k] !== 'object' && typeof oldC.initialStats[k] !== 'object') {
+                if (oldC.initialStats[k] !== newC.initialStats[k]) {
+                    changes.push(`[Initial] ${k}: ${oldC.initialStats[k]} -> ${newC.initialStats[k]}`);
+                }
+            }
+        }
+    }
+    
     // Check core survival states
     if (oldC.currentStats.hp !== newC.currentStats.hp) changes.push(`HP: ${oldC.currentStats.hp} -> ${newC.currentStats.hp}`);
     if (oldC.currentStats.maxHp !== newC.currentStats.maxHp) changes.push(`MaxHP: ${oldC.currentStats.maxHp} -> ${newC.currentStats.maxHp}`);

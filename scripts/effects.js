@@ -134,7 +134,7 @@ function updateEffectTarget(id, newTarget) {
     }
 }
 
-function buildEffectObject(invoker, target, name, description, duration, source = "self", properties = []) {
+function buildEffectObject(invoker, target, name, description, duration, source = "self", properties = [], stats = {}) {
     // Preserve raw description so property tags like [prop_extra_turn] are searchable and dynamic
     return {
         id: `effect-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -144,7 +144,8 @@ function buildEffectObject(invoker, target, name, description, duration, source 
         source: source || "self",
         description: description,
         duration: duration,
-        properties: properties
+        properties: properties,
+        stats: stats
     };
 }
 
@@ -176,8 +177,9 @@ function processAndSendEffects(invoker, target, sourceData, fallbackName, defaul
             }
             
             const effProps = effect.properties || [];
+            const effStats = effect.stats || {};
             
-            newEffects.push(buildEffectObject(invoker, effTarget, effName, effDesc, effDuration, effSource, effProps));
+            newEffects.push(buildEffectObject(invoker, effTarget, effName, effDesc, effDuration, effSource, effProps, effStats));
         }
     }
 

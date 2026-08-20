@@ -1,5 +1,3 @@
-// FILE character_extra_panel.js
-
 // Main entry point for rendering the Extra Panel (Skills & Equipment tabs)
 function renderExtraPanel(combatantId) {
     const combatant = activeCharacters.find(c => c.id === combatantId);
@@ -7,6 +5,18 @@ function renderExtraPanel(combatantId) {
 
     const extraPanel = document.getElementById('panel-extra');
     if (!extraPanel) return;
+
+    // Capture currently expanded item cards before re-rendering everything
+    let expandedItemIndexes = new Set();
+    const existingEquipContainer = document.getElementById('panel-equip');
+    if (existingEquipContainer) {
+        existingEquipContainer.querySelectorAll('.char-extra-card').forEach((card, index) => {
+            const details = card.querySelector('.item-stats-details');
+            if (details && !details.classList.contains('hidden')) {
+                expandedItemIndexes.add(index);
+            }
+        });
+    }
 
     // Fetch globally saved extra panel tab state from localStorage
     let activeTabTarget = localStorage.getItem('CombatManager-ExtraTab') || 'panel-skills';
@@ -43,7 +53,6 @@ function renderExtraPanel(combatantId) {
     // Check existing layout elements to determine if UI shell needs structural updates
     const existingTabsHeader = extraPanel.querySelector('.char-extra-tabs');
     const existingSkillsContainer = document.getElementById('panel-skills');
-    const existingEquipContainer = document.getElementById('panel-equip');
 
     const currentHasSkillsTab = existingTabsHeader ? !!existingTabsHeader.querySelector('[data-target="panel-skills"]') : false;
     const currentHasEquipTab = existingTabsHeader ? !!existingTabsHeader.querySelector('[data-target="panel-equip"]') : false;
@@ -121,7 +130,7 @@ function renderExtraPanel(combatantId) {
     if (equipContainer) {
         equipContainer.innerHTML = '';
         if (hasEquipment) {
-            fillEquipmentPanel(equipment, combatant, equipContainer);
+            fillEquipmentPanel(equipment, combatant, equipContainer, expandedItemIndexes);
         }
     }
 }
@@ -245,12 +254,49 @@ function fillAbilitiesPanel(abilities, combatant, container) {
     });
 }
 
-function fillEquipmentPanel(equipment, combatant, container) {
+function fillEquipmentPanel(equipment, combatant, container, expandedItemIndexes) {
+    let cardIndex = 0; // Tracks structural index independently to safely re-apply expansions
+
     // Group items into gear and others
     const gear = equipment.filter(item => item.type === 'gear');
     const other = equipment.filter(item => item.type !== 'gear');
     
     const titleClass = combatant.team === 'enemy' ? 'text-enemy' : 'text-hero';
+
+    // Create a synthetic baseline context exclusively for card rendering 
+    const baselineContext = { ...combatant, currentStats: combatant.baselineStats };
+
+    const renderItemStats = (item, currentIndex) => {
+        let statsHtml = '';
+        if (item.stats && Object.keys(item.stats).length > 0) {
+            let details = '';
+            Object.keys(item.stats).forEach(statKey => {
+                const val = item.stats[statKey];
+                // Use baselineContext for formula evaluation
+                const numVal = typeof val === 'string' && val.includes('[') ? getFormulaValue(val, baselineContext) : parseFloat(val);
+                const breakdown = getFormulaBreakdown(val);
+                
+                const localizedStatName = translateItemStatName(statKey);
+                const symbol = statKey.endsWith('Perc') ? '%' : '';
+
+                details += `<div>${localizedStatName}: <strong class="copyable-value text-neutral" onclick="copyValue(${numVal})">${numVal}${symbol}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
+            });
+            
+            const isExpanded = expandedItemIndexes && expandedItemIndexes.has(currentIndex);
+            const hiddenClass = isExpanded ? '' : 'hidden';
+            const iconStyle = isExpanded ? '' : 'display: none;';
+            const btnText = isExpanded ? t('hide_stats') : t('show_stats');
+            
+            statsHtml = `
+                <div class="item-stats-header">
+                    <button class="expand-details-btn" onclick="toggleItemStats(this)">${btnText}</button>
+                    <span class="info-icon" style="${iconStyle}" data-prop="item_baseline_hint">?</span>
+                </div>
+                <div class="item-stats-details ${hiddenClass}">${details}</div>
+            `;
+        }
+        return statsHtml;
+    };
 
     // Add gear section if it exists
     if (gear.length > 0) {
@@ -268,50 +314,20 @@ function fillEquipmentPanel(equipment, combatant, container) {
             }
 
             if (descString) {
-                // Pass item directly as sourceObject to allow {stats.hp} dynamic data binding
-                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant, item)}</div>`;
+                // Utilize baselineContext for dynamic variables in description
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, baselineContext, item)}</div>`;
             }
 
             html += `<div class="char-extra-card-meta">`;
-            
-            // Minimalist fallback to prevent cards from crashing the render while waiting for a full item UI refactor
-            const itemDamage = item.stats ? item.stats.damage : item.damage;
-            if (itemDamage !== undefined) {
-                const val = getFormulaValue(itemDamage, combatant);
-                const breakdown = getFormulaBreakdown(itemDamage);
-                html += `<div>${t('damage')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            const itemPhysArmor = item.stats ? item.stats.physArmor : item.physArmor;
-            if (itemPhysArmor !== undefined) {
-                const val = getFormulaValue(itemPhysArmor, combatant);
-                const breakdown = getFormulaBreakdown(itemPhysArmor);
-                html += `<div>${t('phys_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            const itemPhysArmorPerc = item.stats ? item.stats.physArmorPerc : item.physArmorPerc;
-            if (itemPhysArmorPerc !== undefined) {
-                const val = getFormulaValue(itemPhysArmorPerc, combatant);
-                const breakdown = getFormulaBreakdown(itemPhysArmorPerc);
-                html += `<div>${t('phys_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            const itemMagArmor = item.stats ? item.stats.magArmor : item.magArmor;
-            if (itemMagArmor !== undefined) {
-                const val = getFormulaValue(itemMagArmor, combatant);
-                const breakdown = getFormulaBreakdown(itemMagArmor);
-                html += `<div>${t('mag_armor')}: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
-            const itemMagArmorPerc = item.stats ? item.stats.magArmorPerc : item.magArmorPerc;
-            if (itemMagArmorPerc !== undefined) {
-                const val = getFormulaValue(itemMagArmorPerc, combatant);
-                const breakdown = getFormulaBreakdown(itemMagArmorPerc);
-                html += `<div>${t('mag_armor')} %: <strong class="copyable-value text-neutral" onclick="copyValue(${val})">${val}</strong>%${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
-            }
             if (item.value !== undefined) {
-                html += `<div>${t('value')}: ${item.value}S</div>`;
+                html += `<div>${t('value')}: ${item.value}</div>`;
             }
-            
+            html += renderItemStats(item, cardIndex);
             html += `</div>`;
+            
             itemCard.innerHTML = html;
             container.appendChild(itemCard);
+            cardIndex++;
         });
     }
 
@@ -323,7 +339,6 @@ function fillEquipmentPanel(equipment, combatant, container) {
             
             let html = `<div class="char-extra-card-title ${titleClass}"><span>${item.name}</span></div>`;
             
-            // Construct properties prefix dynamically for items as well if properties array exists
             let descString = item.description || "";
             if (item.properties && item.properties.length > 0) {
                 const propsPrefix = item.properties.map(p => `[${p}]`).join(' ');
@@ -331,7 +346,7 @@ function fillEquipmentPanel(equipment, combatant, container) {
             }
 
             if (descString) {
-                html += `<div class="char-extra-card-desc">${parseDescription(descString, combatant, item)}</div>`;
+                html += `<div class="char-extra-card-desc">${parseDescription(descString, baselineContext, item)}</div>`;
             }
             
             html += `
@@ -340,10 +355,12 @@ function fillEquipmentPanel(equipment, combatant, container) {
                         ${t('quantity')} <input type="number" class="quantity-input" value="${item.quantity || 0}" min="0">
                     </div>
                     ${item.value !== undefined ? `<div>${t('value')}: ${item.value}</div>` : ''}
+                    ${renderItemStats(item, cardIndex)}
                 </div>
             `;
             itemCard.innerHTML = html;
             container.appendChild(itemCard);
+            cardIndex++;
         });
     }
 }
@@ -712,3 +729,30 @@ function getModValue(combatant, stat) {
     if (!combatant || !combatant.currentStats) return 0;
     return parseInt(combatant.currentStats[`${stat}Mod`]) || 0; 
 }
+
+// Helper to translate stat names correctly for items mapping standard camelCase variables to their explicit definitions
+function translateItemStatName(statKey) {
+    let baseKey = statKey.replace(/(Mod|Perc)$/, '');
+    
+    let localizedStatName = '';
+    if (baseKey === 'maxHp' || baseKey === 'hp') {
+        localizedStatName = t('health');
+    } else {
+        let snakeKey = baseKey.replace(/([A-Z])/g, "_$1").toLowerCase();
+        localizedStatName = t(snakeKey);
+    }
+    
+    if (statKey.endsWith('Mod')) localizedStatName += ` ${t('mod')}`;
+    else if (statKey.endsWith('Perc')) localizedStatName += ` %`;
+    
+    return localizedStatName.charAt(0).toUpperCase() + localizedStatName.slice(1);
+}
+
+// Globally accessible function for toggling item stat details
+window.toggleItemStats = function(btn) {
+    const details = btn.parentElement.nextElementSibling;
+    const icon = btn.nextElementSibling;
+    const isHidden = details.classList.toggle('hidden');
+    icon.style.display = isHidden ? 'none' : 'inline-flex';
+    btn.textContent = isHidden ? t('show_stats') : t('hide_stats');
+};
