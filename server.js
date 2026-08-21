@@ -1,4 +1,4 @@
-const https = require('https');
+const http = require('http');
 const express = require('express');
 const WebSocket = require('ws');
 const path = require('path');
@@ -40,31 +40,8 @@ function releaseServerLock() {
 async function startServer() {
     logEvent("--- SERVER STARTING ---");
 
-    // Check and generate SSL keys if they don't exist
-    let privateKey, certificate;
-    if (fs.existsSync('server.key') && fs.existsSync('server.cert')) {
-        privateKey = fs.readFileSync('server.key', 'utf8');
-        certificate = fs.readFileSync('server.cert', 'utf8');
-    } else {
-        logEvent("No SSL certificates found. Generating self-signed certificates...");
-        const selfsigned = require('selfsigned');
-        const attrs = [{ name: 'commonName', value: 'localhost' }];
-        
-        // Await the promise returned by the generate function
-        const pems = await selfsigned.generate(attrs, { days: 365 });
-        
-        privateKey = pems.private;
-        certificate = pems.cert;
-        
-        fs.writeFileSync('server.key', privateKey);
-        fs.writeFileSync('server.cert', certificate);
-        logEvent("Certificates generated and saved as server.key and server.cert.");
-    }
-    
-    const credentials = { key: privateKey, cert: certificate };
-
     const app = express();
-    const PORT = 4444;  // Standard HTTPS port
+    const PORT = 4444;  // Standard HTTP port
 
     // Serve static files without caching
     app.use(express.static(path.join(__dirname), {
@@ -328,12 +305,12 @@ async function startServer() {
         res.sendFile(path.join(__dirname, 'player.html'));
     });
 
-    // Start HTTPS server
-    const server = https.createServer(credentials, app);
+    // Start HTTP server
+    const server = http.createServer(app);
 
     server.listen(PORT, () => {
         const ipAddress = getLocalIp();
-        logEvent(`Server is listening on: https://${ipAddress}:${PORT}`);
+        logEvent(`Server is listening on: http://${ipAddress}:${PORT}`);
     });
 
     // Start WebSocket server
