@@ -111,9 +111,9 @@ function updateGmActionSubtypes() {
 
     if (type === 'damage') {
         subtypeContainer.innerHTML = `
-            <button class="pill active dmg-theme" data-value="phys">${t('dmg_type_phys')}</button>
-            <button class="pill dmg-theme" data-value="mag">${t('dmg_type_mag')}</button>
-            <button class="pill dmg-theme" data-value="pierce">${t('dmg_type_pierce')}</button>
+            <button class="pill active pill-phys" data-value="phys">${t('dmg_type_phys')}</button>
+            <button class="pill pill-mag" data-value="mag">${t('dmg_type_mag')}</button>
+            <button class="pill pill-pierce" data-value="pierce">${t('dmg_type_pierce')}</button>
         `;
     } else if (type === 'heal') {
         subtypeContainer.innerHTML = `
@@ -122,8 +122,8 @@ function updateGmActionSubtypes() {
         `;
     } else if (type === 'armor') {
         subtypeContainer.innerHTML = `
-            <button class="pill active armor-theme" data-value="phys">${t('armor_type_phys')}</button>
-            <button class="pill armor-theme" data-value="mag">${t('armor_type_mag')}</button>
+            <button class="pill active pill-phys" data-value="phys">${t('armor_type_phys')}</button>
+            <button class="pill pill-mag" data-value="mag">${t('armor_type_mag')}</button>
         `;
     }
 }

@@ -54,6 +54,13 @@ function renderCharMainPanel(id) {
         charNameHtml = `<div class="char-name-input char-name-display copyable-value text-neutral" onclick="copyValue('${combatant.uniqueName || ''}')">${combatant.uniqueName || ''}</div>`;
     }
 
+    const physVal = stats.physArmor || 0;
+    const magVal = stats.magArmor || 0;
+    
+    // Separate scaling logic for the character sheet using sheet-specific CSS classes
+    const physScaleClass = physVal > 999 ? 'sheet-text-xs' : (physVal > 99 ? 'sheet-text-sm' : '');
+    const magScaleClass = magVal > 999 ? 'sheet-text-xs' : (magVal > 99 ? 'sheet-text-sm' : '');
+
     // 1. Render Main Character Sheet (.char-sheet)
     charSheet.innerHTML = `
         <img src="${imgSrc}" class="char-portrait-square" onerror="this.src='/images/default-img.svg'">
@@ -63,6 +70,7 @@ function renderCharMainPanel(id) {
         <div class="char-hp-visual ${combatant.isDead ? 'dead' : ''}">
             <div class="char-hp-visual-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
         </div>
+        
         <div class="hp-section">
             <span class="hp-label" data-i18n="health"></span>
             <div class="hp-inputs">
@@ -71,19 +79,26 @@ function renderCharMainPanel(id) {
             </div>
         </div>
 
+        <div class="sheet-armor-container-split">
+            <div class="sheet-armor-box">
+                <span class="stat-label" data-i18n="phys_armor"></span>
+                <div class="armor-shield phys sheet-armor-shield" title="${t('phys_armor_caps')}">
+                    <input type="number" class="sheet-armor-input base-phys-armor ${physScaleClass}" data-val="${physVal}" value="${physVal}">
+                </div>
+            </div>
+            <div class="sheet-armor-box">
+                <span class="stat-label" data-i18n="mag_armor"></span>
+                <div class="armor-shield mag sheet-armor-shield" title="${t('mag_armor_caps')}">
+                    <input type="number" class="sheet-armor-input base-mag-armor ${magScaleClass}" data-val="${magVal}" value="${magVal}">
+                </div>
+            </div>
+        </div>
+
         <div class="char-stats-container">
             ${rollsHtml} 
             <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="base_damage"></span>
                 <input type="number" class="base-damage-input" value="${stats.damage || 0}">
-            </div>
-            <div class="stat-row derived-stat">
-                <span class="stat-label" data-i18n="phys_armor_caps"></span>
-                <input type="number" class="armor-val-input base-phys-armor" title="${t('armor_value_base')}" value="${stats.physArmor || 0}">
-            </div>
-            <div class="stat-row derived-stat">
-                <span class="stat-label" data-i18n="mag_armor_caps"></span>
-                <input type="number" class="armor-val-input base-mag-armor" title="${t('armor_value_base')}" value="${stats.magArmor || 0}">
             </div>
         </div>
     `;
@@ -138,6 +153,9 @@ function applyEquipmentStats(combatant, updatedStats) {
             // Ignore old percentage armor values if they remained in old data files
             if (statKey.includes('ArmorPerc') || statKey.includes('ArmorMod')) return;
 
+            // Armor values from gear are handled independently by calculateEquipmentArmor now
+            if (statKey === 'physArmor' || statKey === 'magArmor') return;
+
             updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
             
             // Vitality secretly adds 10 HP per point dynamically
@@ -146,6 +164,27 @@ function applyEquipmentStats(combatant, updatedStats) {
             }
         });
     });
+}
+
+// New isolated function to calculate armor granted purely by equipment
+function calculateEquipmentArmor(combatant, baseStats = null) {
+    let armor = { physArmor: 0, magArmor: 0 };
+    if (!combatant.equipment || !Array.isArray(combatant.equipment)) return armor;
+    
+    const evalContext = baseStats || combatant.baselineStats;
+    
+    combatant.equipment.forEach(item => {
+        if (item.type !== 'gear' || !item.stats) return;
+        
+        ['physArmor', 'magArmor'].forEach(statKey => {
+            if (item.stats[statKey] !== undefined) {
+                let statVal = item.stats[statKey];
+                let numericVal = typeof statVal === 'string' && statVal.includes('[') ? evaluateFormula(statVal, evalContext) : parseFloat(statVal);
+                armor[statKey] += numericVal || 0;
+            }
+        });
+    });
+    return armor;
 }
 
 // Sub-function explicitly handling active effects
@@ -241,9 +280,12 @@ function recalculateCurrentStats(combatant) {
         combatant.currentStats.hp = Math.min(currentHp + bonusHp, newMaxHp);
     }
 
+    // Calculate equipment armor independently
+    const equipArmor = calculateEquipmentArmor(combatant);
+
     // Calculate new base armors with modifiers and add the difference (e.g. equipping gear) to current ablative armor
-    const expectedBasePhys = combatant.currentStats.physArmor || 0;
-    const expectedBaseMag = combatant.currentStats.magArmor || 0;
+    const expectedBasePhys = (parseInt(combatant.baselineStats.physArmor) || 0) + equipArmor.physArmor;
+    const expectedBaseMag = (parseInt(combatant.baselineStats.magArmor) || 0) + equipArmor.magArmor;
     
     const physDelta = expectedBasePhys - prevExpectedPhys;
     const magDelta = expectedBaseMag - prevExpectedMag;

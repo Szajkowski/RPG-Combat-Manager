@@ -512,6 +512,39 @@ function updateTokenDisplay(combatant) {
 
     if (combatant.isDead) token.classList.add('dead');
     else token.classList.remove('dead');
+
+    // Update Shield Status & Animations
+    const updateShield = (type, newVal) => {
+        const shield = token.querySelector(`.token-armor-shield.${type}`);
+        if (!shield) return;
+        const valSpan = shield.querySelector('.shield-val');
+        const oldVal = parseInt(shield.dataset.val) || 0;
+        
+        // Handle visibility using shield-hidden to maintain flexbox spacing
+        // Hide shield if value is 0 OR character is dead
+        if (newVal > 0 && !combatant.isDead) shield.classList.remove('shield-hidden');
+        else shield.classList.add('shield-hidden');
+
+        // Apply changes and animations only if value actually changed
+        if (newVal !== oldVal) {
+            shield.dataset.val = newVal;
+            valSpan.textContent = newVal;
+            
+            // Adjust scaling using token-specific classes
+            valSpan.classList.remove('shield-text-sm', 'shield-text-xs');
+            if (newVal > 999) valSpan.classList.add('shield-text-xs');
+            else if (newVal > 99) valSpan.classList.add('shield-text-sm');
+
+            // Trigger animation
+            valSpan.classList.remove('armor-flash-green', 'armor-flash-red');
+            void valSpan.offsetWidth; // Force DOM reflow to restart CSS animation
+            if (newVal > oldVal) valSpan.classList.add('armor-flash-green');
+            else valSpan.classList.add('armor-flash-red');
+        }
+    };
+
+    updateShield('phys', combatant.currentStats.physArmor || 0);
+    updateShield('mag', combatant.currentStats.magArmor || 0);
 }
 
 // Helper function to update the Right Panel if the combatant is currently selected
@@ -543,6 +576,7 @@ function updateRightPanelDisplay(combatant) {
     safeUpdateInput('.char-name-input', combatant.uniqueName);
     safeUpdateInput('.current-hp-input', combatant.currentStats.hp);
     safeUpdateInput('.max-hp-input', combatant.currentStats.maxHp);
+    safeUpdateInput('.base-damage-input', combatant.currentStats.damage || 0);
 
     // Core Stats
     const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
@@ -551,10 +585,34 @@ function updateRightPanelDisplay(combatant) {
         safeUpdateInput(`.stat-mod-input[data-stat="${stat}Mod"]`, combatant.currentStats[`${stat}Mod`] || '');
     });
 
-    // Armor & Damage
-    safeUpdateInput('.base-damage-input', combatant.currentStats.damage || 0);
-    safeUpdateInput('.base-phys-armor', combatant.currentStats.physArmor || 0);
-    safeUpdateInput('.base-mag-armor', combatant.currentStats.magArmor || 0);
+    // Update Shield Status & Animations for Character Sheet inputs
+    const updateSheetShield = (selector, newVal) => {
+        const input = document.querySelector(selector);
+        if (!input) return;
+        const oldVal = parseInt(input.dataset.val) || 0;
+        
+        if (input.value != newVal) {
+            input.value = newVal;
+        }
+
+        if (newVal !== oldVal) {
+            input.dataset.val = newVal;
+            
+            // Adjust scaling using sheet-specific classes
+            input.classList.remove('sheet-text-sm', 'sheet-text-xs');
+            if (newVal > 999) input.classList.add('sheet-text-xs');
+            else if (newVal > 99) input.classList.add('sheet-text-sm');
+
+            // Trigger animation
+            input.classList.remove('armor-flash-green', 'armor-flash-red');
+            void input.offsetWidth; // Force DOM reflow to restart CSS animation
+            if (newVal > oldVal) input.classList.add('armor-flash-green');
+            else input.classList.add('armor-flash-red');
+        }
+    };
+
+    updateSheetShield('.base-phys-armor', combatant.currentStats.physArmor || 0);
+    updateSheetShield('.base-mag-armor', combatant.currentStats.magArmor || 0);
 
     // Completely re-render Extra Panel to recalculate formulas and success rates in real-time
     renderExtraPanel(combatant.id);

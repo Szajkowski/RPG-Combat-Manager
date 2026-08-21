@@ -115,6 +115,13 @@ async function reloadCharacterData() {
         combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
         combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
 
+        // Reset current armor states to purely base file data to flush out temporary combat armor
+        if (!combatant.currentStats) combatant.currentStats = {};
+        combatant.currentStats.physArmor = parseInt(freshData.physArmor) || 0;
+        combatant.currentStats.magArmor = parseInt(freshData.magArmor) || 0;
+        combatant.currentStats.expectedBasePhys = combatant.currentStats.physArmor;
+        combatant.currentStats.expectedBaseMag = combatant.currentStats.magArmor;
+
         // Recalculate pipeline from scratch with updated baseline and items
         recalculateCurrentStats(combatant);
         // Protect current health state

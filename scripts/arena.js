@@ -117,6 +117,13 @@ function renderToken(combatant) {
     const imgAlt = combatant.image ? combatant.image : t('unknown_character');
     const hpPercentage = (combatant.currentStats.hp / combatant.currentStats.maxHp) * 100;
 
+    // Determine initial scaling class for shields
+    const physVal = combatant.currentStats.physArmor || 0;
+    const magVal = combatant.currentStats.magArmor || 0;
+    
+    const physScaleClass = physVal > 999 ? 'shield-text-xs' : (physVal > 99 ? 'shield-text-sm' : '');
+    const magScaleClass = magVal > 999 ? 'shield-text-xs' : (magVal > 99 ? 'shield-text-sm' : '');
+
     tokenDiv.innerHTML = `
         <div class="token-stun-icon ${combatant.isStunned ? 'visible' : ''}">
             <div class="stun-star star-1"></div>
@@ -125,6 +132,16 @@ function renderToken(combatant) {
         </div>
         <button class="token-delete-btn" onclick="removeCharacterById('${combatant.id}', event)" title="${t('remove_character')}">✖</button>
         <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
+        
+        <div class="token-armor-container">
+            <div class="armor-shield phys token-armor-shield ${physVal > 0 && !combatant.isDead ? '' : 'shield-hidden'}" data-val="${physVal}">
+                <span class="shield-val ${physScaleClass}">${physVal}</span>
+            </div>
+            <div class="armor-shield mag token-armor-shield ${magVal > 0 && !combatant.isDead ? '' : 'shield-hidden'}" data-val="${magVal}">
+                <span class="shield-val ${magScaleClass}">${magVal}</span>
+            </div>
+        </div>
+
         <div class="token-hp-bg">
             <div class="token-hp-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
         </div>

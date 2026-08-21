@@ -271,6 +271,9 @@ function fillEquipmentPanel(equipment, combatant, container, expandedItemIndexes
         if (item.stats && Object.keys(item.stats).length > 0) {
             let details = '';
             Object.keys(item.stats).forEach(statKey => {
+                // Filter out obsolete passive percentage armor stats
+                if (statKey.includes('ArmorPerc')) return;
+
                 const val = item.stats[statKey];
                 // Use baselineContext for formula evaluation
                 const numVal = typeof val === 'string' && val.includes('[') ? getFormulaValue(val, baselineContext) : parseFloat(val);
@@ -281,6 +284,9 @@ function fillEquipmentPanel(equipment, combatant, container, expandedItemIndexes
 
                 details += `<div>${localizedStatName}: <strong class="copyable-value text-neutral" onclick="copyValue(${numVal})">${numVal}${symbol}</strong>${breakdown ? ` <span class="formula-display">(${breakdown})</span>` : ''}</div>`;
             });
+            
+            // Do not render the stats block if all stats were filtered out
+            if (details === '') return statsHtml;
             
             const isExpanded = expandedItemIndexes && expandedItemIndexes.has(currentIndex);
             const hiddenClass = isExpanded ? '' : 'hidden';
