@@ -157,18 +157,17 @@ function saveCharacterStats(id) {
 
     const baseChar = targetDict[combatant.baseName];
     
-    // Expanded array to track core stats, modifiers, and percentage values
+    // Expanded array to track core stats, modifiers, and percentage values (Removed passive armor percentages)
     const statsToTrack = [
         'vitality', 'intuition', 'strength', 'agility', 'attunement', 
-        'perception', 'accuracy', 'reflex', 'resilience', 'maxHp', 
-        'damage', 'physArmor', 'magArmor',
+        'perception', 'accuracy', 'reflex', 'resilience', 'damage',
+        'maxHp', 'physArmor', 'magArmor',
         'vitalityMod', 'intuitionMod', 'strengthMod', 'agilityMod', 'attunementMod',
-        'perceptionMod', 'accuracyMod', 'reflexMod', 'resilienceMod',
-        'physArmorPerc', 'magArmorPerc'
+        'perceptionMod', 'accuracyMod', 'reflexMod', 'resilienceMod'
     ];
     
     // Core primary attributes list that must never evaluate to 0 or be removed
-    const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
+    const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage'];
     
     let changeLogs = [];
     let stateDeltas = {};
@@ -281,7 +280,7 @@ function saveCharacterStats(id) {
             // Sync successfully written server config back into our local initial memory marker
             combatant.initialStats = JSON.parse(JSON.stringify(combatant.baselineStats));
             
-            box = document.querySelector('.char-name-input');
+            const box = document.querySelector('.char-name-input');
             if (box && selectedCharacterId === combatant.id) {
                 renderCharMainPanel(combatant.id);
             }

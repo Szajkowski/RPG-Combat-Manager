@@ -175,15 +175,19 @@ var npcs = {
         strength: 10,
         agility: 10,
         attunement: 30,
-        attunementMod: 10,
         perception: 10,
         accuracy: 10,
-        accuracyMod: 10,
+        accuracyMod: 5,
         reflex: 40,
         resilience: 10,
         damage: 10,
         abilities: [
-
+            ability["Test: Krew Berserkera"],
+            ability["Test: Toksyczny Deszcz"],
+            ability["Test: Tarcza Absolutu"],
+            ability["Test: Kruchliwość"],
+            ability["Test: Błogosławieństwo i Przekleństwo"],
+            ability["Test: Masowy Sabotaż"],
         ],
         equipment: [
 

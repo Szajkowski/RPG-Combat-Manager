@@ -228,15 +228,36 @@ async function startServer() {
             });
 
             // 5. Reconstruct the complete valid JS file enforcing specific formatting order
+            // Removed 'physArmorPerc', 'magArmorPerc' from STAT_ORDER
             const STAT_ORDER = [
-                'lvl', 'name', 'hasDeathsDoor', 'hp', 'maxHp',
-                'vitality', 'vitalityMod', 'intuition', 'intuitionMod',
-                'strength', 'strengthMod', 'agility', 'agilityMod',
-                'attunement', 'attunementMod', 'perception', 'perceptionMod',
-                'accuracy', 'accuracyMod', 'reflex', 'reflexMod',
-                'resilience', 'resilienceMod', 'damage',
-                'physArmor', 'physArmorPerc', 'magArmor', 'magArmorPerc',
-                'abilities', 'equipment'
+                'lvl', 
+                'name', 
+                'hasDeathsDoor', 
+                'hp', 
+                'maxHp',
+                'vitality', 
+                'vitalityMod', 
+                'intuition', 
+                'intuitionMod',
+                'strength', 
+                'strengthMod', 
+                'agility', 
+                'agilityMod',
+                'attunement', 
+                'attunementMod', 
+                'perception', 
+                'perceptionMod',
+                'accuracy', 
+                'accuracyMod', 
+                'reflex', 
+                'reflexMod',
+                'resilience', 
+                'resilienceMod', 
+                'damage',
+                'physArmor', 
+                'magArmor',
+                'abilities', 
+                'equipment',
             ];
 
             // Safely extract the exact indentation used in the file
@@ -712,7 +733,8 @@ function getCombatantDiffLog(oldC, newC) {
     }
     
     // Check extra stats (damage, armor)
-    const extraStats = ['damage', 'physArmor', 'magArmor', 'physArmorMod', 'magArmorMod'];
+    // Removed old Mod/Perc logic from here as well
+    const extraStats = ['damage', 'physArmor', 'magArmor'];
     for (let stat of extraStats) {
         if (oldC.currentStats[stat] !== newC.currentStats[stat]) {
             changes.push(`${stat}: ${oldC.currentStats[stat]} -> ${newC.currentStats[stat]}`);

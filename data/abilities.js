@@ -1319,5 +1319,183 @@ var ability = {
             }
         ]
     },
+
+    // Test: effects
+    "Test: Krew Berserkera": {
+        name: "Test: Krew Berserkera",
+        // Testuje nakładanie 2 efektów naraz: pozytywnego i negatywnego. Każdy modyfikuje po 2 statystyki.
+        description: "Wprawia się w furię, nakładając na siebie dwa stany naraz. Zyskuje +{actions.1.effects.1.stats.strength} siły i +{actions.1.effects.1.stats.reflex} refleksu, ale traci {actions.1.effects.2.stats.perception} percepcji i {actions.1.effects.2.stats.agility} zwinności z powodu zaślepienia. Oba efekty trwają {actions.1.effects.1.duration}.",
+        cooldown: 2,
+        actions: [
+            {
+                type: "effect",
+                target: "self",
+                effects: [
+                    {
+                        name: "Zew Krwi",
+                        description: "Znaczny bonus do statystyk ofensywnych i inicjatywy.",
+                        duration: "3t",
+                        isBeneficial: true,
+                        stats: { strength: 15, reflex: 10 }
+                    },
+                    {
+                        name: "Zaślepienie Gniewem",
+                        description: "Utrata zmysłów po wejściu w furię.",
+                        duration: "3t",
+                        isBeneficial: false,
+                        stats: { perception: -10, agility: -5 }
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Toksyczny Deszcz": {
+        name: "Test: Toksyczny Deszcz",
+        // Multi target, 2 efekty negatywne nałożone na raz (jeden psujący pancerze procentowo, drugi obniżający staty core'owe), wymuszony rzut
+        description: "Rozpryskuje kwas na {actions.1.possibleTargets} celach. Nakłada dwa stany osłabiające, jeśli cel nie zda testu zwinności (Trudność: {actions.1.forceRollDifficulty}). Pierwszy obniża pancerz fizyczny o {actions.1.effects.1.stats.physArmorPerc}% i magiczny o {actions.1.effects.1.stats.magArmorPerc}%. Drugi obniża celność i intuicję.",
+        cooldown: 1,
+        actions: [
+            {
+                type: "effect",
+                target: "multi",
+                possibleTargets: 3,
+                forceRoll: "agility",
+                forceRollDifficulty: 8,
+                isEffectSuccessBeneficial: false,
+                effects: [
+                    {
+                        name: "Przeżarty Pancerz",
+                        description: "Kwas drastycznie niszczy strukturę obu pancerzy.",
+                        duration: "2r",
+                        source: "target",
+                        isBeneficial: false,
+                        stats: { physArmorPerc: -30, magArmorPerc: -30 }
+                    },
+                    {
+                        name: "Gryzące Opary",
+                        description: "Dym drażni oczy i nos, utrudniając skupienie.",
+                        duration: "2r",
+                        source: "target",
+                        isBeneficial: false,
+                        stats: { accuracy: -10, intuition: -5 }
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Tarcza Absolutu": {
+        name: "Test: Tarcza Absolutu",
+        // Typ armor, dodaje pancerze flat + odpala buff zwiększający MaxHP (poprzez vitality) jeśli rzut się uda
+        description: "Akcja typu Pancerz. Dodaje {actions.1.physArmorValue} pancerza fizycznego i {actions.1.magArmorValue} pancerza magicznego dla sojusznika. Jeśli cel zaliczy rzut na dostrojenie (Trudność: {actions.1.forceRollDifficulty}), dodatkowo zyskuje buff '{actions.1.effects.1.name}' dający mu {actions.1.effects.1.stats.vitality} witalności.",
+        cooldown: 2,
+        actions: [
+            {
+                type: "armor",
+                target: "single",
+                physArmorValue: 20,
+                magArmorValue: 15,
+                forceRoll: "attunement",
+                forceRollDifficulty: 5,
+                isEffectSuccessBeneficial: true,
+                effects: [
+                    {
+                        name: "Świetlista Witalność",
+                        description: "Bonusowe zdrowie wynikające z magicznej rezydencji tarczy.",
+                        duration: "3t",
+                        isBeneficial: true,
+                        stats: { vitality: 5 } // to automatycznie da celowi +50 Max HP!
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Kruchliwość": {
+        name: "Test: Kruchliwość",
+        // Obrażenia łączone z akcją typu Armor (debuff) i stanem obniżającym Core stats.
+        description: "Uderza magicznie za {actions.1.value}. Następnie odpala akcję typu Pancerz, obniżając go o {actions.2.physArmorValuePerc}% oraz {actions.2.magArmorValuePerc}%, jeśli cel przegra rzut Percepcja vs Intuicja. Dodatkowo nakłada stan zmniejszający Siłę i Nieustępliwość.",
+        roll: "attunement",
+        difficulty: 4,
+        cooldown: 0,
+        actions: [
+            {
+                type: "damage",
+                target: "single",
+                damageType: "mag",
+                value: "[1.5 * attunement + damage]"
+            },
+            {
+                type: "armor",
+                target: "single",
+                physArmorValuePerc: -20,
+                magArmorValuePerc: -15,
+                forceRollVS: "perception vs intuition",
+                isEffectSuccessBeneficial: false,
+                effects: [
+                    {
+                        name: "Magiczne Osłabienie",
+                        description: "Cel jest bardzo osłabiony magią.",
+                        duration: "2r",
+                        isBeneficial: false,
+                        stats: { strength: -5, resilience: -15 }
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Błogosławieństwo i Przekleństwo": {
+        name: "Test: Błogosławieństwo i Przekleństwo",
+        // Efekty mieszane (wymagana flaga `isEffectSuccessBeneficial: true`), gdzie z remisu/wygranej mamy świetnego buffa, a z porażki srogi debuff
+        description: "Leczy cel za {actions.1.value}. Wymaga rzutu witalność kontra witalność. Jeśli cel zremisuje lub wygra, zyskuje +{actions.1.effects.1.stats.strength} siły. Jeśli przegra rzut, zyskuje debuff ucinający {actions.1.effects.2.stats.accuracy} celności.",
+        cooldown: 0,
+        actions: [
+            {
+                type: "heal",
+                target: "single",
+                healType: "normal",
+                value: "[2 * intuition]",
+                forceRollVS: "vitality vs vitality",
+                isEffectSuccessBeneficial: true,
+                effects: [
+                    {
+                        name: "Dar Życia",
+                        description: "Bonusowa siła z idealnie przyjętego leczenia.",
+                        duration: "2t",
+                        isBeneficial: true,
+                        stats: { strength: 10 }
+                    },
+                    {
+                        name: "Przeciążenie Organizmu",
+                        description: "Ciało nie poradziło sobie z magią.",
+                        duration: "2t",
+                        isBeneficial: false,
+                        stats: { accuracy: -20 }
+                    }
+                ]
+            }
+        ]
+    },
+    "Test: Masowy Sabotaż": {
+        name: "Test: Masowy Sabotaż",
+        // Testowanie wpływania na całą planszę (all) bez wyjątków
+        description: "Zadaje {actions.1.value} obrażeń przebijających wszystkim postaciom. Dodatkowo nakłada negatywny efekt obniżający WSZYSTKIE pancerze fizyczne o {actions.1.effects.1.stats.physArmorPerc}% bez rzutów obronnych.",
+        cooldown: 4,
+        actions: [
+            {
+                type: "damage",
+                target: "all",
+                damageType: "pierce",
+                value: "[5 + attunement]",
+                effects: [
+                    {
+                        name: "Rozdarcie Pancerzy",
+                        description: "Potężna fala kinetyczna naruszająca integralność osłon.",
+                        duration: "1r",
+                        isBeneficial: false,
+                        stats: { physArmorPerc: -15 }
+                    }
+                ]
+            }
+        ]
+    }
     
 }

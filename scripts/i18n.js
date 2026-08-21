@@ -136,7 +136,7 @@ const i18n = {
         'to_result': 'do wyniku {stat}',
 
         // --- COMBAT AND DAMAGE ---
-        'damage': 'Obrażenia',
+        'damage': 'obrażenia',
         'heal': 'Leczenie',
         'add_armor': 'Pancerz',
         'phys_armor': 'Pancerz fizyczny',

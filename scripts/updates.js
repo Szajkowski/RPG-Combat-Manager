@@ -399,7 +399,7 @@ function syncPlayActionSequence(payload) {
 // Uniformly executes a visual/audio action sequence received from the server.
 // Synchronizes iterative HP/Armor logic to ensure all clients see exactly the same multi-hit flow.
 async function playActionSequence(payload) {
-    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, ddSteps, stepId, isAuto, hasPhysFlat, hasPhysPerc, hasMagFlat, hasMagPerc, isMixedSound, isStunned } = payload;
+    const { targetId, actionType, subType, repeats, isAdding, stepValues, deadSteps, ddSteps, stepId, isAuto, hasPhysFlat, hasMagFlat, isMixedSound, isStunned } = payload;
     const target = activeCharacters.find(c => c.id === targetId);
     if (!target) return;
 
@@ -410,17 +410,19 @@ async function playActionSequence(payload) {
         // Apply deterministic stat updates chunk by chunk
         if (stepValues && stepValues[i] !== undefined) {
             if (actionType === 'damage' || actionType === 'heal') {
-                target.currentStats.hp = stepValues[i];
+                // Backwards compatilibility check for heal plain number arrays
+                target.currentStats.hp = stepValues[i].hp !== undefined ? stepValues[i].hp : stepValues[i]; 
+                if (stepValues[i].physArmor !== undefined) target.currentStats.physArmor = stepValues[i].physArmor;
+                if (stepValues[i].magArmor !== undefined) target.currentStats.magArmor = stepValues[i].magArmor;
+                
                 // IMPORTANT: Only set isDead if explicitly flagged by the math logic in deadSteps, preserving Death's Door checks
                 if (actionType === 'damage' && deadSteps && deadSteps[i]) {
                     target.isDead = true;
                 }
             } else if (actionType === 'armor') {
                 const sv = stepValues[i];
-                if (sv.physFlat !== undefined) target.currentStats.physArmor = sv.physFlat;
-                if (sv.physPerc !== undefined) target.currentStats.physArmorMod = `${sv.physPerc}%`;
-                if (sv.magFlat !== undefined) target.currentStats.magArmor = sv.magFlat;
-                if (sv.magPerc !== undefined) target.currentStats.magArmorMod = `${sv.magPerc}%`;
+                if (sv.physArmor !== undefined) target.currentStats.physArmor = sv.physArmor;
+                if (sv.magArmor !== undefined) target.currentStats.magArmor = sv.magArmor;
             }
             refreshCombatantDisplay(target);
         }
@@ -440,24 +442,26 @@ async function playActionSequence(payload) {
         }
 
         if (shouldPlayMainSound) {
-            const soundSubType = (hasPhysFlat || hasPhysPerc) ? 'phys' : 'mag';
+            const soundSubType = hasPhysFlat ? 'phys' : 'mag';
             const activeKeyIdentifier = isMixedSound ? 'mixed' : (actionType === 'damage' ? subType : soundSubType);
             const mainSoundKey = stepId ? `${stepId}-${actionType}-${activeKeyIdentifier}-${i}` : null;
             
             let soundPath = '';
             let volume = 0.5;
 
+            // Strict naming convention resolution mapping directly to the new structured sound files
             if (actionType === 'damage') {
                 if (subType === 'dodge') soundPath = 'sound/dodge.mp3';
                 else if (subType === 'no_dmg') soundPath = 'sound/no_dmg_hit.mp3';
-                else soundPath = `sound/${subType}_hit.mp3`;
+                else if (subType.endsWith('_block')) soundPath = `sound/damage_${subType}.mp3`; // damage_phys_block.mp3, damage_mag_block.mp3
+                else soundPath = `sound/damage_${subType}_hit.mp3`; // damage_phys_hit.mp3, damage_mag_hit.mp3, damage_pierce_hit.mp3
             } else if (actionType === 'heal') {
                 soundPath = `sound/heal_${subType}.mp3`;
             } else if (actionType === 'armor') {
                 if (isMixedSound) {
-                    soundPath = 'sound/mixed_armor.mp3';
+                    soundPath = 'sound/armor_mixed.mp3';
                 } else {
-                    soundPath = isAdding ? `sound/${soundSubType}_armor_up.mp3` : `sound/${soundSubType}_armor_down.mp3`;
+                    soundPath = isAdding ? `sound/armor_${soundSubType}_up.mp3` : `sound/armor_${soundSubType}_down.mp3`; // armor_phys_up.mp3, armor_mag_down.mp3, etc.
                 }
             }
 
@@ -550,9 +554,7 @@ function updateRightPanelDisplay(combatant) {
     // Armor & Damage
     safeUpdateInput('.base-damage-input', combatant.currentStats.damage || 0);
     safeUpdateInput('.base-phys-armor', combatant.currentStats.physArmor || 0);
-    safeUpdateInput('.base-phys-armor-mod', combatant.currentStats.physArmorMod || '');
     safeUpdateInput('.base-mag-armor', combatant.currentStats.magArmor || 0);
-    safeUpdateInput('.base-mag-armor-mod', combatant.currentStats.magArmorMod || '');
 
     // Completely re-render Extra Panel to recalculate formulas and success rates in real-time
     renderExtraPanel(combatant.id);

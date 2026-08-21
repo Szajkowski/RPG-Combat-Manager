@@ -80,14 +80,10 @@ function renderCharMainPanel(id) {
             <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="phys_armor_caps"></span>
                 <input type="number" class="armor-val-input base-phys-armor" title="${t('armor_value_base')}" value="${stats.physArmor || 0}">
-                <span class="armor-plus-sign">+</span>
-                <input type="text" class="armor-perc-input base-phys-armor-mod" title="${t('armor_value_percent')}" placeholder="%" value="${stats.physArmorMod || ''}">
             </div>
             <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="mag_armor_caps"></span>
                 <input type="number" class="armor-val-input base-mag-armor" title="${t('armor_value_base')}" value="${stats.magArmor || 0}">
-                <span class="armor-plus-sign">+</span>
-                <input type="text" class="armor-perc-input base-mag-armor-mod" title="${t('armor_value_percent')}" placeholder="%" value="${stats.magArmorMod || ''}">
             </div>
         </div>
     `;
@@ -122,7 +118,7 @@ function generateStatRow(combatantId, statName, value, mod) {
 }
 
 // Sub-function explicitly handling items
-function applyEquipmentStats(combatant, updatedStats, multipliers) {
+function applyEquipmentStats(combatant, updatedStats) {
     if (!combatant.equipment || !Array.isArray(combatant.equipment)) return;
 
     combatant.equipment.forEach(item => {
@@ -139,25 +135,21 @@ function applyEquipmentStats(combatant, updatedStats, multipliers) {
                 numericVal = parseFloat(statVal) || 0;
             }
 
-            // Handle percentage armors specifically to maintain multiplicative diminishing returns
-            if (statKey === 'physArmorPerc') {
-                multipliers.phys *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-            } else if (statKey === 'magArmorPerc') {
-                multipliers.mag *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-            } else {
-                updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
-                
-                // Vitality secretly adds 10 HP per point dynamically
-                if (statKey === "vitality") {
-                    updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
-                }
+            // Ignore old percentage armor values if they remained in old data files
+            if (statKey.includes('ArmorPerc') || statKey.includes('ArmorMod')) return;
+
+            updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
+            
+            // Vitality secretly adds 10 HP per point dynamically
+            if (statKey === "vitality") {
+                updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
             }
         });
     });
 }
 
 // Sub-function explicitly handling active effects
-function applyEffectsStats(combatant, updatedStats, multipliers) {
+function applyEffectsStats(combatant, updatedStats) {
     if (typeof activeEffects === 'undefined' || !Array.isArray(activeEffects)) return;
 
     activeEffects.forEach(effect => {
@@ -176,6 +168,9 @@ function applyEffectsStats(combatant, updatedStats, multipliers) {
         const evalContextStats = contextCombatant.baselineStats;
 
         Object.keys(effect.stats).forEach(statKey => {
+            // Effects completely ignore passive armors (shields do not scale passively)
+            if (statKey.includes('Armor')) return;
+
             let statVal = effect.stats[statKey];
             let numericVal = 0;
 
@@ -185,16 +180,10 @@ function applyEffectsStats(combatant, updatedStats, multipliers) {
                 numericVal = parseFloat(statVal) || 0;
             }
 
-            if (statKey === 'physArmorPerc') {
-                multipliers.phys *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-            } else if (statKey === 'magArmorPerc') {
-                multipliers.mag *= numericVal > 0 ? (1 - numericVal / 100) : (1 + Math.abs(numericVal) / 100);
-            } else {
-                updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
-                
-                if (statKey === "vitality") {
-                    updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
-                }
+            updatedStats[statKey] = (updatedStats[statKey] || 0) + numericVal;
+            
+            if (statKey === "vitality") {
+                updatedStats.maxHp = (updatedStats.maxHp || 0) + 10 * numericVal;
             }
         });
     });
@@ -204,35 +193,23 @@ function applyEffectsStats(combatant, updatedStats, multipliers) {
 function applyAllModifiers(combatant) {
     const updatedStats = JSON.parse(JSON.stringify(combatant.baselineStats));
     
-    let multipliers = {
-        phys: 1.0,
-        mag: 1.0
-    };
-
-    if (updatedStats.physArmorPerc) {
-        const basePhysPerc = parseFloat(updatedStats.physArmorPerc);
-        multipliers.phys *= basePhysPerc > 0 ? (1 - basePhysPerc / 100) : (1 + Math.abs(basePhysPerc) / 100);
-    }
-    if (updatedStats.magArmorPerc) {
-        const baseMagPerc = parseFloat(updatedStats.magArmorPerc);
-        multipliers.mag *= baseMagPerc > 0 ? (1 - baseMagPerc / 100) : (1 + Math.abs(baseMagPerc) / 100);
-    }
-
     // 1. Apply equipment modifiers
-    applyEquipmentStats(combatant, updatedStats, multipliers);
+    applyEquipmentStats(combatant, updatedStats);
 
     // 2. Apply active effects modifiers
-    applyEffectsStats(combatant, updatedStats, multipliers);
+    applyEffectsStats(combatant, updatedStats);
 
-    const finalPhysPercent = (1 - multipliers.phys) * 100;
-    const finalMagPercent = (1 - multipliers.mag) * 100;
-
-    updatedStats.physArmorMod = Math.round(finalPhysPercent) !== 0 ? `${Math.round(finalPhysPercent)}%` : '';
-    updatedStats.magArmorMod = Math.round(finalMagPercent) !== 0 ? `${Math.round(finalMagPercent)}%` : '';
+    // 3. Enforce minimum value of 1 for core stats and damage
+    const coreStatsAndDamage = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage'];
+    coreStatsAndDamage.forEach(stat => {
+        if (updatedStats[stat] !== undefined) {
+            updatedStats[stat] = Math.max(1, updatedStats[stat]);
+        }
+    });
 
     // Format modifiers to include the '+' sign for UI display
     Object.keys(updatedStats).forEach(key => {
-        if (key.endsWith("Mod") && key !== "physArmorMod" && key !== "magArmorMod") {
+        if (key.endsWith("Mod")) {
             updatedStats[key] = formatSigned(updatedStats[key]);
         }
     });
@@ -245,6 +222,13 @@ function recalculateCurrentStats(combatant) {
     const previousMaxHp = combatant.currentStats ? (combatant.currentStats.maxHp || 10) : (combatant.baselineStats.maxHp || 10);
     const currentHp = combatant.currentStats ? combatant.currentStats.hp : combatant.baselineStats.hp;
     
+    // Store expected max base armor and current armor to calculate equipment deltas
+    const prevExpectedPhys = combatant.currentStats ? (combatant.currentStats.expectedBasePhys || 0) : (parseInt(combatant.baselineStats.physArmor) || 0);
+    const prevExpectedMag = combatant.currentStats ? (combatant.currentStats.expectedBaseMag || 0) : (parseInt(combatant.baselineStats.magArmor) || 0);
+    
+    const currentPhys = combatant.currentStats ? (combatant.currentStats.physArmor || 0) : (parseInt(combatant.baselineStats.physArmor) || 0);
+    const currentMag = combatant.currentStats ? (combatant.currentStats.magArmor || 0) : (parseInt(combatant.baselineStats.magArmor) || 0);
+
     // Rebuild pipeline from scratch based on baseline, equipment and effects
     combatant.currentStats = applyAllModifiers(combatant);
     
@@ -257,6 +241,19 @@ function recalculateCurrentStats(combatant) {
         combatant.currentStats.hp = Math.min(currentHp + bonusHp, newMaxHp);
     }
 
+    // Calculate new base armors with modifiers and add the difference (e.g. equipping gear) to current ablative armor
+    const expectedBasePhys = combatant.currentStats.physArmor || 0;
+    const expectedBaseMag = combatant.currentStats.magArmor || 0;
+    
+    const physDelta = expectedBasePhys - prevExpectedPhys;
+    const magDelta = expectedBaseMag - prevExpectedMag;
+    
+    combatant.currentStats.expectedBasePhys = expectedBasePhys;
+    combatant.currentStats.expectedBaseMag = expectedBaseMag;
+    
+    combatant.currentStats.physArmor = Math.max(0, currentPhys + physDelta);
+    combatant.currentStats.magArmor = Math.max(0, currentMag + magDelta);
+
     // Safely update the additional fields in the UI instantly if still focused
     if (typeof selectedCharacterId !== 'undefined' && selectedCharacterId === combatant.id) {
         const dmgInput = document.querySelector('.base-damage-input');
@@ -265,14 +262,8 @@ function recalculateCurrentStats(combatant) {
         const physArmorInput = document.querySelector('.base-phys-armor');
         if (physArmorInput) physArmorInput.value = combatant.currentStats.physArmor || 0;
         
-        const physArmorModInput = document.querySelector('.base-phys-armor-mod');
-        if (physArmorModInput) physArmorModInput.value = combatant.currentStats.physArmorMod || '';
-        
         const magArmorInput = document.querySelector('.base-mag-armor');
         if (magArmorInput) magArmorInput.value = combatant.currentStats.magArmor || 0;
-        
-        const magArmorModInput = document.querySelector('.base-mag-armor-mod');
-        if (magArmorModInput) magArmorModInput.value = combatant.currentStats.magArmorMod || '';
     }
 }
 
@@ -359,7 +350,7 @@ function bindMainPanelInputs(combatantData) {
     });
 
     // Handle Manual Additional Stats changes Delta
-    const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-phys-armor-mod, .base-mag-armor, .base-mag-armor-mod');
+    const additionalInputs = charSheet.querySelectorAll('.base-damage-input, .base-phys-armor, .base-mag-armor');
     additionalInputs.forEach(input => {
         input.addEventListener('change', (e) => {
             const freshCombatant = activeCharacters.find(c => c.id === combatantData.id);
@@ -368,31 +359,39 @@ function bindMainPanelInputs(combatantData) {
             let statKey = '';
             if (e.target.classList.contains('base-damage-input')) statKey = 'damage';
             if (e.target.classList.contains('base-phys-armor')) statKey = 'physArmor';
-            if (e.target.classList.contains('base-phys-armor-mod')) statKey = 'physArmorMod';
             if (e.target.classList.contains('base-mag-armor')) statKey = 'magArmor';
-            if (e.target.classList.contains('base-mag-armor-mod')) statKey = 'magArmorMod';
 
             let val = e.target.value;
-            
-            const currentValStr = String(freshCombatant.currentStats[statKey] || '0').replace('%', '');
-            const currentVal = parseFloat(currentValStr) || 0;
-            
-            const newValStr = String(val).replace('%', '');
-            const newVal = parseFloat(newValStr) || 0;
+            let newVal = parseFloat(val) || 0;
 
-            const delta = newVal - currentVal;
-            
-            const baseValStr = String(freshCombatant.baselineStats[statKey] || '0').replace('%', '');
-            const baseVal = parseFloat(baseValStr) || 0;
-            
-            let finalBaseline = baseVal + delta;
-            if (statKey.endsWith('Mod') && statKey.includes('Armor')) {
-                freshCombatant.baselineStats[statKey] = `${finalBaseline}%`;
-            } else {
-                freshCombatant.baselineStats[statKey] = finalBaseline;
+            // Enforce minimum value of 1 for damage
+            if (statKey === 'damage' && newVal < 1) {
+                newVal = 1;
+                e.target.value = 1;
             }
 
-            recalculateCurrentStats(freshCombatant);
+            if (statKey === 'physArmor' || statKey === 'magArmor') {
+                // For ablative armor, manual change directly overwrites current armor
+                const currentVal = parseFloat(freshCombatant.currentStats[statKey]) || 0;
+                const delta = newVal - currentVal;
+                
+                freshCombatant.currentStats[statKey] = newVal;
+                
+                // Modify baseline to survive reload, and expected base to prevent recalculation overwrite
+                freshCombatant.baselineStats[statKey] = (parseFloat(freshCombatant.baselineStats[statKey]) || 0) + delta;
+                if (statKey === 'physArmor') freshCombatant.currentStats.expectedBasePhys = (freshCombatant.currentStats.expectedBasePhys || 0) + delta;
+                if (statKey === 'magArmor') freshCombatant.currentStats.expectedBaseMag = (freshCombatant.currentStats.expectedBaseMag || 0) + delta;
+            } else {
+                const currentValStr = String(freshCombatant.currentStats[statKey] || '0');
+                const currentVal = parseFloat(currentValStr) || 0;
+                const delta = newVal - currentVal;
+                const baseValStr = String(freshCombatant.baselineStats[statKey] || '0');
+                const baseVal = parseFloat(baseValStr) || 0;
+                
+                freshCombatant.baselineStats[statKey] = baseVal + delta;
+                recalculateCurrentStats(freshCombatant);
+            }
+
             syncUpdateCombatant(freshCombatant);
         });
     });

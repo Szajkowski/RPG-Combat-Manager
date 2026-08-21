@@ -445,34 +445,27 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
     };
 }
 
-// Universal damage calculation helper evaluating base action damage versus target defenses
+// Universal damage calculation helper evaluating base action damage
 function calculateActualDamage(attacker, target, payload, rollData) {
     let baseDamage = 0;
+    
+    // Summing both percentage and flat components if they coexist
     if (payload.valuePerc !== undefined) {
         const percent = parseInt(payload.valuePerc);
         const maxHp = target.currentStats.maxHp || 1;
-        baseDamage = Math.ceil((maxHp * percent) / 100);
-    } else if (payload.value !== undefined) {
-        baseDamage = getFormulaValue(payload.value, attacker, rollData);
+        baseDamage += Math.ceil((maxHp * percent) / 100);
+    }
+    
+    if (payload.value !== undefined) {
+        baseDamage += getFormulaValue(payload.value, attacker, rollData);
     }
 
-    let finalDamage = baseDamage;
+    let finalDamage = Math.max(Math.round(baseDamage), 0);
     let finalDamageType = payload.damageType;
 
-    if (finalDamageType === 'phys' || finalDamageType === 'mag') {
-        const armorFlat = parseInt(finalDamageType === 'phys' ? target.currentStats.physArmor : target.currentStats.magArmor) || 0;
-        const armorPercentStr = finalDamageType === 'phys' ? target.currentStats.physArmorMod : target.currentStats.magArmorMod;
-        const armorPercent = parseInt(armorPercentStr) || 0;
-
-        finalDamage = Math.ceil(finalDamage - armorFlat);
-        finalDamage *= (100 - armorPercent) / 100;
-    }
-
-    finalDamage = Math.max(Math.round(finalDamage), 0);
-    return { baseDamage, finalDamage, finalDamageType };
+    // Armor no longer acts as a percentage reducer here, handled sequentially in resolution
+    return { baseDamage: finalDamage, finalDamage: finalDamage, finalDamageType };
 }
-
-// RESOLVING BASIC ACTIONS (Damage, Heal, Armor)
 
 // Specific logic block evaluating attack payload execution post-roll processing
 async function resolveDamageAction(attacker, target, payload, evalRes, skipSync = false) {
@@ -488,7 +481,11 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         let deadSteps = [];
         let ddSteps = [];
         let actualRepeats = 0;
+        
         let tempHp = target.currentStats.hp;
+        let tempPhys = parseInt(target.currentStats.physArmor) || 0;
+        let tempMag = parseInt(target.currentStats.magArmor) || 0;
+        
         let subTypeFinal = 'no_dmg';
         let targetKilled = false;
 
@@ -500,17 +497,33 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
         const targetHasDD = target.hasDeathsDoor && !isLethal;
 
         for (let i = 0; i < repeats; i++) {
-            // Original damage computation & mitigation routed through dedicated helper
             const dmgResult = calculateActualDamage(attacker, target, payload, rollData);
             let damage = dmgResult.baseDamage;
-            let damageAfterArmor = dmgResult.finalDamage;
+            let dmgToHp = damage;
             let survivedThisStep = false;
             
-            if (damageAfterArmor > 0) subTypeFinal = finalDamageType;
+            // Absorption from ablative armors
+            if (finalDamageType === 'phys') {
+                let absorbed = Math.min(tempPhys, damage);
+                tempPhys -= absorbed;
+                dmgToHp -= absorbed;
+            } else if (finalDamageType === 'mag') {
+                let absorbed = Math.min(tempMag, damage);
+                tempMag -= absorbed;
+                dmgToHp -= absorbed;
+            } // Pierce bypasses armor completely.
 
             if (damage > 0) {
+                // Determine if armor fully blocked the hit for sound formatting
+                if (dmgToHp <= 0 && finalDamageType !== 'pierce') {
+                    // Apply block sound only if we haven't already registered a penetrating hit in a previous repeat
+                    if (subTypeFinal === 'no_dmg') subTypeFinal = finalDamageType + '_block';
+                } else {
+                    subTypeFinal = finalDamageType;
+                }
+
                 // Check Death's Door BEFORE subtracting HP if already at or below 0
-                if (targetHasDD && tempHp <= 0 && damageAfterArmor > 0) {
+                if (targetHasDD && tempHp <= 0 && dmgToHp > 0) {
                     const ddResult = rollDeathsDoor(target);
                     // Add Death's Door roll directly to the defender's standalone pillar to broadcast uniformly with Hit checks
                     evalRes.rolls.defenderSingleRolls.push(ddResult.roll);
@@ -524,17 +537,18 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
                 } 
                 
                 // If character didn't die from a failed DD roll above, subtract HP normally
-                if (!targetKilled) {
-                    tempHp = Math.round(tempHp - damageAfterArmor); 
+                if (!targetKilled && dmgToHp > 0) {
+                    tempHp = Math.round(tempHp - dmgToHp); 
 
-                    if (!targetHasDD && tempHp <= 0 && damageAfterArmor > 0) {
+                    if (!targetHasDD && tempHp <= 0) {
                         tempHp = 0; 
                         targetKilled = true;
                     }
                 }
             }
             
-            stepValues.push(tempHp);
+            // Push combined state object to sequentially animate everything
+            stepValues.push({ hp: tempHp, physArmor: tempPhys, magArmor: tempMag });
             deadSteps.push(targetKilled);
             ddSteps.push(survivedThisStep);
             actualRepeats++;
@@ -558,7 +572,11 @@ async function resolveDamageAction(attacker, target, payload, evalRes, skipSync 
             // Pull fresh reference to prevent overwriting updates that occurred during the delay
             const freshTarget = activeCharacters.find(c => c.id === target.id);
             if (freshTarget) {
-                freshTarget.currentStats.hp = stepValues[stepValues.length - 1];
+                const finalState = stepValues[stepValues.length - 1];
+                freshTarget.currentStats.hp = finalState.hp;
+                freshTarget.currentStats.physArmor = finalState.physArmor;
+                freshTarget.currentStats.magArmor = finalState.magArmor;
+                
                 if (targetKilled) {
                     freshTarget.isDead = true;
                     freshTarget.isStunned = false;
@@ -601,24 +619,20 @@ async function resolveHealAction(combatant, payload, attacker = null, skipSync =
     for (let i = 0; i < repeats; i++) {
         let healAmount = 0;
         
+        // Summing both percentage and flat components if they coexist
         if (payload.valuePerc !== undefined) {
             const percent = parseInt(payload.valuePerc);
-            healAmount = Math.ceil((combatant.currentStats.maxHp * percent) / 100);
-        } else if (payload.value !== undefined) {
-            healAmount = getFormulaValue(payload.value, evalContext, rollData);
+            healAmount += Math.ceil((combatant.currentStats.maxHp * percent) / 100);
+        }
+        
+        if (payload.value !== undefined) {
+            healAmount += getFormulaValue(payload.value, evalContext, rollData);
         }
 
         if (type === 'threshold') {
-            if (payload.valuePerc !== undefined) { 
-                const percent = parseInt(payload.valuePerc);
-                const thresholdHp = Math.floor((combatant.currentStats.maxHp * percent) / 100);
-                if (tempHp < thresholdHp) tempHp = thresholdHp;
-                else break; 
-            } else {
-                const thresholdHp = healAmount;
-                if (tempHp < thresholdHp) tempHp = thresholdHp;
-                else break; 
-            }
+            const thresholdHp = healAmount;
+            if (tempHp < thresholdHp) tempHp = thresholdHp;
+            else break; 
         } else {
             tempHp += healAmount;
         }
@@ -659,10 +673,10 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
     
     // Dynamic map to process flat and percentage changes without code duplication
     const armorConfigs = [
-        { payloadKey: 'physArmorValue', stepKey: 'physFlat', stat: 'physArmor', isPerc: false, isPhys: true },
-        { payloadKey: 'physArmorValuePerc', stepKey: 'physPerc', stat: 'physArmorMod', isPerc: true, isPhys: true },
-        { payloadKey: 'magArmorValue', stepKey: 'magFlat', stat: 'magArmor', isPerc: false, isPhys: false },
-        { payloadKey: 'magArmorValuePerc', stepKey: 'magPerc', stat: 'magArmorMod', isPerc: true, isPhys: false }
+        { payloadKey: 'physArmorValue', stat: 'physArmor', isPerc: false, isPhys: true },
+        { payloadKey: 'physArmorValuePerc', stat: 'physArmor', isPerc: true, isPhys: true },
+        { payloadKey: 'magArmorValue', stat: 'magArmor', isPerc: false, isPhys: false },
+        { payloadKey: 'magArmorValuePerc', stat: 'magArmor', isPerc: true, isPhys: false }
     ];
 
     // Filter down to only the properties that were actually passed in the payload
@@ -675,9 +689,7 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
     // Extract current base values once
     let currentVals = {
         physArmor: parseInt(freshCombatant.currentStats.physArmor) || 0,
-        physArmorMod: parseInt(freshCombatant.currentStats.physArmorMod) || 0,
-        magArmor: parseInt(freshCombatant.currentStats.magArmor) || 0,
-        magArmorMod: parseInt(freshCombatant.currentStats.magArmorMod) || 0
+        magArmor: parseInt(freshCombatant.currentStats.magArmor) || 0
     };
 
     // Determine if we need the mixed sound (evaluating across all active configs)
@@ -702,16 +714,16 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
             let formulaVal = getFormulaValue(String(payload[cfg.payloadKey]).replace(/%/g, ''), evalContext, rollData);
             
             if (cfg.isPerc) {
-                let damageMult = 1 - (currentVals[cfg.stat] / 100);
-                const factor = formulaVal > 0 ? (1 - formulaVal / 100) : (1 + Math.abs(formulaVal) / 100);
-                damageMult *= factor;
-                currentVals[cfg.stat] = Math.min(Math.round((1 - damageMult) * 100), 100);
+                const maxHp = parseInt(freshCombatant.currentStats.maxHp) || 1;
+                let flatAmount = Math.ceil((maxHp * formulaVal) / 100);
+                currentVals[cfg.stat] = Math.max(0, currentVals[cfg.stat] + flatAmount);
             } else {
-                currentVals[cfg.stat] += formulaVal;
+                currentVals[cfg.stat] = Math.max(0, currentVals[cfg.stat] + formulaVal);
             }
             
             // Map the calculated value directly to the key expected by the visual sequencer
-            stepState[cfg.stepKey] = currentVals[cfg.stat];
+            stepState.physArmor = currentVals.physArmor;
+            stepState.magArmor = currentVals.magArmor;
         });
         
         stepValues.push(stepState);
@@ -725,10 +737,8 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
         stepValues: stepValues, 
         stepId: payload.stepId, 
         isAuto: skipSync,
-        hasPhysFlat: payload.physArmorValue !== undefined,
-        hasPhysPerc: payload.physArmorValuePerc !== undefined,
-        hasMagFlat: payload.magArmorValue !== undefined,
-        hasMagPerc: payload.magArmorValuePerc !== undefined,
+        hasPhysFlat: payload.physArmorValue !== undefined || payload.physArmorValuePerc !== undefined,
+        hasMagFlat: payload.magArmorValue !== undefined || payload.magArmorValuePerc !== undefined,
         isMixedSound,
         isStunned: isStunned
     });
@@ -738,10 +748,8 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
     if (stepValues.length > 0) {
         let finalVal = stepValues[stepValues.length - 1];
         
-        if (finalVal.physFlat !== undefined) freshCombatant.currentStats.physArmor = finalVal.physFlat;
-        if (finalVal.physPerc !== undefined) freshCombatant.currentStats.physArmorMod = `${finalVal.physPerc}%`;
-        if (finalVal.magFlat !== undefined) freshCombatant.currentStats.magArmor = finalVal.magFlat;
-        if (finalVal.magPerc !== undefined) freshCombatant.currentStats.magArmorMod = `${finalVal.magPerc}%`;
+        if (finalVal.physArmor !== undefined) freshCombatant.currentStats.physArmor = finalVal.physArmor;
+        if (finalVal.magArmor !== undefined) freshCombatant.currentStats.magArmor = finalVal.magArmor;
         
         if (!skipSync) syncUpdateCombatant(freshCombatant);
     }

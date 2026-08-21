@@ -304,54 +304,83 @@ function buildActionTooltipText(action, attacker, target, rollData) {
     
     if (action.type === 'damage') {
         if (target) {
-            // Render exact final calculated damage when hovering specifically over an entity
-            const dmgResult = calculateActualDamage(attacker, target, action, rollData);
-            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${dmgResult.finalDamage}</strong>`);
+            // Render exact base calculated damage summing all active property types
+            let val = 0;
+            if (action.valuePerc !== undefined) {
+                val += Math.ceil((target.currentStats.maxHp * parseInt(action.valuePerc)) / 100);
+            }
+            if (action.value !== undefined) {
+                val += getFormulaValue(action.value, attacker, rollData) ?? parseInt(action.value) ?? 0;
+            }
+            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
         } else {
             // Fallback rendering base estimations when not actively hovering any target
-            if (action.valuePerc !== undefined) {
-                text = t('action_dmg_' + action.damageType + '_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
-            } else if (action.value !== undefined) {
-                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
-                text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${val}</strong>`);
-            } else {
-                text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>0</strong>`); // Fallback
-            }
+            let parts = [];
+            if (action.value !== undefined) parts.push(getFormulaValue(action.value, attacker, rollData) ?? action.value);
+            if (action.valuePerc !== undefined) parts.push(`${action.valuePerc}%`);
+            
+            let valStr = parts.length > 0 ? parts.join(' + ') : '0';
+            text = t('action_dmg_' + action.damageType).replace('{val}', `<strong>${valStr}</strong>`);
         }
     } else if (action.type === 'heal') {
-        if (action.healType === 'threshold') {
+        if (target) {
+            let val = 0;
             if (action.valuePerc !== undefined) {
-                text = t('action_heal_thresh_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
-            } else if (action.value !== undefined) {
-                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
+                val += Math.ceil((target.currentStats.maxHp * parseInt(action.valuePerc)) / 100);
+            }
+            if (action.value !== undefined) {
+                val += getFormulaValue(action.value, attacker, rollData) ?? parseInt(action.value) ?? 0;
+            }
+            if (action.healType === 'threshold') {
                 text = t('action_heal_thresh_flat').replace('{val}', `<strong>${val}</strong>`);
+            } else {
+                text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);
             }
         } else {
-            if (action.valuePerc !== undefined) {
-                text = t('action_heal_perc').replace('{val}', `<strong>${action.valuePerc}</strong>`);
-            } else if (action.value !== undefined) {
-                let val = getFormulaValue(action.value, attacker, rollData) ?? action.value;
-                text = t('action_heal_flat').replace('{val}', `<strong>${val}</strong>`);
+            let parts = [];
+            if (action.value !== undefined) parts.push(getFormulaValue(action.value, attacker, rollData) ?? action.value);
+            if (action.valuePerc !== undefined) parts.push(`${action.valuePerc}%`);
+            
+            let valStr = parts.length > 0 ? parts.join(' + ') : '0';
+            if (action.healType === 'threshold') {
+                text = t('action_heal_thresh_flat').replace('{val}', `<strong>${valStr}</strong>`);
+            } else {
+                text = t('action_heal_flat').replace('{val}', `<strong>${valStr}</strong>`);
             }
         }
     } else if (action.type === 'armor') {
         let parts = [];
-        // Check all possible armor value properties mapped to translations
-        const checkArmor = (key, isPerc, typeName) => {
-            if (action[key] !== undefined && action[key] !== null && action[key] !== '') {
-                let valStr = String(action[key]).replace(/%/g, '');
-                let val = getFormulaValue(valStr, attacker, rollData) ?? (parseInt(valStr) || 0);
-                let verb = val >= 0 ? t('action_armor_add') : t('action_armor_sub');
-                let absVal = Math.abs(val);
-                let symbol = isPerc ? '%' : '';
-                parts.push(`${verb} <strong>${absVal}${symbol}</strong> ${typeName}`);
+        
+        // Abstract sub-function handling identical physical and magical calculations symmetrically
+        const processArmorType = (flatKey, percKey, typeName) => {
+            let hasFlat = action[flatKey] !== undefined && action[flatKey] !== null && action[flatKey] !== '';
+            let hasPerc = action[percKey] !== undefined && action[percKey] !== null && action[percKey] !== '';
+            
+            if (!hasFlat && !hasPerc) return;
+
+            let flatVal = hasFlat ? (getFormulaValue(String(action[flatKey]).replace(/%/g, ''), attacker, rollData) ?? parseInt(action[flatKey]) ?? 0) : 0;
+            let percVal = hasPerc ? (getFormulaValue(String(action[percKey]).replace(/%/g, ''), attacker, rollData) ?? parseInt(action[percKey]) ?? 0) : 0;
+
+            if (target) {
+                let totalVal = flatVal;
+                if (hasPerc) {
+                    totalVal += Math.ceil((target.currentStats.maxHp * percVal) / 100);
+                }
+                
+                let verb = totalVal >= 0 ? t('action_armor_add') : t('action_armor_sub');
+                parts.push(`${verb} <strong>${Math.abs(totalVal)}</strong> ${typeName}`);
+            } else {
+                let valParts = [];
+                if (hasFlat) valParts.push(`${Math.abs(flatVal)}`);
+                if (hasPerc) valParts.push(`${Math.abs(percVal)}%`);
+                
+                let verb = (flatVal >= 0 || percVal >= 0) ? t('action_armor_add') : t('action_armor_sub'); 
+                parts.push(`${verb} <strong>${valParts.join(' + ')}</strong> ${typeName}`);
             }
         };
         
-        checkArmor('physArmorValue', false, t('desc_phys_armor'));
-        checkArmor('physArmorValuePerc', true, t('desc_phys_armor'));
-        checkArmor('magArmorValue', false, t('desc_mag_armor'));
-        checkArmor('magArmorValuePerc', true, t('desc_mag_armor'));
+        processArmorType('physArmorValue', 'physArmorValuePerc', t('desc_phys_armor'));
+        processArmorType('magArmorValue', 'magArmorValuePerc', t('desc_mag_armor'));
         
         if (parts.length > 0) text = parts.join(', ');
         else text = t('action_armor_phys').replace('{val}', '...'); // Fallback empty
