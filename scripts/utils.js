@@ -50,11 +50,20 @@ function pasteValueToInput(input) {
 // Global mouse tracking for tooltips and notifications
 window.currentMouseX = window.innerWidth / 2;
 window.currentMouseY = window.innerHeight / 2;
+window.scaledMouseX = window.currentMouseX;
+window.scaledMouseY = window.currentMouseY;
 
 document.addEventListener('mousemove', (e) => {
     window.currentMouseX = e.clientX;
     window.currentMouseY = e.clientY;
+    
+    // Scale coordinates for elements inside the app-scaler
+    const scale = window.appScale || 1;
+    window.scaledMouseX = e.clientX / scale;
+    window.scaledMouseY = e.clientY / scale;
 });
+
+const getAppContainer = () => document.getElementById('app-scaler') || document.body;
 
 // Unified notification function handling cursor and top-anchored toasts
 function showNotification(message, options = {}) {
@@ -69,19 +78,20 @@ function showNotification(message, options = {}) {
     toast.textContent = message;
     toast.style.borderColor = theme;
 
-    document.body.appendChild(toast);
+    getAppContainer().appendChild(toast);
 
     if (position === 'cursor') {
+        const scale = window.appScale || 1;
         const toastWidth = toast.offsetWidth;
         const toastHeight = toast.offsetHeight;
 
-        let left = window.currentMouseX;
-        let top = window.currentMouseY - toastHeight - 15; // 15px above cursor
+        let left = window.scaledMouseX;
+        let top = window.scaledMouseY - toastHeight - 15; // 15px above cursor
 
-        // Boundary checks to keep it on screen
+        // Boundary checks to keep it within the scaled container
         if (left - (toastWidth / 2) < 10) left = (toastWidth / 2) + 10;
-        if (left + (toastWidth / 2) > window.innerWidth - 10) left = window.innerWidth - (toastWidth / 2) - 10;
-        if (top < 10) top = window.currentMouseY + 25; // Flip below cursor if too close to top edge
+        if (left + (toastWidth / 2) > (window.innerWidth / scale) - 10) left = (window.innerWidth / scale) - (toastWidth / 2) - 10;
+        if (top < 10) top = window.scaledMouseY + 25; // Flip below cursor if too close to top edge
         
         toast.style.left = `${left}px`;
         toast.style.top = `${top}px`;
@@ -130,7 +140,6 @@ function updateModalStack() {
 }
 
 // Replaces standard window.alert() with a custom non-blocking UI modal
-// Uses a single global overlay and prevents identical messages from stacking
 function showAlertDialog(message) {
     return new Promise((resolve) => {
         let overlay = document.getElementById('global-modal-overlay');
@@ -139,9 +148,9 @@ function showAlertDialog(message) {
             overlay = document.createElement('div');
             overlay.id = 'global-modal-overlay';
             overlay.className = 'custom-modal-overlay';
-            document.body.appendChild(overlay);
+            getAppContainer().appendChild(overlay);
         } else {
-            // Prevent duplicate identical alerts from spawning (e.g. repeated connection errors)
+            // Prevent duplicate identical alerts from spawning
             const existingTexts = Array.from(overlay.querySelectorAll('.custom-modal-text')).map(el => el.innerHTML);
             if (existingTexts.includes(message)) {
                 resolve();
@@ -181,7 +190,6 @@ function showAlertDialog(message) {
 }
 
 // Replaces standard window.confirm() with a custom callback-driven UI modal
-// Uses a single global overlay and prevents identical messages from stacking
 function showConfirmDialog(message, onConfirmCallback) {
     let overlay = document.getElementById('global-modal-overlay');
     
@@ -189,12 +197,10 @@ function showConfirmDialog(message, onConfirmCallback) {
         overlay = document.createElement('div');
         overlay.id = 'global-modal-overlay';
         overlay.className = 'custom-modal-overlay';
-        document.body.appendChild(overlay);
+        getAppContainer().appendChild(overlay);
     } else {
         const existingTexts = Array.from(overlay.querySelectorAll('.custom-modal-text')).map(el => el.innerHTML);
-        if (existingTexts.includes(message)) {
-            return;
-        }
+        if (existingTexts.includes(message)) return;
     }
 
     const box = document.createElement('div');
@@ -213,7 +219,7 @@ function showConfirmDialog(message, onConfirmCallback) {
     btnYes.onclick = () => {
         box.remove();
         if (overlay.childNodes.length === 0) overlay.remove();
-        else updateModalStack(); // Adjust remaining modals in the stack
+        else updateModalStack(); 
         if (onConfirmCallback) onConfirmCallback();
     };
 
@@ -223,7 +229,7 @@ function showConfirmDialog(message, onConfirmCallback) {
     btnNo.onclick = () => {
         box.remove();
         if (overlay.childNodes.length === 0) overlay.remove();
-        else updateModalStack(); // Adjust remaining modals in the stack
+        else updateModalStack(); 
     };
     
     btnContainer.appendChild(btnYes);
@@ -243,7 +249,7 @@ function showPropertyTooltip(anchorEl, propKey) {
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.id = 'property-tooltip';
-        document.body.appendChild(tooltip);
+        getAppContainer().appendChild(tooltip);
     }
 
     // Exception for item_baseline_hint since it doesn't use the desc_ prefix
@@ -256,13 +262,14 @@ function showPropertyTooltip(anchorEl, propKey) {
     tooltip.style.display = 'block';
 
     const rect = anchorEl.getBoundingClientRect();
-    let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
-    let top = rect.top - tooltip.offsetHeight - 10;
+    const scale = window.appScale || 1;
+    let left = (rect.left / scale) + ((rect.width / scale) / 2) - (tooltip.offsetWidth / 2);
+    let top = (rect.top / scale) - tooltip.offsetHeight - 10;
 
-    // Boundary checks to keep it on screen
+    // Boundary checks mapped to scaled coordinates
     if (left < 10) left = 10;
-    if (left + tooltip.offsetWidth > window.innerWidth - 10) left = window.innerWidth - tooltip.offsetWidth - 10;
-    if (top < 10) top = rect.bottom + 10; // Flip below if it goes above the viewport
+    if (left + tooltip.offsetWidth > (window.innerWidth / scale) - 10) left = (window.innerWidth / scale) - tooltip.offsetWidth - 10;
+    if (top < 10) top = (rect.bottom / scale) + 10; 
 
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
@@ -505,20 +512,23 @@ function adjustGlobalScale() {
     if (!scaler) {
         scaler = document.createElement('div');
         scaler.id = 'app-scaler';
+        scaler.style.position = 'relative'; // Anchor for absolute positioned overlays
         
-        const topBar = document.querySelector('.top-bar');
+        // Move ALL body children into the scaler EXCEPT script tags
+        const children = Array.from(document.body.children);
+        document.body.prepend(scaler);
+        
+        children.forEach(child => {
+            if (child.tagName !== 'SCRIPT' && child.id !== 'app-scaler') {
+                scaler.appendChild(child);
+            }
+        });
+        
         const mainWorkspace = document.querySelector('.main-workspace');
-        
-        if (topBar && mainWorkspace) {
-            document.body.prepend(scaler);
-            scaler.appendChild(topBar);
-            scaler.appendChild(mainWorkspace);
-            
+        if (mainWorkspace) {
             // Override strict viewport units so the workspace properly fills the scaled container
             mainWorkspace.style.height = 'calc(100% - 60px)';
             mainWorkspace.style.width = '100%';
-        } else {
-            return; 
         }
     }
 
@@ -528,6 +538,7 @@ function adjustGlobalScale() {
 
     if (availableHeight < requiredHeight) {
         const scale = availableHeight / requiredHeight;
+        window.appScale = scale; // Export scale globally
         
         scaler.style.transform = `scale(${scale})`;
         scaler.style.transformOrigin = 'top left';
@@ -543,6 +554,8 @@ function adjustGlobalScale() {
         // CRITICAL FIX: Prevent the body's flexbox from shrinking the scaler before the transform applies
         scaler.style.flexShrink = '0'; 
     } else {
+        window.appScale = 1; // Export scale globally
+        
         // Restore normal 1:1 scale on larger screens
         scaler.style.transform = 'none';
         scaler.style.width = '100vw';

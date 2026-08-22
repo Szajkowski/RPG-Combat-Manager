@@ -13,10 +13,12 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Inject the UI necessary for the Targeting System dynamically
 function injectTargetingUI() {
+    const container = document.getElementById('app-scaler') || document.body;
+
     if (!document.getElementById('targeting-overlay')) {
         const overlay = document.createElement('div');
         overlay.id = 'targeting-overlay';
-        document.body.appendChild(overlay); 
+        container.appendChild(overlay); 
     }
 
     if (!document.getElementById('targeting-svg')) {
@@ -29,15 +31,13 @@ function injectTargetingUI() {
                 <div class="cancel-hint" data-i18n="targeting_cancel_hint"></div>
             </div>
         `;
-        document.body.insertAdjacentHTML('beforeend', svgHTML);
+        container.insertAdjacentHTML('beforeend', svgHTML);
     }
     
-    // Inject the new DOM-based Crosshair
     if (!document.getElementById('targeting-crosshair')) {
         const crosshair = document.createElement('div');
         crosshair.id = 'targeting-crosshair';
         
-        // Injecting SVG directly into DOM so it can access CSS variables
         crosshair.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="100%" height="100%" class="dynamic-crosshair">
                 <!-- Darker, thicker outline underneath -->
@@ -58,7 +58,7 @@ function injectTargetingUI() {
             </svg>
         `;
         
-        document.body.appendChild(crosshair);
+        container.appendChild(crosshair);
     }
 }
 
@@ -68,9 +68,10 @@ function injectTargetingUI() {
 function startActionPipeline(abilityUser, actions, ability, initialRollData = null, originEvent = null, alreadyBroadcasted = false) {
     actionPipelineQueue = JSON.parse(JSON.stringify(actions));
     
-    // Capture origin coordinates reliably to anchor the targeting line arrow
-    const startX = originEvent ? originEvent.clientX : window.innerWidth / 2;
-    const startY = originEvent ? originEvent.clientY : window.innerHeight / 2;
+    // Capture origin coordinates safely accounting for scale resolution offsets to anchor the targeting line arrow
+    const scale = window.appScale || 1;
+    const startX = originEvent ? originEvent.clientX / scale : (window.innerWidth / 2) / scale;
+    const startY = originEvent ? originEvent.clientY / scale : (window.innerHeight / 2) / scale;
 
     // Capture the mathematical aggregate of the initial roll (if it exists) to dynamically substitute variables in downstream action formulas safely
     let rollTotal = 0;
@@ -188,9 +189,9 @@ async function executeAutoAction(action, targetType) {
 function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     if (!payload.stepId) payload.stepId = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
     
-    // Anchor coordinates fixed from pipeline context, or fallback to mouse if missing
-    const startX = currentPipelineContext ? currentPipelineContext.startX : window.currentMouseX;
-    const startY = currentPipelineContext ? currentPipelineContext.startY : window.currentMouseY;
+    // Anchor coordinates fixed from pipeline context, or fallback to scaled mouse if missing
+    const startX = currentPipelineContext ? currentPipelineContext.startX : window.scaledMouseX;
+    const startY = currentPipelineContext ? currentPipelineContext.startY : window.scaledMouseY;
     targetingData = { attacker, actionType, payload, startX, startY, isPipeline };
     
     document.body.classList.add('targeting-mode');
@@ -204,23 +205,23 @@ function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
     if (svg) svg.style.display = 'block';
     if (crosshair) {
         crosshair.style.display = 'flex';
-        crosshair.style.left = window.currentMouseX + 'px';
-        crosshair.style.top = window.currentMouseY + 'px';
+        crosshair.style.left = window.scaledMouseX + 'px';
+        crosshair.style.top = window.scaledMouseY + 'px';
     }
     if (tooltip) {
         tooltip.style.display = 'flex';
         // Immediately pin to cursor utilizing last known location, ensuring instant visual feedback
-        tooltip.style.left = (window.currentMouseX + 15) + 'px';
-        tooltip.style.top = (window.currentMouseY + 15) + 'px';
+        tooltip.style.left = (window.scaledMouseX + 15) + 'px';
+        tooltip.style.top = (window.scaledMouseY + 15) + 'px';
         updateTargetingTooltip(); // Render the dynamic pipeline tooltip texts
     }
     
-    // Instantly draw the curved path from source to current cursor location to avoid zero-movement delays
+    // Instantly draw the curved path from source to current cursor location
     const path = document.getElementById('targeting-path');
     if (path) {
-        const cpX = startX + (window.currentMouseX - startX) / 2;
-        const cpY = Math.min(startY, window.currentMouseY) - 60;
-        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${window.currentMouseX} ${window.currentMouseY}`);
+        const cpX = startX + (window.scaledMouseX - startX) / 2;
+        const cpY = Math.min(startY, window.scaledMouseY) - 60;
+        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${window.scaledMouseX} ${window.scaledMouseY}`);
     }
 
     document.addEventListener('mousemove', handleTargetingMove);
@@ -248,6 +249,7 @@ function startTargetingMode(attacker, actionType, payload, isPipeline = false) {
 
     // Immediately evaluate the target under the cursor on pipeline stage changes to avoid requiring mouse movement
     if (isPipeline) {
+        // Find elements at the actual viewport coordinates (clientX/Y)
         const elementUnderCursor = document.elementFromPoint(window.currentMouseX, window.currentMouseY);
         const tokenUnderCursor = elementUnderCursor ? elementUnderCursor.closest('.character-token:not(.dead)') : null;
         if (tokenUnderCursor) {
@@ -486,27 +488,29 @@ function handleTargetingMove(e) {
     if (!targetingData) return;
     
     const { startX, startY } = targetingData;
+    const x = window.scaledMouseX;
+    const y = window.scaledMouseY;
     
     // Calculate arrow path (curved upwards) using the locked origin coordinates
     const path = document.getElementById('targeting-path');
     if (path) {
-        const cpX = startX + (window.currentMouseX - startX) / 2;
-        const cpY = Math.min(startY, window.currentMouseY) - 60; // Slight upward curve
-        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${window.currentMouseX} ${window.currentMouseY}`);
+        const cpX = startX + (x - startX) / 2;
+        const cpY = Math.min(startY, y) - 60; // Slight upward curve
+        path.setAttribute('d', `M ${startX} ${startY} Q ${cpX} ${cpY} ${x} ${y}`);
     }
 
     // Position tooltip closely tracking the cursor
     const tooltip = document.getElementById('targeting-tooltip');
     if (tooltip) {
-        tooltip.style.left = (window.currentMouseX + 15) + 'px';
-        tooltip.style.top = (window.currentMouseY + 15) + 'px';
+        tooltip.style.left = (x + 15) + 'px';
+        tooltip.style.top = (y + 15) + 'px';
     }
     
     // Smoothly update the custom DOM crosshair position
     const crosshair = document.getElementById('targeting-crosshair');
     if (crosshair) {
-        crosshair.style.left = window.currentMouseX + 'px';
-        crosshair.style.top = window.currentMouseY + 'px';
+        crosshair.style.left = x + 'px';
+        crosshair.style.top = y + 'px';
     }
 }
 

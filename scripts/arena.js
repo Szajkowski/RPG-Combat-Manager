@@ -616,7 +616,7 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
     if (!tooltip) {
         tooltip = document.createElement('div');
         tooltip.id = 'roll-breakdown-tooltip';
-        document.body.appendChild(tooltip);
+        (document.getElementById('app-scaler') || document.body).appendChild(tooltip);
     }
 
     // Extract dynamic class colors natively applied from createRollPillHtml
@@ -663,13 +663,14 @@ function showBreakdownTooltip(anchorEl, breakdownData, difficulty) {
     tooltip.style.display = 'flex';
 
     const rect = anchorEl.getBoundingClientRect();
-    let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
-    let top = rect.top - tooltip.offsetHeight - 10;
+    const scale = window.appScale || 1;
+    let left = (rect.left / scale) + ((rect.width / scale) / 2) - (tooltip.offsetWidth / 2);
+    let top = (rect.top / scale) - tooltip.offsetHeight - 10;
 
-    // Boundary checks to keep the tooltip on screen
+    // Boundary checks mapped to scaled bounds
     if (left < 10) left = 10;
-    if (left + tooltip.offsetWidth > window.innerWidth - 10) left = window.innerWidth - tooltip.offsetWidth - 10;
-    if (top < 10) top = rect.bottom + 10; // Flip below if it goes above the viewport
+    if (left + tooltip.offsetWidth > (window.innerWidth / scale) - 10) left = (window.innerWidth / scale) - tooltip.offsetWidth - 10;
+    if (top < 10) top = (rect.bottom / scale) + 10; 
 
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
