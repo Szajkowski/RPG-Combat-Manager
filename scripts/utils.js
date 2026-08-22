@@ -1,3 +1,6 @@
+// Embedded default avatar SVG to eliminate HTTP requests
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2048 2048' width='2048' height='2048'%3E%3Crect width='2048' height='2048' fill='%23d1d5db' /%3E%3Cpath d='M 324 2048 C 324 1400, 624 1250, 1024 1250 C 1424 1250, 1724 1400, 1724 2048 Z' fill='%239ca3af' /%3E%3Ccircle cx='1024' cy='750' r='350' fill='%239ca3af' /%3E%3C/svg%3E";
+
 // --- COPYING AND PASTING ---
 
 async function copyInputValue(input) {

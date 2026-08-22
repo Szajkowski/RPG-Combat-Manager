@@ -41,29 +41,6 @@ html {
     font-size: 16px; /* Hard anchor for rem units */
 }
 
-/* Preload and pre-rasterize SVG masks to eliminate rendering delay on first use */
-body::after {
-    content: '';
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    top: -10px;
-    left: -10px;
-    opacity: 0.01;
-    pointer-events: none;
-    /* Force browser to decode and cache the SVGs in memory specifically as masks */
-    -webkit-mask-image: 
-        url('../images/icon-pause.svg'),
-        url('../images/icon-play.svg'),
-        url('../images/icon-sound-on.svg'),
-        url('../images/icon-sound-off.svg');
-    mask-image: 
-        url('../images/icon-pause.svg'),
-        url('../images/icon-play.svg'),
-        url('../images/icon-sound-on.svg'),
-        url('../images/icon-sound-off.svg');
-}
-
 /* --- THEME VARIABLES --- */
 :root {
     /* Base Thematic Colors */
@@ -662,11 +639,6 @@ body {
 .top-controls .roll-btn { background: var(--border-color); border: none; color: white; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.75rem; font-weight: bold; letter-spacing: 1px; }
 .top-controls .roll-btn:hover { background: var(--text-muted); }
 
-.armor-val-input { width: 35px; background: transparent; border: none; color: white; font-weight: bold; text-align: right; font-size: 1rem; border-bottom: 1px solid var(--border-color); margin-right: 5px; }
-.armor-plus-sign { color: var(--text-muted); font-weight: bold; margin-right: 2px; font-size: 1.1rem; }
-.armor-perc-input { width: 35px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--theme-mod); text-align: center; border-radius: 3px; font-size: 0.8rem; padding: 2px; margin-right: 2px; }
-.armor-perc-sign { color: var(--theme-mod); font-weight: bold; font-size: 0.9rem; margin-right: 5px; }
-
 /* PART 2: ARMOR SHIELDS */
 .armor-shield {
     position: relative;
@@ -679,16 +651,6 @@ body {
     font-weight: bold;
     color: #ffffff;
     text-shadow: 1px 1px 1px #000, 0px 0px 3px #000;
-}
-
-/* Physical Armor: Steel Grey with 3D split highlight */
-.armor-shield.phys { 
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13 5.16-1.26 9-7.45 9-13V5l-9-4z" fill="%238c92ac"/><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13V1z" fill="%23ffffff" opacity="0.15"/><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 13V1z" fill="%23000000" opacity="0.15"/><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13 5.16-1.26 9-7.45 9-13V5l-9-4z" fill="none" stroke="%235a5e73" stroke-width="1.5" stroke-linejoin="round"/></svg>'); 
-}
-
-/* Magical Armor: Purple with 3D split highlight */
-.armor-shield.mag { 
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13 5.16-1.26 9-7.45 9-13V5l-9-4z" fill="%23bd93f9"/><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13V1z" fill="%23ffffff" opacity="0.2"/><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 13V1z" fill="%23000000" opacity="0.15"/><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 13 5.16-1.26 9-7.45 9-13V5l-9-4z" fill="none" stroke="%237b56ad" stroke-width="1.5" stroke-linejoin="round"/></svg>'); 
 }
 
 /* Token Specific Layout */

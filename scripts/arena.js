@@ -113,7 +113,7 @@ function renderToken(combatant) {
     tokenDiv.dataset.id = combatant.id;
     tokenDiv.onclick = () => selectCharacter(combatant.id);
 
-    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
+    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : DEFAULT_AVATAR;
     const imgAlt = combatant.image ? combatant.image : t('unknown_character');
     const hpPercentage = (combatant.currentStats.hp / combatant.currentStats.maxHp) * 100;
 
@@ -131,7 +131,7 @@ function renderToken(combatant) {
             <div class="stun-star star-3"></div>
         </div>
         <button class="token-delete-btn" onclick="removeCharacterById('${combatant.id}', event)" title="${t('remove_character')}">✖</button>
-        <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src='/images/default-img.svg'">
+        <img src="${imgSrc}" class="token-img" alt="${imgAlt}" onerror="this.src=DEFAULT_AVATAR">
         
         <div class="token-armor-container">
             <div class="armor-shield phys token-armor-shield ${physVal > 0 && !combatant.isDead ? '' : 'shield-hidden'}" data-val="${physVal}">

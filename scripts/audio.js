@@ -59,9 +59,13 @@ function toggleGlobalMute() {
     
     const muteIcon = document.getElementById('mute-icon');
     if (muteIcon) {
-        const iconPath = window.isAudioMuted ? "url('images/icon-sound-off.svg')" : "url('images/icon-sound-on.svg')";
-        muteIcon.style.webkitMaskImage = iconPath;
-        muteIcon.style.maskImage = iconPath;
+        if (window.isAudioMuted) {
+            muteIcon.classList.remove('mask-sound-on');
+            muteIcon.classList.add('mask-sound-off');
+        } else {
+            muteIcon.classList.remove('mask-sound-off');
+            muteIcon.classList.add('mask-sound-on');
+        }
     }
 
     if (typeof currentMusic !== 'undefined' && currentMusic) {
@@ -102,11 +106,11 @@ function renderMusicList() {
         musicItem.className = 'music-item';
         musicItem.dataset.track = trackName;
         
-        // Injected SVG mask for Play icon instead of text characters
+        // Use SVG mask classes for Play icon instead of text characters
         musicItem.innerHTML = `
             <span>${trackName}</span> 
             <button onclick="playMusic('${file}', this)">
-                <div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>
+                <div class="icon-mask mask-play"></div>
             </button>
         `;
         
@@ -130,8 +134,11 @@ function playMusic(filePath, buttonElement) {
         // Reset all buttons to standard play state
         document.querySelectorAll('.music-item').forEach(item => {
             item.classList.remove('playing', 'paused');
-            const btn = item.querySelector('button');
-            if(btn) btn.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>`;
+            const btn = item.querySelector('button .icon-mask');
+            if(btn) {
+                btn.classList.remove('mask-pause');
+                btn.classList.add('mask-play');
+            }
         });
     }
 
@@ -152,7 +159,11 @@ function playMusic(filePath, buttonElement) {
     if (activeItem) {
         activeItem.classList.remove('paused');
         activeItem.classList.add('playing');
-        buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-pause.svg'); mask-image: url('images/icon-pause.svg');"></div>`;
+        const btnMask = buttonElement.querySelector('.icon-mask');
+        if (btnMask) {
+            btnMask.classList.remove('mask-play');
+            btnMask.classList.add('mask-pause');
+        }
     }
 }
 
@@ -161,18 +172,24 @@ function toggleMusic() {
     if (!currentMusic) return;
 
     const activeItem = document.querySelector(`.music-item[data-track="${currentMusicName}"]`);
-    const buttonElement = activeItem ? activeItem.querySelector('button') : null;
+    const btnMask = activeItem ? activeItem.querySelector('button .icon-mask') : null;
 
     if (currentMusic.paused) {
         currentMusic.play();
-        if (buttonElement) buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-pause.svg'); mask-image: url('images/icon-pause.svg');"></div>`;
+        if (btnMask) {
+            btnMask.classList.remove('mask-play');
+            btnMask.classList.add('mask-pause');
+        }
         if (activeItem) {
             activeItem.classList.remove('paused');
             activeItem.classList.add('playing');
         }
     } else {
         currentMusic.pause();
-        if (buttonElement) buttonElement.innerHTML = `<div class="icon-mask" style="-webkit-mask-image: url('images/icon-play.svg'); mask-image: url('images/icon-play.svg');"></div>`;
+        if (btnMask) {
+            btnMask.classList.remove('mask-pause');
+            btnMask.classList.add('mask-play');
+        }
         if (activeItem) {
             activeItem.classList.remove('playing');
             activeItem.classList.add('paused');

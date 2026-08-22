@@ -207,10 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup UI Toggle buttons
     const muteIcon = document.getElementById('mute-icon');
     if (muteIcon) {
-        // Load initial SVG mask path based on stored state
-        const iconPath = window.isAudioMuted ? "url('images/icon-sound-off.svg')" : "url('images/icon-sound-on.svg')";
-        muteIcon.style.webkitMaskImage = iconPath;
-        muteIcon.style.maskImage = iconPath;
+        // Load initial SVG mask class based on stored state
+        if (window.isAudioMuted) {
+            muteIcon.classList.add('mask-sound-off');
+        } else {
+            muteIcon.classList.add('mask-sound-on');
+        }
     }
 
     const gmLangBtn = document.getElementById('lang-btn');

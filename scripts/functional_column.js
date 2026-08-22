@@ -2,19 +2,19 @@
 function generateFunctionalColumn(combatant) {
     return `
         <button class="func-btn delete" title="${t('remove_character')}" onclick="removeCharacterById('${combatant.id}', event)">
-            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-delete.svg'); mask-image: url('images/icon-delete.svg');"></div>
+            <div class="icon-mask mask-delete"></div>
         </button>
         <button class="func-btn stun ${combatant.isStunned ? 'active' : ''}" title="${t('toggle_stun')}" onclick="toggleStun()">
-            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-stun.svg'); mask-image: url('images/icon-stun.svg');"></div>
+            <div class="icon-mask mask-stun"></div>
         </button>
         ${combatant.isDead ? `<button class="func-btn resurrect" title="${t('resurrect_character')}" onclick="resurrectCharacter()">
-            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-resurrect-ankh.svg'); mask-image: url('images/icon-revive.svg');"></div>
+            <div class="icon-mask mask-resurrect"></div>
         </button>` : ''}
         ${combatant.baseName !== '' ? `<button class="func-btn reload" title="${t('reload_character')}" onclick="reloadCharacterData()">
-            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-reload.svg'); mask-image: url('images/icon-reload.svg');"></div>
+            <div class="icon-mask mask-reload"></div>
         </button>` : ''}
         ${combatant.baseName !== '' ? `<button class="func-btn save-stats" title="${t('save_character_stats')}" onclick="saveCharacterStats('${combatant.id}')">
-            <div class="icon-mask" style="-webkit-mask-image: url('images/icon-save.svg'); mask-image: url('images/icon-save.svg');"></div>
+            <div class="icon-mask mask-save"></div>
         </button>` : ''}
     `;
 }

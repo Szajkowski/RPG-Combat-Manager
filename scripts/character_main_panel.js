@@ -31,7 +31,7 @@ function renderCharMainPanel(id) {
     
     const stats = combatant.currentStats;
     const hpPercentage = (stats.hp / stats.maxHp) * 100;
-    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : '/images/default-img.svg';
+    const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : DEFAULT_AVATAR;
 
     // Filter and generate only the existing stats for this specific character
     // Always show all stats for completely blank custom characters (type === 'character')
@@ -63,7 +63,7 @@ function renderCharMainPanel(id) {
 
     // 1. Render Main Character Sheet (.char-sheet)
     charSheet.innerHTML = `
-        <img src="${imgSrc}" class="char-portrait-square" onerror="this.src='/images/default-img.svg'">
+        <img src="${imgSrc}" class="char-portrait-square" onerror="this.src=DEFAULT_AVATAR">
         <div class="char-header">
             ${charNameHtml}
         </div>

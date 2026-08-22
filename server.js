@@ -54,12 +54,11 @@ async function startServer() {
     app.get('/api/image/:type/:name', (req, res) => {
         const { type, name } = req.params;
         const dirPath = path.join(__dirname, 'images', type);
-        const defaultImagePath = path.join(__dirname, 'images', 'default-img.svg');
 
         fs.readdir(dirPath, (err, files) => {
-            // If the directory doesn't exist (e.g. no 'boss' folder yet), serve the default image
+            // If the directory doesn't exist (e.g. no 'boss' folder yet), return 404 to trigger client-side fallback
             if (err) {
-                return res.sendFile(defaultImagePath);
+                return res.status(404).send('Not found');
             }
 
             // Find the first file that matches the character's name (ignoring the extension)
@@ -74,8 +73,8 @@ async function startServer() {
                 // Serve the matched specific character image
                 res.sendFile(path.join(dirPath, targetFile));
             } else {
-                // If the specific image is not found in the directory, serve the default image
-                res.sendFile(defaultImagePath);
+                // Return 404 to trigger fast client-side SVG rendering
+                res.status(404).send('Not found');
             }
         });
     });
