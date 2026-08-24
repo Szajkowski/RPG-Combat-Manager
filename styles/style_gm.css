@@ -595,11 +595,11 @@ body {
     text-overflow: ellipsis;
 }
 
-.char-hp-visual { height: 10px; background: var(--bg-hp-empty); border-radius: 5px; overflow: hidden; margin-bottom: 8px; border: 1px solid var(--border-dark); flex-shrink: 0;}
+.char-hp-visual { height: 10px; background: var(--bg-hp-empty); border-radius: 5px; overflow: hidden; margin-bottom: 8px; border: 1px solid var(--border-dark); flex-shrink: 1; min-height: 5px;}
 .char-hp-visual.dead { background: #000000; }
 .char-hp-visual-fill { height: 100%; transition: width 0.3s ease; }
 
-.hp-section { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; background: var(--bg-main); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-dark); flex-shrink: 0;}
+.hp-section { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; background: var(--bg-main); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-dark); flex-shrink: 1; min-height: 26px;}
 .hp-label { color: var(--text-dimmed); font-size: 0.85rem; text-transform: uppercase; font-weight: bold; }
 .hp-inputs { display: flex; align-items: center; gap: 5px; font-weight: bold; color: var(--text-main);}
 .hp-inputs input { width: 90px; background: transparent; border: none; color: white; font-weight: bold; text-align: center; font-size: 1.2rem;}
@@ -667,9 +667,9 @@ body {
 }
 
 .token-armor-shield {
-    width: 24px;
-    height: 24px;
-    font-size: 0.85rem;
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
 }
 
 /* Visibility hidden keeps the element occupying space to prevent flexbox shifting */
@@ -682,8 +682,9 @@ body {
 .sheet-armor-container-split {
     display: flex;
     gap: 10px;
-    margin-bottom: 10px;
-    flex-shrink: 0;
+    margin-bottom: 0;
+    flex-shrink: 1;
+    min-height: 36px;
     width: 100%;
 }
 
@@ -712,7 +713,7 @@ body {
     color: white;
     font-weight: bold;
     text-align: center;
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     outline: none;
     text-shadow: 1px 1px 1px #000, 0px 0px 3px #000;
     cursor: text;
@@ -726,11 +727,11 @@ body {
 }
 
 /* Dynamic Text Scaling Classes */
-.shield-text-sm { font-size: 0.8em !important; }
-.shield-text-xs { font-size: 0.6em !important; }
+.shield-text-sm { font-size: 0.85em !important; }
+.shield-text-xs { font-size: 0.65em !important; }
 
-.sheet-text-sm { font-size: 0.95rem !important; }
-.sheet-text-xs { font-size: 0.75rem !important; }
+.sheet-text-sm { font-size: 1.1rem !important; }
+.sheet-text-xs { font-size: 0.9rem !important; }
 
 /* Dynamic Impact Animations */
 @keyframes textFlashGreen {

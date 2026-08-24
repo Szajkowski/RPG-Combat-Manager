@@ -33,18 +33,12 @@ function renderCharMainPanel(id) {
     const hpPercentage = (stats.hp / stats.maxHp) * 100;
     const imgSrc = combatant.image ? `/api/image/${combatant.type}/${encodeURIComponent(combatant.image)}` : DEFAULT_AVATAR;
 
-    // Filter and generate only the existing stats for this specific character
-    // Always show all stats for completely blank custom characters (type === 'character')
+    // Render ALL stats unconditionally, as every character now natively supports all stats
     const allStats = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience'];
     let rollsHtml = '';
     allStats.forEach(stat => {
-        if (stats[stat] !== undefined || combatant.type === 'character') {
-            rollsHtml += generateStatRow(combatant.id, stat, stats[stat], stats[`${stat}Mod`]);
-        }
+        rollsHtml += generateStatRow(combatant.id, stat, stats[stat], stats[`${stat}Mod`]);
     });
-
-    // Fetch globally saved sheet tab state from localStorage
-    const savedSheetTab = localStorage.getItem('CombatManager-SheetTab') || 'tab-rolls';
 
     // Name formatting logic
     let charNameHtml = '';
@@ -71,30 +65,30 @@ function renderCharMainPanel(id) {
             <div class="char-hp-visual-fill ${getHpClass(hpPercentage, combatant.isDead)}" style="width: ${Math.max(0, Math.min(100, hpPercentage))}%;"></div>
         </div>
         
-        <div class="hp-section">
-            <span class="hp-label" data-i18n="health"></span>
-            <div class="hp-inputs">
-                <input type="number" class="current-hp-input" value="${stats.hp}"> / 
-                <input type="number" class="max-hp-input" value="${stats.maxHp}">
-            </div>
-        </div>
-
-        <div class="sheet-armor-container-split">
-            <div class="sheet-armor-box">
-                <span class="stat-label" data-i18n="phys_armor"></span>
-                <div class="armor-shield phys sheet-armor-shield" title="${t('phys_armor_caps')}">
-                    <input type="number" class="sheet-armor-input base-phys-armor ${physScaleClass}" data-val="${physVal}" value="${physVal}">
-                </div>
-            </div>
-            <div class="sheet-armor-box">
-                <span class="stat-label" data-i18n="mag_armor"></span>
-                <div class="armor-shield mag sheet-armor-shield" title="${t('mag_armor_caps')}">
-                    <input type="number" class="sheet-armor-input base-mag-armor ${magScaleClass}" data-val="${magVal}" value="${magVal}">
-                </div>
-            </div>
-        </div>
-
         <div class="char-stats-container">
+            <div class="hp-section">
+                <span class="hp-label" data-i18n="health"></span>
+                <div class="hp-inputs">
+                    <input type="number" class="current-hp-input" value="${stats.hp}"> / 
+                    <input type="number" class="max-hp-input" value="${stats.maxHp}">
+                </div>
+            </div>
+
+            <div class="sheet-armor-container-split">
+                <div class="sheet-armor-box">
+                    <span class="stat-label" data-i18n="phys_armor"></span>
+                    <div class="armor-shield phys sheet-armor-shield" title="${t('phys_armor_caps')}">
+                        <input type="number" class="sheet-armor-input base-phys-armor ${physScaleClass}" data-val="${physVal}" value="${physVal}">
+                    </div>
+                </div>
+                <div class="sheet-armor-box">
+                    <span class="stat-label" data-i18n="mag_armor"></span>
+                    <div class="armor-shield mag sheet-armor-shield" title="${t('mag_armor_caps')}">
+                        <input type="number" class="sheet-armor-input base-mag-armor ${magScaleClass}" data-val="${magVal}" value="${magVal}">
+                    </div>
+                </div>
+            </div>
+
             ${rollsHtml} 
             <div class="stat-row derived-stat">
                 <span class="stat-label" data-i18n="base_damage"></span>

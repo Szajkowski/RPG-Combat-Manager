@@ -187,7 +187,7 @@ var players = {
     "Pafnucy": {
         lvl: 4,
         name: "Pafnucy",
-        hp: 190,
+        hp: 20,
         maxHp: 20,
         vitality: 10,
         strength: 10,

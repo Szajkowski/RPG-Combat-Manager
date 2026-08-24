@@ -23,7 +23,7 @@ let currentServerInstanceId = null; // Tracks current server run ID
 // Heartbeat and connection management variables
 let heartbeatInterval = null;
 let heartbeatTimeout = null;
-let reconnectTimeout = null;
+let reconnectInterval = null;
 
 function connectSocket() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -53,12 +53,11 @@ function connectSocket() {
             showDisconnectModal();
         }
 
-        // Prevent multiple concurrent reconnect loops
-        if (!reconnectTimeout) {
-            reconnectTimeout = setTimeout(() => {
-                reconnectTimeout = null;
-                // Only try to reconnect if we aren't already connected or connecting
-                if (typeof socket !== 'undefined' && socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING) {
+        // Extremely robust interval-based reconnect engine dodging TCP hangups
+        if (!reconnectInterval) {
+            reconnectInterval = setInterval(() => {
+                // Only try to spawn a new socket if the current one has finally died completely
+                if (typeof socket !== 'undefined' && socket.readyState === WebSocket.CLOSED) {
                     socket = connectSocket();
                 }
             }, 3000);
@@ -67,6 +66,11 @@ function connectSocket() {
 
     newSocket.onopen = () => {
         clearTimeout(connectionTimeout);
+        
+        if (reconnectInterval) {
+            clearInterval(reconnectInterval);
+            reconnectInterval = null;
+        }
 
         // Handle UI recovery on reconnect
         if (isDisconnected) {
@@ -141,6 +145,11 @@ function connectSocket() {
                 
                 activeEffects = data.activeEffects || []; 
                 rollsHistory = data.rollsHistory || []; 
+                
+                if (data.activeMusic && data.activeMusic.filePath) {
+                    // Start paused if it was paused on server, else play normally
+                    executePlayMusic(data.activeMusic.filePath, !data.activeMusic.isPlaying);
+                }
                 
                 // Empty the arena HTML elements before rendering tokens
                 const heroTeam = document.getElementById('heroTeam');
@@ -275,6 +284,21 @@ function connectSocket() {
 
             case 'BROADCASTplayActionSequence': {
                 playActionSequence(data.payload);
+                break;
+            }
+            
+            case 'BROADCASTplayMusic': {
+                if (data.action === 'play') {
+                    executePlayMusic(data.filePath);
+                } else {
+                    // If for some reason the audio object wasn't created yet but we got a pause/resume event
+                    // we forcefully load it now using the fallback filePath logic appended to the server
+                    if ((typeof currentMusic === 'undefined' || !currentMusic) && data.filePath) {
+                        executePlayMusic(data.filePath, data.action === 'pause');
+                    } else if (typeof currentMusic !== 'undefined' && currentMusic) {
+                        executeToggleMusic(data.action);
+                    }
+                }
                 break;
             }
                 

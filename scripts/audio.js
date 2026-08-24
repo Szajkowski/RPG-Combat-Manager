@@ -8,7 +8,17 @@ function playSoundEffect(src, volume = 0.5) {
     
     const audio = new Audio(src);
     audio.volume = volume;
-    audio.play().catch(e => console.warn("Audio playback failed:", e));
+    
+    let playPromise = audio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            if (error.name === 'NotAllowedError') {
+                showAudioPermissionModal();
+            } else {
+                console.warn("Audio playback failed:", error);
+            }
+        });
+    }
     return audio;
 }
 
@@ -116,30 +126,54 @@ function renderMusicList() {
         
         musicListContainer.appendChild(musicItem);
     });
+
+    // Restore UI state if a track is already globally active 
+    // (e.g., loaded during connection before the UI was ready)
+    if (currentMusicName) {
+        const state = (currentMusic && !currentMusic.paused) ? 'playing' : 'paused';
+        updateMusicUI(currentMusicName, state);
+    }
 }
 
 // Handles clicking a track's play/pause button
 function playMusic(filePath, buttonElement) {
     const trackName = filePath.replace('.mp3', '');
+    let action = 'play';
 
+    // Check if the clicked track is currently active to toggle its state instead of replaying
+    if (currentMusicName === trackName && currentMusic) {
+        action = currentMusic.paused ? 'resume' : 'pause';
+    }
+
+    if (typeof socket !== 'undefined' && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'REQUESTplayMusic', action: action, filePath: filePath }));
+    }
+}
+
+// Executed when a play payload is verified
+function executePlayMusic(filePath, startPaused = false) {
+    const trackName = filePath.replace('.mp3', '');
+
+    // If the track is already loaded
     if (currentMusicName === trackName) {
-        toggleMusic();
+        if (startPaused) {
+            currentMusic.pause();
+            updateMusicUI(trackName, 'paused');
+        } else {
+            let playPromise = currentMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => {
+                    if (e.name === 'NotAllowedError') showAudioPermissionModal();
+                });
+            }
+            updateMusicUI(trackName, 'playing');
+        }
         return;
     }
 
     if (currentMusic) {
         currentMusic.pause();
         currentMusic.currentTime = 0; 
-        
-        // Reset all buttons to standard play state
-        document.querySelectorAll('.music-item').forEach(item => {
-            item.classList.remove('playing', 'paused');
-            const btn = item.querySelector('button .icon-mask');
-            if(btn) {
-                btn.classList.remove('mask-pause');
-                btn.classList.add('mask-play');
-            }
-        });
     }
 
     // Load and play the new track
@@ -150,20 +184,28 @@ function playMusic(filePath, buttonElement) {
     if (window.isAudioMuted) {
         currentMusic.muted = true;
     }
-    
-    currentMusic.play();
-    currentMusic.onended = () => currentMusic.play(); 
 
-    // Apply active styles and set icon to Pause
-    const activeItem = buttonElement.closest('.music-item');
-    if (activeItem) {
-        activeItem.classList.remove('paused');
-        activeItem.classList.add('playing');
-        const btnMask = buttonElement.querySelector('.icon-mask');
-        if (btnMask) {
-            btnMask.classList.remove('mask-play');
-            btnMask.classList.add('mask-pause');
+    currentMusic.onended = () => {
+        let playPromise = currentMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(e => console.warn(e));
         }
+    };
+
+    if (startPaused) {
+        updateMusicUI(trackName, 'paused');
+    } else {
+        let playPromise = currentMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                if (error.name === 'NotAllowedError') {
+                    showAudioPermissionModal();
+                } else {
+                    console.warn("Audio playback failed:", error);
+                }
+            });
+        }
+        updateMusicUI(trackName, 'playing');
     }
 }
 
@@ -171,28 +213,103 @@ function playMusic(filePath, buttonElement) {
 function toggleMusic() {
     if (!currentMusic) return;
 
-    const activeItem = document.querySelector(`.music-item[data-track="${currentMusicName}"]`);
-    const btnMask = activeItem ? activeItem.querySelector('button .icon-mask') : null;
-
-    if (currentMusic.paused) {
-        currentMusic.play();
-        if (btnMask) {
-            btnMask.classList.remove('mask-play');
-            btnMask.classList.add('mask-pause');
-        }
-        if (activeItem) {
-            activeItem.classList.remove('paused');
-            activeItem.classList.add('playing');
-        }
+    const action = currentMusic.paused ? 'resume' : 'pause';
+    if (typeof socket !== 'undefined' && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'REQUESTplayMusic', action: action }));
     } else {
-        currentMusic.pause();
-        if (btnMask) {
-            btnMask.classList.remove('mask-pause');
-            btnMask.classList.add('mask-play');
+        executeToggleMusic(action);
+    }
+}
+
+// Executed when a toggle payload is verified
+function executeToggleMusic(action) {
+    if (!currentMusic) return;
+
+    if (action === 'resume') {
+        let playPromise = currentMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                if (error.name === 'NotAllowedError') {
+                    showAudioPermissionModal();
+                } else {
+                    console.warn("Audio playback failed:", error);
+                }
+            });
         }
-        if (activeItem) {
-            activeItem.classList.remove('playing');
-            activeItem.classList.add('paused');
+        updateMusicUI(currentMusicName, 'playing');
+    } else if (action === 'pause') {
+        currentMusic.pause();
+        updateMusicUI(currentMusicName, 'paused');
+    }
+}
+
+function updateMusicUI(trackName, state) {
+    // Reset all buttons to standard play state
+    document.querySelectorAll('.music-item').forEach(item => {
+        item.classList.remove('playing', 'paused');
+        const btn = item.querySelector('button .icon-mask');
+        if(btn) {
+            btn.classList.remove('mask-pause');
+            btn.classList.add('mask-play');
+        }
+    });
+
+    const activeItem = document.querySelector(`.music-item[data-track="${trackName}"]`);
+    if (activeItem) {
+        activeItem.classList.add(state);
+        const btnMask = activeItem.querySelector('button .icon-mask');
+        if (btnMask) {
+            btnMask.classList.remove('mask-play', 'mask-pause');
+            btnMask.classList.add(state === 'playing' ? 'mask-pause' : 'mask-play');
         }
     }
+}
+
+let audioPermissionModalShown = false;
+
+function showAudioPermissionModal() {
+    if (audioPermissionModalShown) return;
+    audioPermissionModalShown = true;
+    
+    let overlay = document.getElementById('global-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'global-modal-overlay';
+        overlay.className = 'custom-modal-overlay';
+        getAppContainer().appendChild(overlay);
+    }
+    
+    const box = document.createElement('div');
+    box.className = 'custom-modal-box';
+    
+    const text = document.createElement('div');
+    text.className = 'custom-modal-text';
+    text.innerHTML = t('audio_permission_request');
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'custom-modal-actions';
+    
+    const btn = document.createElement('button');
+    btn.className = 'custom-modal-btn confirm';
+    btn.textContent = t('btn_ok');
+    
+    btn.onclick = () => {
+        box.remove();
+        if (overlay.childNodes.length === 0) overlay.remove();
+        else updateModalStack();
+        
+        audioPermissionModalShown = false;
+        
+        // Retry playing music if it was supposed to be playing
+        if (currentMusic && currentMusic.paused) {
+            executeToggleMusic('resume');
+        }
+    };
+    
+    btnContainer.appendChild(btn);
+    box.appendChild(text);
+    box.appendChild(btnContainer);
+    overlay.appendChild(box);
+
+    updateModalStack();
 }

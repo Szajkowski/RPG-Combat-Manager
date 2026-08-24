@@ -1294,6 +1294,7 @@ var ability = {
                 // 7. error_effect_mixed: heal type action is targeted, has forced roll AND mixed effect types, missing isEffectSuccessBeneficial root flag
                 type: "heal",
                 target: "single",
+                valuePerc: 10,
                 forceRoll: "vitality",
                 forceRollDifficulty: 10,
                 effects: [
@@ -1316,7 +1317,13 @@ var ability = {
                 physArmorValue: "[-10 + 1 * roll]",
                 forceRoll: "agility",
                 forceRollDifficulty: 10
-            }
+            },
+            {
+                // 9. error_action_missing_value: damage type action without value or valuePerc
+                type: "damage",
+                target: "single",
+                damageType: "phys",
+            },
         ]
     },
 

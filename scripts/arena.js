@@ -51,8 +51,15 @@ function addCharacter(type, team, stats = {}, image = null) {
     // Set default HP values if missing
     if (baselineStats.hp === undefined) baselineStats.hp = 10;
     if (baselineStats.maxHp === undefined) baselineStats.maxHp = 10;
-    if (initialStats.hp === undefined) initialStats.hp = 10;
-    if (initialStats.maxHp === undefined) initialStats.maxHp = 10;
+    if (initialStats.hp === undefined) initialStats.hp = 0;
+    if (initialStats.maxHp === undefined) initialStats.maxHp = 0;
+
+    // Enforce core stats creation directly
+    const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage'];
+    coreAttributes.forEach(stat => {
+        if (initialStats[stat] === undefined || initialStats[stat] === null || initialStats[stat] === '') initialStats[stat] = 0;
+        if (baselineStats[stat] === undefined || baselineStats[stat] === null || baselineStats[stat] === '') baselineStats[stat] = 1;
+    });
 
     // Initialize abilities states directly in memory
     const initialAbilitiesStates = {};
@@ -200,14 +207,8 @@ function rollDice(combatantId, diceType, difficulty = null) {
     const combatant = activeCharacters.find(c => c.id === combatantId);
     if (!combatant) return null;
 
-    const baseStat = parseInt(combatant.currentStats[diceType]) || 0;
+    const baseStat = parseInt(combatant.currentStats[diceType]) || 1;
     const modValue = parseInt(combatant.currentStats[`${diceType}Mod`]) || 0;
-
-    // Safely check if stat exists at all
-    if (combatant.currentStats[diceType] === undefined && combatant.currentStats[`${diceType}Mod`] === undefined) {
-        showAlertDialog(t('no_stats_error'));
-        return null;
-    }
 
     const roll = Math.floor(Math.random() * baseStat) + 1;
     let result = Math.max(1, roll + modValue);
@@ -233,41 +234,32 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
     const defStats = parseRollStats(defStatString);
     
     let attRes = 0;
-    let hasAttBase = false;
     let attBreakdown = [];
 
     if (cachedAttData !== null && cachedAttData !== undefined) {
         attRes = cachedAttData.actualAttRoll;
         attBreakdown = cachedAttData.breakdown;
-        hasAttBase = true;
     } else {
         for (let stat of attStats) {
-            const base = parseInt(attacker.currentStats[stat]) || 0;
-            if (base > 0) {
-                hasAttBase = true;
-                const mod = parseInt(attacker.currentStats[`${stat}Mod`]) || 0;
-                const roll = Math.floor(Math.random() * base) + 1;
-                const total = Math.max(1, roll + mod);
-                attRes += total;
-                attBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
-            }
+            const base = parseInt(attacker.currentStats[stat]) || 1;
+            const mod = parseInt(attacker.currentStats[`${stat}Mod`]) || 0;
+            const roll = Math.floor(Math.random() * base) + 1;
+            const total = Math.max(1, roll + mod);
+            attRes += total;
+            attBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
         }
     }
 
     let defRes = 0;
-    let hasDefBase = false;
     let defBreakdown = [];
     
     for (let stat of defStats) {
-        const base = parseInt(defender.currentStats[stat]) || 0;
-        if (base > 0) {
-            hasDefBase = true;
-            const mod = parseInt(defender.currentStats[`${stat}Mod`]) || 0;
-            const roll = Math.floor(Math.random() * base) + 1;
-            const total = Math.max(1, roll + mod);
-            defRes += total;
-            defBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
-        }
+        const base = parseInt(defender.currentStats[stat]) || 1;
+        const mod = parseInt(defender.currentStats[`${stat}Mod`]) || 0;
+        const roll = Math.floor(Math.random() * base) + 1;
+        const total = Math.max(1, roll + mod);
+        defRes += total;
+        defBreakdown.push({ stat: stat, roll: roll, mod: mod, total: total });
     }
 
     // Tie goes to the attacker
@@ -279,10 +271,10 @@ function performOpposedRoll(attacker, defender, attStatString, defStatString, ca
 
     return {
         isSuccess: isSuccess,
-        actualAttRoll: attRes, // Saved for potential external caching
+        actualAttRoll: attRes, 
         attBreakdown: attBreakdown, // Save to pass to cache
-        attRoll: { stat: displayAttStat, result: hasAttBase ? attRes : "X", color: isSuccess ? 'text-positive' : 'text-negative', breakdown: attBreakdown },
-        defRoll: { stat: displayDefStat, result: hasDefBase ? defRes : "X", color: isSuccess ? 'text-negative' : 'text-positive', breakdown: defBreakdown }
+        attRoll: { stat: displayAttStat, result: attRes, color: isSuccess ? 'text-positive' : 'text-negative', breakdown: attBreakdown },
+        defRoll: { stat: displayDefStat, result: defRes, color: isSuccess ? 'text-negative' : 'text-positive', breakdown: defBreakdown }
     };
 }
 

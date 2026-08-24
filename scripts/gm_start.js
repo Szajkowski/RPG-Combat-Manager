@@ -393,4 +393,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // --- ICON PRELOADER ---
+    // Forces the browser to immediately cache all SVG mask states avoiding CSS UI flickers
+    const iconPreloader = document.createElement('div');
+    iconPreloader.style.position = 'absolute';
+    iconPreloader.style.left = '-9999px';
+    iconPreloader.style.top = '-9999px';
+    iconPreloader.style.visibility = 'hidden';
+    iconPreloader.style.opacity = '0';
+    iconPreloader.style.pointerEvents = 'none';
+    
+    iconPreloader.innerHTML = `
+        <div class="icon-mask mask-delete"></div>
+        <div class="icon-mask mask-pause"></div>
+        <div class="icon-mask mask-play"></div>
+        <div class="icon-mask mask-reload"></div>
+        <div class="icon-mask mask-resurrect"></div>
+        <div class="icon-mask mask-save"></div>
+        <div class="icon-mask mask-settings"></div>
+        <div class="icon-mask mask-sound-off"></div>
+        <div class="icon-mask mask-sound-on"></div>
+        <div class="icon-mask mask-stun"></div>
+    `;
+    document.body.appendChild(iconPreloader);
+    
+    // Remove from DOM safely after sufficient time has passed for cache mapping
+    setTimeout(() => iconPreloader.remove(), 2500);
 });

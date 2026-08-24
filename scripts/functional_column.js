@@ -97,10 +97,6 @@ async function reloadCharacterData() {
 
         if (!freshData) return;
 
-        // Apply fallback base HP if missing
-        if (freshData.hp === undefined) freshData.hp = 10;
-        if (freshData.maxHp === undefined) freshData.maxHp = 10;
-
         const currentHp = combatant.currentStats.hp;
         const wasDead = combatant.isDead;
         const turnsTaken = combatant.turnsTakenThisRound || 0; 
@@ -108,6 +104,18 @@ async function reloadCharacterData() {
         // Clean reset of baseline states to the content directly from the server file
         combatant.initialStats = JSON.parse(JSON.stringify(freshData));
         combatant.baselineStats = JSON.parse(JSON.stringify(freshData)); 
+        
+        // Ensure defaults apply
+        if (combatant.baselineStats.hp === undefined) combatant.baselineStats.hp = 10;
+        if (combatant.baselineStats.maxHp === undefined) combatant.baselineStats.maxHp = 10;
+        if (combatant.initialStats.hp === undefined) combatant.initialStats.hp = 0;
+        if (combatant.initialStats.maxHp === undefined) combatant.initialStats.maxHp = 0;
+
+        const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage'];
+        coreAttributes.forEach(stat => {
+            if (combatant.initialStats[stat] === undefined || combatant.initialStats[stat] === null || combatant.initialStats[stat] === '') combatant.initialStats[stat] = 0;
+            if (combatant.baselineStats[stat] === undefined || combatant.baselineStats[stat] === null || combatant.baselineStats[stat] === '') combatant.baselineStats[stat] = 1;
+        });
         
         combatant.isDead = wasDead;
         combatant.turnsTakenThisRound = turnsTaken;
@@ -124,8 +132,8 @@ async function reloadCharacterData() {
 
         // Recalculate pipeline from scratch with updated baseline and items
         recalculateCurrentStats(combatant);
-        // Protect current health state
-        combatant.currentStats.hp = Math.min(currentHp, combatant.currentStats.maxHp);
+        // Fully restore current health based on the newly calculated max HP parameters
+        combatant.currentStats.hp = combatant.currentStats.maxHp;
 
         // Check if any new abilities were added and assign them default memory states
         combatant.abilities.forEach(ability => {
@@ -181,18 +189,12 @@ function saveCharacterStats(id) {
 
     statsToTrack.forEach(stat => {
         // Fallback to 0 if the stat is missing or undefined in initial state, with explicit NaN validation
-        let initialVal = combatant.initialStats[stat] !== undefined ? parseInt(combatant.initialStats[stat]) : 0;
+        let initialVal = parseInt(combatant.initialStats[stat]);
         if (isNaN(initialVal)) initialVal = 0;
 
         // Fallback to 0 if the stat was missing or undefined in baseline state, with explicit NaN validation
-        let baselineVal = combatant.baselineStats[stat] !== undefined ? parseInt(combatant.baselineStats[stat]) : 0;
+        let baselineVal = parseInt(combatant.baselineStats[stat]);
         if (isNaN(baselineVal)) baselineVal = 0;
-        
-        // Enforce a minimum threshold value of 1 for core main stats to prevent them from dropping to 0
-        if (coreAttributes.includes(stat)) {
-            if (baselineVal <= 0) baselineVal = 1;
-            if (initialVal <= 0) initialVal = 1;
-        }
         
         if (baselineVal !== initialVal) {
             const diff = baselineVal - initialVal;

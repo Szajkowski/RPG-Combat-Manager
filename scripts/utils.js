@@ -426,6 +426,8 @@ async function reloadScript(scriptId, srcPath) {
 async function reloadAllScripts() {
     try {
         // Order is strict: abilities must be loaded first so character templates reference the new ability objects
+        await reloadScript('effects-data', 'data/effects.js');
+        await reloadScript('items-data', 'data/items.js');
         await reloadScript('abilities-data', 'data/abilities.js');
         await reloadScript('players-data', 'data/players.js');
         await reloadScript('mobs-data', 'data/mobs.js');
@@ -457,21 +459,44 @@ async function reloadServerData() {
 
             if (!freshData) continue;
 
+            const currentHp = combatant.currentStats.hp;
+            const wasDead = combatant.isDead;
+            const turnsTaken = combatant.turnsTakenThisRound || 0; 
+
             // Update initial logic directly to reset baseline safely without causing gear loop synergies
             combatant.initialStats = JSON.parse(JSON.stringify(freshData));
             combatant.baselineStats = JSON.parse(JSON.stringify(freshData));
             
+            // Ensure defaults apply
             if (combatant.baselineStats.hp === undefined) combatant.baselineStats.hp = 10;
             if (combatant.baselineStats.maxHp === undefined) combatant.baselineStats.maxHp = 10;
+            if (combatant.initialStats.hp === undefined) combatant.initialStats.hp = 0;
+            if (combatant.initialStats.maxHp === undefined) combatant.initialStats.maxHp = 0;
 
-            const currentHp = combatant.currentStats.hp;
-            
-            // Generate final derived stats dynamically
-            combatant.currentStats = applyGearStats(combatant.baselineStats, freshData.equipment || []);
-            combatant.currentStats.hp = Math.min(currentHp, combatant.currentStats.maxHp);
+            const coreAttributes = ['vitality', 'intuition', 'strength', 'agility', 'attunement', 'perception', 'accuracy', 'reflex', 'resilience', 'damage'];
+            coreAttributes.forEach(stat => {
+                if (combatant.initialStats[stat] === undefined || combatant.initialStats[stat] === null || combatant.initialStats[stat] === '') combatant.initialStats[stat] = 0;
+                if (combatant.baselineStats[stat] === undefined || combatant.baselineStats[stat] === null || combatant.baselineStats[stat] === '') combatant.baselineStats[stat] = 1;
+            });
+
+            combatant.isDead = wasDead;
+            combatant.turnsTakenThisRound = turnsTaken;
             
             combatant.equipment = freshData.equipment ? JSON.parse(JSON.stringify(freshData.equipment)) : [];
             combatant.abilities = freshData.abilities ? JSON.parse(JSON.stringify(freshData.abilities)) : [];
+
+            // Reset current armor states to purely base file data to flush out temporary combat armor
+            if (!combatant.currentStats) combatant.currentStats = {};
+            combatant.currentStats.physArmor = parseInt(freshData.physArmor) || 0;
+            combatant.currentStats.magArmor = parseInt(freshData.magArmor) || 0;
+            combatant.currentStats.expectedBasePhys = combatant.currentStats.physArmor;
+            combatant.currentStats.expectedBaseMag = combatant.currentStats.magArmor;
+
+            // Recalculate pipeline from scratch with updated baseline and items
+            recalculateCurrentStats(combatant);
+            
+            // Fully restore current health based on the newly calculated max HP parameters
+            combatant.currentStats.hp = Math.min(currentHp, combatant.currentStats.maxHp);
 
             // Maintain cooldown states for abilities that already existed, initialize new ones
             combatant.abilities.forEach(ability => {

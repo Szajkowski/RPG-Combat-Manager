@@ -319,6 +319,7 @@ async function startServer() {
     let activeCharacters = []; // Single source of truth for all characters
     let activeEffects = []; // Kept separate for now
     let rollsHistory = []; // Global roll history feed array
+    let activeMusic = { filePath: null, isPlaying: false }; // Tracks globally active music
     const connectedClients = new Map(); // Maps socket to client details { clientId, clientName, isGM }
 
     // Handle WebSocket connections
@@ -352,7 +353,8 @@ async function startServer() {
                         serverInstanceId: serverInstanceId,
                         activeCharacters: activeCharacters,
                         activeEffects: activeEffects,
-                        rollsHistory: rollsHistory
+                        rollsHistory: rollsHistory,
+                        activeMusic: activeMusic
                     }));
                     break;
                 }
@@ -568,6 +570,30 @@ async function startServer() {
                     });
                     break;
                 }  
+
+                case 'REQUESTplayMusic': {
+                    // Update global state for reconnecting clients
+                    if (data.action === 'play') {
+                        activeMusic.filePath = data.filePath;
+                        activeMusic.isPlaying = true;
+                    } else if (data.action === 'pause') {
+                        activeMusic.isPlaying = false;
+                    } else if (data.action === 'resume') {
+                        activeMusic.isPlaying = true;
+                    }
+
+                    wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({
+                                type: 'BROADCASTplayMusic',
+                                action: data.action,
+                                // Ensure filePath is always passed to avoid broken states on reconnect
+                                filePath: data.filePath || activeMusic.filePath 
+                            }));
+                        }
+                    });
+                    break;
+                }
 
                 case 'REQUESTaddRollEvent': {
                     const roll = data.rollEvent;

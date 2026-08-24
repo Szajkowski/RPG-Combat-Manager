@@ -7,8 +7,7 @@ function getDiceDistribution(combatant, statString) {
     let totalCombos = 1;
 
     for (let stat of stats) {
-        const base = parseInt(combatant.currentStats[stat]) || 0;
-        if (base <= 0) return null; // If any stat is missing, the roll is invalid
+        const base = parseInt(combatant.currentStats[stat]) || 1;
         const mod = parseInt(combatant.currentStats[`${stat}Mod`]) || 0;
         totalCombos *= base;
 
@@ -32,9 +31,7 @@ function getDiceDistribution(combatant, statString) {
 // Evaluates mathematical percentage of Attacker strictly beating or tying Defender (calculating exact mathematical permutations)
 function calculateOpposedChance(attacker, defender, attStatString, defStatString) {
     const attDist = getDiceDistribution(attacker, attStatString);
-    if (!attDist) return 0; // Attacker auto fails if missing stat
     const defDist = getDiceDistribution(defender, defStatString);
-    if (!defDist) return 100; // Defender auto fails (attacker wins) if missing stat
 
     let wins = 0;
     for (let aSum in attDist.dp) {
@@ -56,7 +53,6 @@ function calculateOpposedChance(attacker, defender, attStatString, defStatString
 // Evaluates mathematical percentage of an entity rolling over a static threshold
 function calculateStaticChance(target, statString, difficulty) {
     const dist = getDiceDistribution(target, statString);
-    if (!dist) return 0;
 
     let wins = 0;
     for (let sum in dist.dp) {
@@ -75,6 +71,16 @@ function validateActionPayload(payload, attacker, rollData) {
     }
 
     const actionHasForcedRolls = !!(payload.forceRoll || payload.forceRollVS);
+    
+    // Validate missing flat and percentage values in damage/heal
+    if (payload.type === 'damage' || payload.type === 'heal') {
+        const hasFlat = payload.value !== undefined && payload.value !== null && payload.value !== '';
+        const hasPerc = payload.valuePerc !== undefined && payload.valuePerc !== null && payload.valuePerc !== '';
+        
+        if (!hasFlat && !hasPerc) {
+            return t('error_action_missing_value');
+        }
+    }
 
     // Validate Armor actions
     if (payload.type === 'armor') {
@@ -373,25 +379,21 @@ function evaluateActionSuccessAndResistance(attacker, target, payload, consumeRo
 
         const stats = parseRollStats(statString);
         let rollRes = 0;
-        let hasBase = false;
         let forceBreakdown = [];
         
         for (let stat of stats) {
-            const statBase = parseInt(target.currentStats[stat]) || 0;
-            if (statBase > 0) {
-                hasBase = true;
-                const statMod = parseInt(target.currentStats[`${stat}Mod`]) || 0;
-                const roll = Math.floor(Math.random() * statBase) + 1;
-                const total = Math.max(1, roll + statMod);
-                rollRes += total;
-                forceBreakdown.push({ stat: stat, roll: roll, mod: statMod, total: total });
-            }
+            const statBase = parseInt(target.currentStats[stat]);
+            const statMod = parseInt(target.currentStats[`${stat}Mod`]) || 0;
+            const roll = Math.floor(Math.random() * statBase) + 1;
+            const total = Math.max(1, roll + statMod);
+            rollRes += total;
+            forceBreakdown.push({ stat: stat, roll: roll, mod: statMod, total: total });
         }
         
         passedForceRoll = rollRes >= diff;
         defenderSingleRolls.push({ 
             stat: statString, 
-            result: hasBase ? rollRes : "X", 
+            result: rollRes, 
             color: passedForceRoll ? 'text-positive' : 'text-negative', 
             breakdown: forceBreakdown,
             difficulty: diff
@@ -692,6 +694,9 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
         magArmor: parseInt(freshCombatant.currentStats.magArmor) || 0
     };
 
+    let physBefore = currentVals.physArmor;
+    let magBefore = currentVals.magArmor;
+
     // Determine if we need the mixed sound (evaluating across all active configs)
     let hasPhys = activeConfigs.some(cfg => cfg.isPhys);
     let hasMag = activeConfigs.some(cfg => !cfg.isPhys);
@@ -729,6 +734,17 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
         stepValues.push(stepState);
     }
 
+    let subTypeFinal = null;
+    if (stepValues.length > 0) {
+        let physAfter = stepValues[stepValues.length - 1].physArmor;
+        let magAfter = stepValues[stepValues.length - 1].magArmor;
+        
+        // If the armor wasn't added and the before/after values are the same, it means no armor was actually taken off, so no sound.
+        if (!isAdding && physBefore === physAfter && magBefore === magAfter) {
+            subTypeFinal = 'resist';
+        }
+    }
+
     syncPlayActionSequence({ 
         targetId: freshCombatant.id, 
         actionType: 'armor', 
@@ -739,8 +755,9 @@ async function resolveArmorAction(combatant, payload, attacker = null, skipSync 
         isAuto: skipSync,
         hasPhysFlat: payload.physArmorValue !== undefined || payload.physArmorValuePerc !== undefined,
         hasMagFlat: payload.magArmorValue !== undefined || payload.magArmorValuePerc !== undefined,
-        isMixedSound,
-        isStunned: isStunned
+        isMixedSound: isMixedSound,
+        isStunned: isStunned,
+        subType: subTypeFinal
     });
     await delay((repeats * 300) + 100);
 

@@ -376,7 +376,6 @@ function calculateAbilitySuccessRate(combatant, abilityRoll, abilityDifficulty) 
     if (abilityDifficulty === "X") return 100;
 
     const dist = getDiceDistribution(combatant, abilityRoll);
-    if (!dist) return 0;
 
     const difficulty = parseInt(abilityDifficulty);
     let successfulCombos = 0;
@@ -408,44 +407,25 @@ async function useAbility(combatantId, ability, event) {
         const stats = parseRollStats(ability.roll);
         let totalResult = 0;
         let combinedBreakdown = [];
-        let hasBase = false;
-        let missingStat = false; // Tracks if the required stat does not exist at all on the character
 
         stats.forEach(stat => {
-            if (updatedCombatant.currentStats[stat] === undefined && updatedCombatant.currentStats[`${stat}Mod`] === undefined) {
-                missingStat = true;
-            } else {
-                const baseStat = parseInt(updatedCombatant.currentStats[stat]) || 0;
-                if (baseStat > 0) {
-                    hasBase = true;
-                    const modValue = parseInt(updatedCombatant.currentStats[`${stat}Mod`]) || 0;
-                    const roll = Math.floor(Math.random() * baseStat) + 1;
-                    const finalRes = Math.max(1, roll + modValue);
-                    totalResult += finalRes;
-                    combinedBreakdown.push({ stat: stat, roll: roll, mod: modValue, total: finalRes });
-                }
-            }
+            const baseStat = parseInt(updatedCombatant.currentStats[stat]) || 1;
+            const modValue = parseInt(updatedCombatant.currentStats[`${stat}Mod`]) || 0;
+            const roll = Math.floor(Math.random() * baseStat) + 1;
+            const finalRes = Math.max(1, roll + modValue);
+            totalResult += finalRes;
+            combinedBreakdown.push({ stat: stat, roll: roll, mod: modValue, total: finalRes });
         });
 
-        // Abort the ability entirely if a required stat doesn't exist
-        if (missingStat) {
-            showAlertDialog(t('error_no_stats'));
-            return;
-        }
-
-        if (hasBase) {
-            success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
-            const groupColor = success ? 'text-positive' : 'text-negative';
-            initialRollsData.push({
-                stat: ability.roll,
-                result: totalResult,
-                color: ability.difficulty === "X" ? 'text-neutral' : groupColor,
-                breakdown: combinedBreakdown,
-                difficulty: ability.difficulty !== "X" ? parseInt(ability.difficulty) : null
-            });
-        } else {
-            success = false; 
-        }
+        success = ability.difficulty === "X" ? true : totalResult >= parseInt(ability.difficulty);
+        const groupColor = success ? 'text-positive' : 'text-negative';
+        initialRollsData.push({
+            stat: ability.roll,
+            result: totalResult,
+            color: ability.difficulty === "X" ? 'text-neutral' : groupColor,
+            breakdown: combinedBreakdown,
+            difficulty: ability.difficulty !== "X" ? parseInt(ability.difficulty) : null
+        });
     }
 
     // Mutate the local clone
